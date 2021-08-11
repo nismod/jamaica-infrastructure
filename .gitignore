@@ -15,4 +15,5 @@ __pycache__
 *.prj
 *.xml
 *.gpkg*
-
+*.zip
+*.qgz
