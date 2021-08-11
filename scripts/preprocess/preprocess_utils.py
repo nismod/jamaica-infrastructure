@@ -40,6 +40,9 @@ def create_network_from_nodes_and_edges(nodes,edges,node_edge_prefix,out_fname):
     network = snkit.network.snap_nodes(network)
     print ('* Done with snapping nodes to edges')
 
+    network.nodes = snkit.network.drop_duplicate_geometries(network.nodes)
+    print ('* Done with dropping same geometries')
+
     network = snkit.network.split_edges_at_nodes(network)
     print ('* Done with splitting edges at nodes')
 
