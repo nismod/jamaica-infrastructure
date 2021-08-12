@@ -66,14 +66,31 @@ def create_network_from_nodes_and_edges(nodes, edges, node_edge_prefix, out_fnam
     network = snkit.network.add_topology(network, id_col="id")
     print("* Done with network topology")
 
-    print(network.edges.columns)
-    network = snkit.network.merge_edges(network, by=["_7", "street_typ"])
+    network = snkit.network.merge_edges(network)
     print("* Done with merge edges")
 
-    network.edges.rename(
-        columns={"from_id": "from_node", "to_id": "to_node", "id": "edge_id"},
-        inplace=True,
+    network.edges = network.edges.rename(
+        columns={
+            "from_id": "from_node",
+            "to_id": "to_node",
+            "id": "edge_id",
+            "_7": "road_class",
+            "street_nam": "street_name",
+            "street_typ": "street_type",
+        }
+    ).drop(
+        columns=[
+            "fnode_",
+            "tnode_",
+            "lpoly_",
+            "rpoly_",
+            "length",
+            "shape_length",
+            "road50west",
+            "road50we_1",
+        ]
     )
+
     network.nodes.rename(columns={"id": "node_id"}, inplace=True)
 
     network.edges.to_file(out_fname, layer="edges", driver="GPKG")
