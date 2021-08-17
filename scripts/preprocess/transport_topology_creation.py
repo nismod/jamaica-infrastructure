@@ -14,24 +14,15 @@ def main(config):
     database_name = "GWP_Jamaica_NSP_Master_Geodatabase_v01.gdb"
 
     sector_details = [
-        # {
-        #     'sector_name':'rail',
-        #     'node_folder':'nsdmb',
-        #     'node_layer':'railway_stations',
-        #     'node_file_type':database_name,
-        #     'edge_folder':'nsdmb',
-        #     'edge_layer':'railways',
-        #     'edge_file_type':database_name,
-        # },
-        # {
-        #     'sector_name':'road',
-        #     'node_folder':'NWA Bridges 2016',
-        #     'node_layer':'NWA Bridges 2016.shp',
-        #     'node_file_type':None,
-        #     'edge_folder':'nsdmb',
-        #     'edge_layer':'roads_main_NWA',
-        #     'edge_file_type':database_name,
-        # },
+        {
+            'sector_name':'rail',
+            'node_folder':'nsdmb',
+            'node_layer':'railway_stations',
+            'node_file_type':database_name,
+            'edge_folder':'nsdmb',
+            'edge_layer':'railways',
+            'edge_file_type':database_name,
+        },
         {
             "sector_name": "roads",
             "node_folder": "NWA Bridges 2016",
