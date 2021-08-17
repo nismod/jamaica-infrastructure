@@ -184,7 +184,7 @@ def main(config):
 
         # This is to just fix a data problem in the indsutry layer
         if layer['layer_name'] == 'industry':
-            points_file['SECTOR'].fillna('Unknown',inplace=True)
+            points_file['SECTOR'] = points_file['SECTOR'].replace(' ', 'Unknown')
             for sh in range(len(layer['excel_sheets'])):
                 nsdmb_layers = pd.read_excel(os.path.join(
                                     building_data_path,
@@ -204,6 +204,7 @@ def main(config):
                                         + points_file['mining_subsector_code'].astype(str)
             points_file.drop(['manufacturing_sector_code','mining_sector_code',
                                 'manufacturing_subsector_code','mining_subsector_code'],axis=1,inplace=True)
+            points_file.to_csv(os.path.join(building_data_path,'industry_points.csv'))
         else:
             nsdmb_layers = pd.read_excel(os.path.join(
                                     building_data_path,
