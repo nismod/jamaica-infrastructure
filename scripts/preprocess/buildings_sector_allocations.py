@@ -94,7 +94,7 @@ def main(config):
         new_columns += [f'{column}_sector_code',f'{column}_subsector_code']
         buildings_input = pd.merge(buildings_input,sector_map,how='left',on=[column])
     
-    buildings_input[new_columns] = buildings_input[new_columns].fillna(value='X')
+    buildings_input[new_columns] = buildings_input[new_columns].fillna('X',inplace=True)
 
     buildings_input['sector_subsector'] = buildings_input.progress_apply(lambda x: get_sector_subsector(x,merge_columns),axis=1)
     buildings_input[['sector_code','subsector_code']] = buildings_input['sector_subsector'].apply(pd.Series)
