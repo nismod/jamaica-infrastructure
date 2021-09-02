@@ -1,3 +1,8 @@
+#ignore some data file in TC data
+scripts/preprocess/TC_event_generation/Input/*
+scripts/preprocess/TC_event_generation/Output/*
+scripts/preprocess/TC_event_generation/data/*.DS_store
+
 # Ignore config file
 config.json
 
