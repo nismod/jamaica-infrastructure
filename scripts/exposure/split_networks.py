@@ -4,17 +4,19 @@ import json
 import os
 import sys
 from collections import namedtuple
-from glob import glob
 
 import fiona
 import geopandas
 import pandas
 import rasterio
 
-from shapely.ops import linemerge
-from snail.intersections import split_linestring
-from snail.intersections import get_cell_indices
+from shapely.ops import linemerge, polygonize
+from snail.intersections import get_cell_indices, split_linestring, split_polygon
 from tqdm import tqdm
+
+
+# Enable progress_apply
+tqdm.pandas()
 
 
 def load_config():
@@ -23,10 +25,6 @@ def load_config():
     with open(config_path, "r") as config_fh:
         config = json.load(config_fh)
     return config
-
-
-# Enable progress_apply
-tqdm.pandas()
 
 
 def main(data_path, networks_csv, hazards_csv):
@@ -68,7 +66,11 @@ def main(data_path, networks_csv, hazards_csv):
 
         if "areas" in layers:
             # split polygons
-            pass
+            areas = geopandas.read_file(fname, layer="areas")
+            print(" areas", areas.crs)
+            areas = explode_multi(areas)
+            areas = process_areas(areas, transforms, hazard_transforms, data_path)
+            areas.to_file(out_fname, driver="GPKG", layer="areas")
 
 
 # Helper class to store a raster transform and CRS
@@ -142,7 +144,7 @@ def process_nodes(nodes, transforms, hazard_transforms, data_path):
 
 
 def try_merge(geom):
-    if geom.type =='MultiLineString':
+    if geom.geom_type =='MultiLineString':
         geom = linemerge(geom)
     return geom
 
@@ -150,9 +152,9 @@ def try_merge(geom):
 def process_edges(edges, transforms, hazard_transforms, data_path):
     # handle multilinestrings
     edges.geometry = edges.geometry.apply(try_merge)
-    geom_types = edges.geometry.apply(lambda g: g.type)
+    geom_types = edges.geometry.apply(lambda g: g.geom_type)
     print("   ", (geom_types.value_counts()))
-    edges = edges[geom_types == 'LineString']
+    edges = explode_multi(edges)
 
     # split edges per transform
     for i, t in enumerate(transforms):
@@ -196,7 +198,70 @@ def split_df(df, t):
             del s_dict['Index']
             s_dict['geometry'] = s
             core_splits.append(s_dict)
-    print("  Split %d edges into %d pieces", len(df), len(core_splits))
+    print(f"  Split {len(df)} edges into {len(core_splits)} pieces")
+    sdf = geopandas.GeoDataFrame(core_splits)
+    sdf.crs = t.crs
+    return sdf
+
+
+def process_areas(areas, transforms, hazard_transforms, data_path):
+    # split areas per transform
+    for i, t in enumerate(transforms):
+        # transform to grid
+        crs_df = areas.to_crs(t.crs)
+        crs_df = split_area_df(crs_df, t)
+        # save cell index for fast lookup of raster values
+        crs_df[f'cell_index_{i}'] = crs_df.geometry.progress_apply(lambda geom: get_indices(geom, t))
+        # transform back
+        areas = crs_df.to_crs(areas.crs)
+
+    # associate hazard values
+    for hazard in hazard_transforms.itertuples():
+        print(hazard.key, hazard.transform_id)
+        fname = os.path.join(data_path, hazard.path)
+        cell_index_col = f'cell_index_{hazard.transform_id}'
+        associate_raster(areas, hazard.key, fname, cell_index_col)
+
+    # split and drop tuple columns so GPKG can save
+    for i, t in enumerate(transforms):
+        areas = split_index_column(areas, f'cell_index_{i}')
+        areas.drop(columns=f'cell_index_{i}', inplace=True)
+
+    return areas
+
+def explode_multi(df):
+    items = []
+    geoms = []
+    for item in df.itertuples(index=False):
+        if item.geometry.geom_type in ('MultiPoint', 'MultiLineString', 'MultiPolygon'):
+            for part in item.geometry:
+                items.append(item._asdict())
+                geoms.append(part)
+
+    df = geopandas.GeoDataFrame(items, crs=df.crs)
+    df['geometry'] = geoms
+    return df
+
+
+def split_area_df(df, t):
+    # split
+    core_splits = []
+    for area in tqdm(df.itertuples(), total=len(df)):
+        # split area
+        splits = split_polygon(
+            area.geometry,
+            t.width,
+            t.height,
+            t.transform
+        )
+        splits = list(polygonize(splits))
+        # add to collection
+        for s in splits:
+            s_dict = area._asdict()
+            del s_dict['Index']
+            s_dict['geometry'] = s
+            core_splits.append(s_dict)
+    print(f"  Split {len(df)} areas into {len(core_splits)} pieces")
     sdf = geopandas.GeoDataFrame(core_splits)
     sdf.crs = t.crs
     return sdf
