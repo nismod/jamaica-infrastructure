@@ -30,12 +30,15 @@ tqdm.pandas()
 
 
 def main(data_path, networks_csv, hazards_csv):
+    # read transforms, record with hazards
     hazards = pandas.read_csv(hazards_csv)
-    transforms = read_transforms(hazards, data_path)
+    hazard_transforms, transforms = read_transforms(hazards, data_path)
+    hazard_transforms.to_csv(hazards_csv.replace(".csv", "__with_transforms.csv"), index=False)
+
+    # read networks
     networks = pandas.read_csv(networks_csv)
+
     for network_path in networks.path:
-        if "rail" not in network_path:
-            continue
         fname = os.path.join(data_path, network_path)
         out_fname = fname.replace(".gpkg", "_splits.gpkg")
 
@@ -47,19 +50,22 @@ def main(data_path, networks_csv, hazards_csv):
 
         print("Processing", os.path.basename(fname))
         layers = fiona.listlayers(fname)
-        print("   ", layers)
+        print("   layers:", layers)
+
         if "nodes" in layers:
             # look up nodes cell index
             nodes = geopandas.read_file(fname, layer="nodes")
             print(" nodes", nodes.crs)
-            nodes = process_nodes(nodes, transforms)
+            nodes = process_nodes(nodes, transforms, hazard_transforms, data_path)
             nodes.to_file(out_fname, driver="GPKG", layer="nodes")
+
         if "edges" in layers:
             # split lines
             edges = geopandas.read_file(fname, layer="edges")
             print(" edges", edges.crs)
-            edges = process_edges(edges, transforms)
+            edges = process_edges(edges, transforms, hazard_transforms, data_path)
             edges.to_file(out_fname, driver="GPKG", layer="edges")
+
         if "areas" in layers:
             # split polygons
             pass
@@ -69,56 +75,114 @@ def main(data_path, networks_csv, hazards_csv):
 Transform = namedtuple('Transform', ['crs', 'width', 'height', 'transform'])
 
 
-def associate_raster(df, key, fname, band_number=1):
+def associate_raster(df, key, fname, cell_index_col='cell_index', band_number=1):
     with rasterio.open(fname) as dataset:
         band_data = dataset.read(band_number)
-        df[key] = df.cell_index.apply(lambda i: band_data[i[1], i[0]])
+        df[key] = df[cell_index_col].apply(lambda i: band_data[i[1], i[0]])
 
 
 def read_transforms(hazards, data_path):
-    transforms = set()
-    for hazard_path in hazards.path:
+    transforms = []
+    transform_id = 0
+    hazard_transforms = []
+    for hazard in hazards.itertuples():
+        hazard_path = hazard.path
         with rasterio.open(os.path.join(data_path, hazard_path)) as dataset:
             crs = dataset.crs
             width = dataset.width
             height = dataset.height
-            transforms.add(Transform(crs, width, height, tuple(dataset.transform)))
-    transforms = list(transforms)
-    # output to hazard_transforms.csv?
-    # add columns to hazards.csv?
-    return transforms
+            transform = Transform(crs, width, height, tuple(dataset.transform))
+        # add transform to list if not present
+        if transform not in transforms:
+            transforms.append(transform)
+            transform_id = transform_id + 1
+
+        # record hazard/transform details
+        hazard_transform_id = transforms.index(transform)
+        hazard_transform = hazard._asdict()
+        del hazard_transform['Index']
+        hazard_transform['transform_id'] = hazard_transform_id
+        hazard_transform['width'] = transform.width
+        hazard_transform['height'] = transform.height
+        hazard_transform['crs'] = str(transform.crs)
+        hazard_transform['transform_0'] = transform.transform[0]
+        hazard_transform['transform_1'] = transform.transform[1]
+        hazard_transform['transform_2'] = transform.transform[2]
+        hazard_transform['transform_3'] = transform.transform[3]
+        hazard_transform['transform_4'] = transform.transform[4]
+        hazard_transform['transform_5'] = transform.transform[5]
+        hazard_transforms.append(hazard_transform)
+    hazard_transforms = pandas.DataFrame(hazard_transforms)
+
+    return hazard_transforms, transforms
 
 
-def process_nodes(nodes, transforms):
+def process_nodes(nodes, transforms, hazard_transforms, data_path):
     # lookup per transform
     for i, t in enumerate(transforms):
-        print(i, t)
+        # transform to grid
+        crs_df = nodes.to_crs(t.crs)
         # save cell index for fast lookup of raster values
-        nodes[f'cell_index_{i}'] = nodes.geometry.progress_apply(lambda geom: get_indices(geom, t))
+        crs_df[f'cell_index_{i}'] = crs_df.geometry.progress_apply(lambda geom: get_indices(geom, t))
+        # transform back
+        nodes = crs_df.to_crs(nodes.crs)
+
+    # associate hazard values
+    for hazard in hazard_transforms.itertuples():
+        print(hazard.key, hazard.transform_id)
+        fname = os.path.join(data_path, hazard.path)
+        cell_index_col = f'cell_index_{hazard.transform_id}'
+        associate_raster(nodes, hazard.key, fname, cell_index_col)
+
+    # split and drop tuple columns so GPKG can save
+    for i, t in enumerate(transforms):
+        nodes = split_index_column(nodes, f'cell_index_{i}')
+        nodes.drop(columns=f'cell_index_{i}', inplace=True)
     return nodes
 
 
-def process_edges(edges, transforms):
+def try_merge(geom):
+    if geom.type =='MultiLineString':
+        geom = linemerge(geom)
+    return geom
+
+
+def process_edges(edges, transforms, hazard_transforms, data_path):
     # handle multilinestrings
-    edges.geometry = edges.geometry.apply(linemerge)
-    print("   ", (edges.geometry.apply(lambda g: g.type)).value_counts())
-    edges = edges[edges.geometry.apply(lambda g: g.type) == 'LineString']
+    edges.geometry = edges.geometry.apply(try_merge)
+    geom_types = edges.geometry.apply(lambda g: g.type)
+    print("   ", (geom_types.value_counts()))
+    edges = edges[geom_types == 'LineString']
 
     # split edges per transform
     for i, t in enumerate(transforms):
-        print(i, t)
-        edges = split_df(edges, t)
+        # transform to grid
+        crs_df = edges.to_crs(t.crs)
+        crs_df = split_df(crs_df, t)
         # save cell index for fast lookup of raster values
-        edges[f'cell_index_{i}'] = edges.geometry.progress_apply(lambda geom: get_indices(geom, t))
+        crs_df[f'cell_index_{i}'] = crs_df.geometry.progress_apply(lambda geom: get_indices(geom, t))
+        # transform back
+        edges = crs_df.to_crs(edges.crs)
+
+    # associate hazard values
+    for hazard in hazard_transforms.itertuples():
+        print(hazard.key, hazard.transform_id)
+        fname = os.path.join(data_path, hazard.path)
+        cell_index_col = f'cell_index_{hazard.transform_id}'
+        associate_raster(edges, hazard.key, fname, cell_index_col)
+
+    # split and drop tuple columns so GPKG can save
+    for i, t in enumerate(transforms):
+        edges = split_index_column(edges, f'cell_index_{i}')
+        edges.drop(columns=f'cell_index_{i}', inplace=True)
+
     return edges
 
 
 def split_df(df, t):
-    # transform to grid
-    crs_df = df.to_crs(t.crs)
     # split
     core_splits = []
-    for edge in tqdm(crs_df.itertuples(), total=len(df)):
+    for edge in tqdm(df.itertuples(), total=len(df)):
         # split edge
         splits = split_linestring(
             edge.geometry,
@@ -135,8 +199,7 @@ def split_df(df, t):
     print("  Split %d edges into %d pieces", len(df), len(core_splits))
     sdf = geopandas.GeoDataFrame(core_splits)
     sdf.crs = t.crs
-    # transform back
-    return sdf.to_crs(df.crs)
+    return sdf
 
 
 def get_indices(geom, t):
@@ -149,6 +212,12 @@ def get_indices(geom, t):
     x = x % t.width
     y = y % t.height
     return (x, y)
+
+
+def split_index_column(df, prefix):
+    df[f'{prefix}_x'] = df[prefix].apply(lambda i: i[0])
+    df[f'{prefix}_y'] = df[prefix].apply(lambda i: i[1])
+    return df
 
 
 if __name__ == '__main__':
