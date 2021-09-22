@@ -13,7 +13,7 @@ gpd._compat.USE_PYGEOS = False
 import fiona
 import numpy as np
 import snkit
-import snkit_network
+#import snkit_network
 from tqdm import tqdm
 tqdm.pandas()
 
@@ -223,7 +223,7 @@ def extract_nodes_within_gdf(x, input_nodes, column_name):
 
 def assign_node_weights_by_population_proximity(nodes_dataframe,
                         population_dataframe,
-                        node_id_column,population_value_column,epsg=4326):
+                        node_id_column,population_value_column,epsg=4326,**kwargs):
     """Assign weights to nodes based on their nearest populations
 
         - By finding the population that intersect with the Voronoi extents of nodes
@@ -276,7 +276,10 @@ def assign_node_weights_by_population_proximity(nodes_dataframe,
     gdf_voronoi['areas'] = gdf_voronoi.progress_apply(lambda x:x.geometry.area,axis=1)
     gdf_voronoi[node_id_column] = gdf_voronoi.progress_apply(
         lambda x: extract_nodes_within_gdf(x, nodes_dataframe, node_id_column), axis=1)
-    # gdf_voronoi.to_file('test.shp')
+    if not kwargs.get('save',False):
+        pass
+    else:
+        gdf_voronoi.to_file(kwargs.get('voronoi_path','voronoi-output.shp'))
 
     gdf_voronoi[population_value_column] = 0
     gdf_voronoi = assign_value_in_area_proportions(population_dataframe, gdf_voronoi, population_value_column)
