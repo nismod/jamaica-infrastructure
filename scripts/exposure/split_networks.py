@@ -257,6 +257,9 @@ def explode_multi(df):
             for part in item.geometry:
                 items.append(item._asdict())
                 geoms.append(part)
+        else:
+            items.append(item._asdict())
+            geoms.append(item.geometry)
 
     df = geopandas.GeoDataFrame(items, crs=df.crs, geometry=geoms)
     return df
