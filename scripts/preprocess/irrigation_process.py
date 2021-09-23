@@ -60,8 +60,8 @@ def main(config):
     pipelines["asset_type_flood_damage"] = "irrigation_canal"
     pipelines["asset_type_hurricane_damage"] = "na"
 
-    nodes = gpd.GeoDataFrame(wells, crs=f"EPSG:{epsg_jamaica}")
-    edges = gpd.GeoDataFrame(pd.concat([canals, pipelines]), crs=f"EPSG:{epsg_jamaica}")
+    nodes = wells.to_crs(f"EPSG:{epsg_jamaica}")
+    edges = pd.concat([canals, pipelines])
 
     # provide id
     nodes["node_id"] = nodes.apply(lambda node: f"{node.asset_type}_{node.OBJECTID}", axis=1)
