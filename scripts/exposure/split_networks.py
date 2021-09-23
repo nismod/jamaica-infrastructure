@@ -55,14 +55,16 @@ def main(data_path, networks_csv, hazards_csv):
             nodes = geopandas.read_file(fname, layer="nodes")
             print(" nodes", nodes.crs)
             nodes = process_nodes(nodes, transforms, hazard_transforms, data_path)
-            nodes.to_file(out_fname, driver="GPKG", layer="nodes")
+            # nodes.to_file(out_fname, driver="GPKG", layer="nodes")
+            nodes.to_parquet(out_fname.replace("_splits.gpkg","_split_nodes.geoparquet"))
 
         if "edges" in layers:
             # split lines
             edges = geopandas.read_file(fname, layer="edges")
             print(" edges", edges.crs)
             edges = process_edges(edges, transforms, hazard_transforms, data_path)
-            edges.to_file(out_fname, driver="GPKG", layer="edges")
+            # edges.to_file(out_fname, driver="GPKG", layer="edges")
+            edges.to_parquet(out_fname.replace("_splits.gpkg","_split_edges.geoparquet"))
 
         if "areas" in layers:
             # split polygons
@@ -70,7 +72,8 @@ def main(data_path, networks_csv, hazards_csv):
             print(" areas", areas.crs)
             areas = explode_multi(areas)
             areas = process_areas(areas, transforms, hazard_transforms, data_path)
-            areas.to_file(out_fname, driver="GPKG", layer="areas")
+            # areas.to_file(out_fname, driver="GPKG", layer="areas")
+            areas.to_parquet(out_fname.replace("_splits.gpkg","_split_areas.geoparquet"))
 
 
 # Helper class to store a raster transform and CRS
