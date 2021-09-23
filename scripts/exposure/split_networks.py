@@ -220,8 +220,7 @@ def split_df(df, t):
             s_dict['geometry'] = s
             core_splits.append(s_dict)
     print(f"  Split {len(df)} edges into {len(core_splits)} pieces")
-    sdf = geopandas.GeoDataFrame(core_splits)
-    sdf.crs = t.crs
+    sdf = geopandas.GeoDataFrame(core_splits, crs=t.crs, geometry='geometry')
     return sdf
 
 
