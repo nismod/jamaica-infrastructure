@@ -24,7 +24,7 @@ def main(config):
     # read in raw files
     waste_water_facilities_NWC = gpd.read_file(
         os.path.join(wastewater_data_path, "raw", "waste_water_facilities_NWC.shp")
-    ).rename(columns={"Type": "asset_type"})
+    ).rename(columns={"Type": "asset_type", "Capacity": "capacity"})
     # Currently ignoring sewers
     # sewers = gpd.read_file(
     #     os.path.join(wastewater_data_path, "raw", "wGravityMain.shp")
