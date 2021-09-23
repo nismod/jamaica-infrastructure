@@ -1,0 +1,13 @@
+fiona
+geopandas
+matplotlib
+numpy
+pandas
+pathos
+rasterio
+rioxarray
+scipy
+shapely
+snkit
+tqdm
+xarray
