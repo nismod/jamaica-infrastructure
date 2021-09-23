@@ -89,7 +89,7 @@ def main(config):
 
     # provide id
     waste_water_facilities_NWC["node_id"] = waste_water_facilities_NWC \
-        .apply(lambda node: f"{node.asset_type}_{node.OBJECTID}")
+        .apply(lambda node: f"{node.asset_type}_{node.OBJECTID}", axis=1)
 
     # export as gpkg
     waste_water_facilities_NWC = gpd.GeoDataFrame(

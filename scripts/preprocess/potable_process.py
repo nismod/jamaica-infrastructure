@@ -36,7 +36,8 @@ def main(config):
     ).rename(columns={"Type": "asset_type"})
 
     # provide id
-    potable_facilities_NWC["node_id"] = potable_facilities_NWC.apply(lambda node: f"{node.asset_type}_{node.OBJECTID}")
+    potable_facilities_NWC["node_id"] = potable_facilities_NWC \
+        .apply(lambda node: f"{node.asset_type}_{node.OBJECTID}", axis=1)
 
     # export as gpkg
     geometry = [

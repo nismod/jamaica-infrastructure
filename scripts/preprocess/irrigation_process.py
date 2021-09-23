@@ -64,8 +64,8 @@ def main(config):
     edges = gpd.GeoDataFrame(pd.concat([canals, pipelines]), crs=f"EPSG:{epsg_jamaica}")
 
     # provide id
-    nodes["node_id"] = nodes.apply(lambda node: f"{node.asset_type}_{node.OBJECTID}")
-    edges["edge_id"] = edges.apply(lambda edge: f"{edge.asset_type}_{edge.OBJECTID}")
+    nodes["node_id"] = nodes.apply(lambda node: f"{node.asset_type}_{node.OBJECTID}", axis=1)
+    edges["edge_id"] = edges.apply(lambda edge: f"{edge.asset_type}_{edge.OBJECTID}", axis=1)
 
     # export as gpkg
     fname = os.path.join(
