@@ -241,8 +241,7 @@ def explode_multi(df):
                 items.append(item._asdict())
                 geoms.append(part)
 
-    df = geopandas.GeoDataFrame(items, crs=df.crs)
-    df['geometry'] = geoms
+    df = geopandas.GeoDataFrame(items, crs=df.crs, geometry=geoms)
     return df
 
 
