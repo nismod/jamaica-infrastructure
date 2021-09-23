@@ -43,11 +43,11 @@ def main(data_path, networks_csv, hazards_csv):
         pq_fname_edges = out_fname.replace("_splits.gpkg","_split_edges.geoparquet")
         pq_fname_areas = out_fname.replace("_splits.gpkg","_split_areas.geoparquet")
 
-        # skip if output is there already
-        if os.path.exists(out_fname):
-            print("Skipping", os.path.basename(fname), ". Already exists:")
-            print("-", out_fname)
-            continue
+        # skip if output is there already (not using gpkg currently)
+        # if os.path.exists(out_fname):
+        #     print("Skipping", os.path.basename(fname), ". Already exists:")
+        #     print("-", out_fname)
+        #     continue
 
         print("Processing", os.path.basename(fname))
         layers = fiona.listlayers(fname)
@@ -58,40 +58,40 @@ def main(data_path, networks_csv, hazards_csv):
             if os.path.exists(pq_fname_nodes):
                 print("Skipping", os.path.basename(fname), ". Already exists:")
                 print("-", pq_fname_nodes)
-                continue
-            # look up nodes cell index
-            nodes = geopandas.read_file(fname, layer="nodes")
-            print(" nodes", nodes.crs)
-            nodes = process_nodes(nodes, transforms, hazard_transforms, data_path)
-            # nodes.to_file(out_fname, driver="GPKG", layer="nodes")
-            nodes.to_parquet(pq_fname_nodes)
+            else:
+                # look up nodes cell index
+                nodes = geopandas.read_file(fname, layer="nodes")
+                print(" nodes", nodes.crs)
+                nodes = process_nodes(nodes, transforms, hazard_transforms, data_path)
+                # nodes.to_file(out_fname, driver="GPKG", layer="nodes")
+                nodes.to_parquet(pq_fname_nodes)
 
         if "edges" in layers:
             # skip if output is there already
             if os.path.exists(pq_fname_edges):
                 print("Skipping", os.path.basename(fname), ". Already exists:")
                 print("-", pq_fname_edges)
-                continue
-            # split lines
-            edges = geopandas.read_file(fname, layer="edges")
-            print(" edges", edges.crs)
-            edges = process_edges(edges, transforms, hazard_transforms, data_path)
-            # edges.to_file(out_fname, driver="GPKG", layer="edges")
-            edges.to_parquet(pq_fname_edges)
+            else:
+                # split lines
+                edges = geopandas.read_file(fname, layer="edges")
+                print(" edges", edges.crs)
+                edges = process_edges(edges, transforms, hazard_transforms, data_path)
+                # edges.to_file(out_fname, driver="GPKG", layer="edges")
+                edges.to_parquet(pq_fname_edges)
 
         if "areas" in layers:
             # skip if output is there already
             if os.path.exists(pq_fname_areas):
                 print("Skipping", os.path.basename(fname), ". Already exists:")
                 print("-", pq_fname_areas)
-                continue
-            # split polygons
-            areas = geopandas.read_file(fname, layer="areas")
-            print(" areas", areas.crs)
-            areas = explode_multi(areas)
-            areas = process_areas(areas, transforms, hazard_transforms, data_path)
-            # areas.to_file(out_fname, driver="GPKG", layer="areas")
-            areas.to_parquet(pq_fname_areas)
+            else:
+                # split polygons
+                areas = geopandas.read_file(fname, layer="areas")
+                print(" areas", areas.crs)
+                areas = explode_multi(areas)
+                areas = process_areas(areas, transforms, hazard_transforms, data_path)
+                # areas.to_file(out_fname, driver="GPKG", layer="areas")
+                areas.to_parquet(pq_fname_areas)
 
 
 # Helper class to store a raster transform and CRS
