@@ -13,7 +13,8 @@ def main(config):
     incoming_data_path = config["paths"]["incoming_data"]
     processed_data_path = config["paths"]["data"]
     epsg_jamaica = 3448
-    potable_data_path = os.path.join(incoming_data_path, "water", "potable", "ss")
+    water_data_path = os.path.join(incoming_data_path, "water")
+    potable_data_path = os.path.join(incoming_data_path, "water", "potable", "raw")
 
     # read in raw files
 
@@ -23,17 +24,76 @@ def main(config):
     # - hurricane induced damage for pumping stations, intakes and wells are assumed to be the same as that for water treatment plants
     # - flood induced damage for intakes is assumed to be the same as that for pumping stations
 
-    potable_facilities_NWC = pd.read_csv(
-        os.path.join(potable_data_path, "potable_facilities_NWC_test.csv")
+    potable_facilities_NWC = gpd.read_file(
+        os.path.join(potable_data_path, "potable_facilities.shp")
     )
     asset_population_served = pd.read_csv(
-        os.path.join(potable_data_path, "final_3.csv")
+        os.path.join(potable_data_path, "asset_criticality_final.csv"),encoding="latin"
     )
+    supplement_treatment_plant_capacity = pd.read_csv(os.path.join(water_data_path,
+                                "potable",
+                                "additional_capacity_data",
+                                "supplement_treatment_plant_capacity.csv"))
+    cost_data = pd.read_csv(os.path.join(water_data_path,"cost","water_asset_costs.csv"))
+    
+    potable_facilities_NWC['lon'] = potable_facilities_NWC['geometry'].centroid.x
+    potable_facilities_NWC['lat'] = potable_facilities_NWC['geometry'].centroid.y
+
     potable_facilities_NWC = pd.merge(
-        potable_facilities_NWC,
-        asset_population_served[["OBJECTID", "path"]],
-        on="OBJECTID",
-    ).rename(columns={"Type": "asset_type"})
+                    potable_facilities_NWC,
+                    asset_population_served[['OBJECTID', 'LOCATION', 
+                                        'Type', 'asset_pop_new_2010',
+                                        'asset_pop_new_2020','asset_pop_new_2030']],
+                                        on=['OBJECTID', 'LOCATION', 'Type'], how='left')
+
+    # potable_facilities_NWC = pd.merge(
+    #     potable_facilities_NWC,
+    #     asset_population_served[["OBJECTID", "path"]],
+    #     on="OBJECTID",
+    # ).rename(columns={"Type": "asset_type"})
+
+    potable_facilities_NWC['Capacity'] = pd.to_numeric(
+                                                potable_facilities_NWC['Capacity'],
+                                                errors='coerce')
+    potable_facilities_NWC['capacity (mgd)'] = np.where(
+                                        (potable_facilities_NWC['Type'].isin(
+                                                    ['Filter Plant','Treatment Plant']))&(potable_facilities_NWC['Capacity']>1000000), 
+                                                    potable_facilities_NWC['Capacity']*0.000001, potable_facilities_NWC['Capacity'])
+
+    # incorporate supplementary capacity data
+    potable_facilities_NWC = pd.merge(
+                                potable_facilities_NWC,
+                                supplement_treatment_plant_capacity,
+                                on=['OBJECTID','Type'], how='left')
+    potable_facilities_NWC['capacity (mgd)'] = np.where(
+                                    potable_facilities_NWC['capacity (mgd)']>0, 
+                                    potable_facilities_NWC['capacity (mgd)'], 
+                                    potable_facilities_NWC['capacity (mgd) from supplement'])
+    potable_facilities_NWC['capacity (mgd)'] = pd.to_numeric(
+                                    potable_facilities_NWC['capacity (mgd)'], 
+                                    errors='coerce')
+
+    
+    # assign asset name for matching with cost/damage data
+    potable_facilities_NWC['asset_type_cost_data'] = np.where(potable_facilities_NWC['Type'].isin(['Filter Plant','Treatment Plant']), 'treatment plant',
+                                                     np.where(potable_facilities_NWC['Type'].isin(['River Source','Spring','Sump']), 'intake',
+                                                     np.where(potable_facilities_NWC['Type'].isin(['Relift Station','Pump Station','Booster Station']), 'pumping unit',
+                                                     np.where(potable_facilities_NWC['Type'].isin(['Production Well']), 'well', 'na'))))
+    potable_facilities_NWC['asset_type_flood_damage'] = np.where(potable_facilities_NWC['Type'].isin(['Filter Plant','Treatment Plant']), 'water treatment plant',
+                                                     np.where(potable_facilities_NWC['Type'].isin(['River Source','Spring','Sump']), 'pumping unit',
+                                                     np.where(potable_facilities_NWC['Type'].isin(['Relift Station','Pump Station','Booster Station']), 'pumping unit',
+                                                     np.where(potable_facilities_NWC['Type'].isin(['Production Well']), 'well', 'na'))))
+    potable_facilities_NWC['asset_type_hurricane_damage'] = np.where(potable_facilities_NWC['Type'].isin(['Filter Plant','Treatment Plant']), 'water treatment plant',
+                                                     np.where(potable_facilities_NWC['Type'].isin(['River Source','Spring','Sump']), 'water treatment plant',
+                                                     np.where(potable_facilities_NWC['Type'].isin(['Relift Station','Pump Station','Booster Station']), 'water treatment plant',
+                                                     np.where(potable_facilities_NWC['Type'].isin(['Production Well']), 'water treatment plant', 'na'))))                                                 
+    # merge on cost data
+    potable_facilities_NWC = pd.merge(
+                                potable_facilities_NWC, 
+                                cost_data, 
+                                left_on = 'asset_type_cost_data', 
+                                right_on = 'asset', how='left')
+    potable_facilities_NWC.rename(columns={"Type": "asset_type","curve":"cost_unit"},inplace=True)
 
     # provide id
     potable_facilities_NWC["node_id"] = potable_facilities_NWC \

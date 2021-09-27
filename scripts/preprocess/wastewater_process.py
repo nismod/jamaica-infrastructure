@@ -25,6 +25,7 @@ def main(config):
     waste_water_facilities_NWC = gpd.read_file(
         os.path.join(wastewater_data_path, "raw", "waste_water_facilities_NWC.shp")
     ).rename(columns={"Type": "asset_type", "Capacity": "capacity"})
+    cost_data = pd.read_csv(os.path.join(incoming_data_path,"water","cost","water_asset_costs.csv"))
     # Currently ignoring sewers
     # sewers = gpd.read_file(
     #     os.path.join(wastewater_data_path, "raw", "wGravityMain.shp")
@@ -87,10 +88,18 @@ def main(config):
         waste_water_facilities_NWC, asset_type_name_conversion, on="asset_type"
     )
 
+    waste_water_facilities_NWC = pd.merge(
+        waste_water_facilities_NWC, cost_data, 
+        left_on = "asset_type_cost_data", 
+        right_on = "asset", 
+        how="left"
+    )
+
     # provide id
     waste_water_facilities_NWC["node_id"] = waste_water_facilities_NWC \
         .apply(lambda node: f"{node.asset_type}_{node.OBJECTID}", axis=1)
 
+    waste_water_facilities_NWC.rename(columns={"curve": "cost_unit"},inplace=True)
     # export as gpkg
     waste_water_facilities_NWC = gpd.GeoDataFrame(
         waste_water_facilities_NWC,

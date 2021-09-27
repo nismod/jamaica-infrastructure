@@ -43,6 +43,12 @@ def main(config):
         os.path.join(irrigation_data_path, "pipelines_network_NIC.shp")
     )[["OBJECTID", "geometry"]]
 
+    cost_data = pd.read_csv(
+        os.path.join(
+            incoming_data_path,"water","cost","water_asset_costs.csv"
+        )
+    )
+
     wells["OBJECTID"] = np.linspace(0, wells.shape[0], wells.shape[0])
     wells = wells[["OBJECTID", "geometry"]]
     wells["asset_type"] = "well"
@@ -60,8 +66,20 @@ def main(config):
     pipelines["asset_type_flood_damage"] = "irrigation_canal"
     pipelines["asset_type_hurricane_damage"] = "na"
 
-    nodes = wells.to_crs(f"EPSG:{epsg_jamaica}")
+    nodes = gpd.GeoDataFrame(wells, crs=f"EPSG:{epsg_jamaica}",geometry='geometry')
+    nodes = pd.merge(
+        nodes, cost_data, 
+        left_on = 'asset_type_cost_data',
+        right_on = 'asset', how='left'
+    ).rename(columns={"curve": "cost_unit"})
+
     edges = pd.concat([canals, pipelines])
+    edges = gpd.GeoDataFrame(edges, crs=f"EPSG:{epsg_jamaica}",geometry='geometry')
+    edges = pd.merge(
+        edges, cost_data, 
+        left_on = 'asset_type_cost_data',
+        right_on = 'asset', how='left'
+    ).rename(columns={"curve": "cost_unit"})
 
     # provide id
     nodes["node_id"] = nodes.apply(lambda node: f"{node.asset_type}_{node.OBJECTID}", axis=1)
