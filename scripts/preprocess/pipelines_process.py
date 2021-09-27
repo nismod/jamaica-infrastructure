@@ -42,17 +42,16 @@ def main(config):
     pipelines['Diameter'] = np.where(pipelines['Diameter']<0, 2, pipelines['Diameter'])
     
     # # assign asset name for matching with cost/damage data
-    # asset_type_cost_data merge on /soge-home/projects/mistral/jamaica-ccri/water/cost/water_asset_costs.csv
-    # asset_type_flood_damage merge on /soge-home/projects/mistral/jamaica-ccri/water/damage/damage_function_pipeline_flood.csv
 
     pipelines['asset_type_cost_data'] = ['pipeline']*pipelines.shape[0]
 
     pipelines = pd.merge(pipelines, cost_data, left_on = 'asset_type_cost_data', right_on = 'asset', how='left')
     # print (pipelines[['cost ($J) - lower bound','cost ($J) - upper bound','Diameter','Length']])
-    pipelines['cost_unit'] = '$J/m'
+    
     pipelines['cost ($J) - lower bound'] = pipelines['cost ($J) - lower bound'].str.replace(",","").astype(float)*pipelines['Diameter']
     pipelines['cost ($J) - upper bound'] = pipelines['cost ($J) - upper bound'].str.replace(",","").astype(float)*pipelines['Diameter']
     pipelines.rename(columns={"Type": "asset_type","curve":"cost_unit"},inplace=True)
+    pipelines['cost_unit'] = '$J/m'
 
     # provide id
     pipelines["edge_id"] = pipelines \
