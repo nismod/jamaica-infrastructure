@@ -81,37 +81,24 @@ def assign_costs(x,all_costs):
     asset_costs = road_costs.sum(axis=0,numeric_only=True).values.tolist() + reopen_costs.sum(axis=0,numeric_only=True).values.tolist()
     return tuple(asset_costs)
 
+def assign_costs_bridges(x,all_costs):
+    if x.asset_type == 'bridge':
+        road_costs = all_costs[~all_costs['cost_code'].isin(['4140'])]
+        reopen_costs = road_costs[road_costs['cost_code'].isin(['4110', '4120','4310b'])]
+        road_costs = road_costs.set_index(['cost_code','cost_description'])
+        asset_costs = road_costs.sum(axis=0,numeric_only=True).values.tolist() + reopen_costs.sum(axis=0,numeric_only=True).values.tolist()
+        return tuple(asset_costs)
+
+def find_bridge_in_string(x):
+    if 'bridge' in str(x.from_to).lower():
+        return 1
+    else:
+        return 0
+
 def main(config):
     incoming_data_path = config['paths']['incoming_data']
     processed_data_path = config['paths']['data']
     epsg_jamaica = 3448
-
-    road_edges = gpd.read_file(os.path.join(incoming_data_path,'nsdmb','GWP_Jamaica_NSP_Master_Geodatabase_v01.gdb'),
-                        layer='roads_main_NWA')
-    road_edges.to_crs(epsg=epsg_jamaica)
-    # print (road_edges)
-    # print (road_edges.columns)
-    road_edges.columns = map(str.lower, road_edges.columns)
-
-    road_edges.rename(columns={'parish':'road_parish','first_clas':'road_class'},inplace=True)
-    string_columns = ['section',
-                    'constructi','construc_1'
-                    ]
-    road_edges[string_columns] = road_edges[string_columns].replace(r'^\s*$', '', regex=True)
-    # edges[string_columns] = edges[string_columns].fillna('',inplace=True)
-    numeric_columns = ['averagewid','average_wi']
-    for num in numeric_columns:
-        road_edges[num] = road_edges[num].replace(' ', '0.0')
-        road_edges[num] = road_edges[num].astype(float)
-
-    road_edges.rename(columns={'from_':'from_road','to':'to_road'},inplace=True)
-    road_edges['from_to_road'] = road_edges.progress_apply(lambda x: f'{x.from_road}-{x.to_road}',axis=1)
-    road_edges['to_from_road'] = road_edges.progress_apply(lambda x: f'{x.to_road}-{x.from_road}',axis=1) 
-    road_edges['road_section'] = road_edges.progress_apply(lambda x: re.sub('[/-]', '', str(x['section'])),axis=1)
-    road_edges['road_surface'] = road_edges.progress_apply(lambda x:modify_road_surface(x),axis=1)
-    road_edges['road_width'] = road_edges.progress_apply(lambda x:modify_road_width(x),axis=1)
-    road_edges['length_m'] = road_edges.progress_apply(lambda x: x.geometry.length,axis=1) 
-    print (road_edges.columns)
 
     # road_edges[['length_km','lengthkm','length_m']].to_csv('test0.csv')
 
@@ -152,9 +139,91 @@ def main(config):
 
     road_costs_all['section'] = road_costs_all.progress_apply(lambda x: re.sub('[/-]', '', str(x['section'])),axis=1)
     road_costs_all['from_to'] = road_costs_all.progress_apply(lambda x: f"{x['from']}-{x['to']}",axis=1)
+    road_costs_all['contains_bridge'] = road_costs_all.progress_apply(lambda x: find_bridge_in_string(x),axis=1)
+
+    """Step 0: Find the unit costs in $J/unit for a bridge and get the highest values as estimates
+    """
+    road_costs_bridges = road_costs_all[road_costs_all['contains_bridge'] == 1]
+    data_columns = [
+                    'Pavement - Clearing of slips & blockage of roads',
+                    'Pavement - Temporary repairs to roads',
+                    'Pavement - Restoration of Asphalted Road',
+                    'Pavement - Restoration of Unasphalted Rd.',
+                    'Drainage - Cleaning of blocked drains etc.',
+                    'Drainage - Cleaning of critical drains',
+                    'Drainage - Repair/Kerb & Channel',
+                    'Drainage - Relay Culverts',
+                    'Construct & Reconstruction of R.R. wall'
+                    ]
+    for d in data_columns:
+        road_costs_bridges[d] = road_costs_bridges[d].replace(' ', '0.0')
+        road_costs_bridges[d] = road_costs_bridges[d].astype(float)
+
+    all_costs = []
+    cost_columns_new = []
+    for c in data_columns:
+        # We only chose the top 5 values of each type because they indicate more severe damage effects
+        costs = road_costs_bridges[road_costs_bridges[c] > 0].sort_values(by=c, ascending=False)[c].head(5)
+        all_costs.append((c,costs.min(),costs.mean(),costs.max()))
+
+    all_costs = pd.DataFrame(all_costs,columns=['cost_description','min','mean','max'])
+    all_costs['cost_code'] = ['4110', '4120', '4130', '4140', '4310', '4310b', '4320', '4330' ,'4520']
+
+    nodes = gpd.read_file(os.path.join(processed_data_path,
+                                    'networks',
+                                    'transport',
+                                    'roads.gpkg'),
+                            layer='nodes')
+    nodes = gpd.GeoDataFrame(nodes,geometry='geometry',crs={'init': f'epsg:{epsg_jamaica}'})
+    # print (edges.crs)
+    # edges.set_crs(epsg=epsg_jamaica, allow_override=True)
+    # print (edges.crs)
+    nodes['cost_unit'] = '$J'
+    nodes['assigned_costs'] = nodes.progress_apply(lambda x:assign_costs_bridges(x,all_costs), axis=1)
+    nodes[['min_damage_cost',
+            'mean_damage_cost',
+            'max_damage_cost',
+            'min_reopen_cost',
+            'mean_reopen_cost',
+            'max_reopen_cost']] = nodes['assigned_costs'].apply(pd.Series)
+    nodes.drop('assigned_costs',axis=1,inplace=True)
+    print (nodes)
+    nodes.to_file(os.path.join(processed_data_path,
+                                    'networks',
+                                    'transport',
+                                    'roads.gpkg'),
+                            layer='nodes',driver="GPKG")
+
+    
     """Step 1: Match the ones with the same section ID values 
     """
     road_costs = road_costs_all.copy()
+    road_edges = gpd.read_file(os.path.join(incoming_data_path,'nsdmb','GWP_Jamaica_NSP_Master_Geodatabase_v01.gdb'),
+                        layer='roads_main_NWA')
+    road_edges.to_crs(epsg=epsg_jamaica)
+    # print (road_edges)
+    # print (road_edges.columns)
+    road_edges.columns = map(str.lower, road_edges.columns)
+
+    road_edges.rename(columns={'parish':'road_parish','first_clas':'road_class'},inplace=True)
+    string_columns = ['section',
+                    'constructi','construc_1'
+                    ]
+    road_edges[string_columns] = road_edges[string_columns].replace(r'^\s*$', '', regex=True)
+    # edges[string_columns] = edges[string_columns].fillna('',inplace=True)
+    numeric_columns = ['averagewid','average_wi']
+    for num in numeric_columns:
+        road_edges[num] = road_edges[num].replace(' ', '0.0')
+        road_edges[num] = road_edges[num].astype(float)
+
+    road_edges.rename(columns={'from_':'from_road','to':'to_road'},inplace=True)
+    road_edges['from_to_road'] = road_edges.progress_apply(lambda x: f'{x.from_road}-{x.to_road}',axis=1)
+    road_edges['to_from_road'] = road_edges.progress_apply(lambda x: f'{x.to_road}-{x.from_road}',axis=1) 
+    road_edges['road_section'] = road_edges.progress_apply(lambda x: re.sub('[/-]', '', str(x['section'])),axis=1)
+    road_edges['road_surface'] = road_edges.progress_apply(lambda x:modify_road_surface(x),axis=1)
+    road_edges['road_width'] = road_edges.progress_apply(lambda x:modify_road_width(x),axis=1)
+    road_edges['length_m'] = road_edges.progress_apply(lambda x: x.geometry.length,axis=1) 
+    print (road_edges.columns)
     road_edges = road_edges[['road_section','road_class','str_name',
                             'from_road','to_road',
                             'from_to_road','to_from_road',
