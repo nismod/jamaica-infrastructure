@@ -7,6 +7,8 @@ import pandas as pd
 import geopandas as gpd
 import numpy as np
 from preprocess_utils import *
+from tqdm import tqdm
+tqdm.pandas()
 
 def main(config):
     incoming_data_path = config["paths"]["incoming_data"]
@@ -45,16 +47,16 @@ def main(config):
 
     cost_data = pd.read_csv(os.path.join(incoming_data_path,"water","cost","water_asset_costs.csv"))
     pipelines = pd.merge(pipelines, cost_data, left_on = 'asset_type_cost_data', right_on = 'asset', how='left')
-    print (pipelines[['cost ($J) - lower bound','cost ($J) - upper bound','Diameter','Length']])
-
-    pipelines['cost ($J) - lower bound'] = pipelines['cost ($J) - lower bound'].str.replace(",","").astype(float)*pipelines['Diameter']*pipelines['Length']
-    pipelines['cost ($J) - upper bound'] = pipelines['cost ($J) - upper bound'].str.replace(",","").astype(float)*pipelines['Diameter']*pipelines['Length']
+    # print (pipelines[['cost ($J) - lower bound','cost ($J) - upper bound','Diameter','Length']])
+    pipelines['cost_unit'] = '$J/m'
+    pipelines['cost ($J) - lower bound'] = pipelines['cost ($J) - lower bound'].str.replace(",","").astype(float)*pipelines['Diameter']
+    pipelines['cost ($J) - upper bound'] = pipelines['cost ($J) - upper bound'].str.replace(",","").astype(float)*pipelines['Diameter']
 
     # # provide id
     pipelines['Node_ID'] = pipelines['OBJECTID'].astype(str) + pipelines['Type'].astype(str)
-    pipelines.to_csv('test.csv')
     # # export as gpkg
     pipelines = gpd.GeoDataFrame(pipelines, crs=f"EPSG:{epsg_jamaica}",geometry=pipelines['geometry'])
+    pipelines = pipelines[pipelines['Length'] > 0]
     # export as gpkg
     fname = os.path.join(
         processed_data_path, "networks", "water", "pipelines_NWC.gpkg"
