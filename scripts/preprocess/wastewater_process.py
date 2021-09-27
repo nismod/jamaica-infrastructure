@@ -48,11 +48,12 @@ def main(config):
             "additional_capacity_data",
             "supplement_treatment_plant_capacity.csv",
         )
-    )
+    ).rename(columns={"Type": "asset_type"})
 
     # merge
     waste_water_facilities_NWC = pd.merge(
-        waste_water_facilities_NWC, supplement_treatment_plant_capacity, on="Name"
+        waste_water_facilities_NWC, supplement_treatment_plant_capacity, 
+        how = "left",on=["Name","asset_type"]
     )
 
     # assign asset name for matching with cost/damage data
@@ -85,7 +86,7 @@ def main(config):
         }
     )
     waste_water_facilities_NWC = pd.merge(
-        waste_water_facilities_NWC, asset_type_name_conversion, on="asset_type"
+        waste_water_facilities_NWC, asset_type_name_conversion, how="left",on="asset_type"
     )
 
     waste_water_facilities_NWC = pd.merge(
