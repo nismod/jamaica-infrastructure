@@ -1,8 +1,11 @@
 #!/usr/bin/env python
 # coding: utf-8
 import json
+import logging
 import os
 import sys
+import warnings
+
 from collections import namedtuple
 
 import fiona
@@ -13,10 +16,6 @@ import rasterio
 from shapely.ops import linemerge, polygonize
 from snail.intersections import get_cell_indices, split_linestring, split_polygon
 from tqdm import tqdm
-
-
-# Enable progress_apply
-tqdm.pandas()
 
 
 def load_config():
@@ -49,23 +48,23 @@ def main(data_path, networks_csv, hazards_csv):
 
         # skip if output is there already (not using gpkg currently)
         # if os.path.exists(out_fname):
-        #     print("Skipping", os.path.basename(fname), ". Already exists:")
-        #     print("-", out_fname)
+        #     logging.info("Skipping", os.path.basename(fname), ". Already exists:")
+        #     logging.info("-", out_fname)
         #     continue
 
-        print("Processing", os.path.basename(fname))
+        logging.info("Processing", os.path.basename(fname))
         layers = fiona.listlayers(fname)
-        print("   layers:", layers)
+        logging.info("   layers:", layers)
 
         if "nodes" in layers:
             # skip if output is there already
             if os.path.exists(pq_fname_nodes):
-                print("Skipping", os.path.basename(fname), ". Already exists:")
-                print("-", pq_fname_nodes)
+                logging.info("Skipping", os.path.basename(fname), ". Already exists:")
+                logging.info("-", pq_fname_nodes)
             else:
                 # look up nodes cell index
                 nodes = geopandas.read_file(fname, layer="nodes")
-                print(" nodes", nodes.crs)
+                logging.info(" nodes", nodes.crs)
                 nodes = process_nodes(nodes, transforms, hazard_transforms, data_path)
                 # nodes.to_file(out_fname, driver="GPKG", layer="nodes")
                 nodes.to_parquet(pq_fname_nodes)
@@ -73,12 +72,12 @@ def main(data_path, networks_csv, hazards_csv):
         if "edges" in layers:
             # skip if output is there already
             if os.path.exists(pq_fname_edges):
-                print("Skipping", os.path.basename(fname), ". Already exists:")
-                print("-", pq_fname_edges)
+                logging.info("Skipping", os.path.basename(fname), ". Already exists:")
+                logging.info("-", pq_fname_edges)
             else:
                 # split lines
                 edges = geopandas.read_file(fname, layer="edges")
-                print(" edges", edges.crs)
+                logging.info(" edges", edges.crs)
                 edges = process_edges(edges, transforms, hazard_transforms, data_path)
                 # edges.to_file(out_fname, driver="GPKG", layer="edges")
                 edges.to_parquet(pq_fname_edges)
@@ -86,12 +85,12 @@ def main(data_path, networks_csv, hazards_csv):
         if "areas" in layers:
             # skip if output is there already
             if os.path.exists(pq_fname_areas):
-                print("Skipping", os.path.basename(fname), ". Already exists:")
-                print("-", pq_fname_areas)
+                logging.info("Skipping", os.path.basename(fname), ". Already exists:")
+                logging.info("-", pq_fname_areas)
             else:
                 # split polygons
                 areas = geopandas.read_file(fname, layer="areas")
-                print(" areas", areas.crs)
+                logging.info(" areas", areas.crs)
                 areas = explode_multi(areas)
                 areas = process_areas(areas, transforms, hazard_transforms, data_path)
                 # areas.to_file(out_fname, driver="GPKG", layer="areas")
@@ -156,7 +155,7 @@ def process_nodes(nodes, transforms, hazard_transforms, data_path):
 
     # associate hazard values
     for hazard in hazard_transforms.itertuples():
-        print(hazard.key, hazard.transform_id)
+        logging.info(hazard.key, hazard.transform_id)
         fname = os.path.join(data_path, hazard.path)
         cell_index_col = f'cell_index_{hazard.transform_id}'
         associate_raster(nodes, hazard.key, fname, cell_index_col)
@@ -178,7 +177,7 @@ def process_edges(edges, transforms, hazard_transforms, data_path):
     # handle multilinestrings
     edges.geometry = edges.geometry.apply(try_merge)
     geom_types = edges.geometry.apply(lambda g: g.geom_type)
-    print("   ", (geom_types.value_counts()))
+    logging.info("   ", (geom_types.value_counts()))
     edges = explode_multi(edges)
 
     # split edges per transform
@@ -193,7 +192,7 @@ def process_edges(edges, transforms, hazard_transforms, data_path):
 
     # associate hazard values
     for hazard in hazard_transforms.itertuples():
-        print(hazard.key, hazard.transform_id)
+        logging.info(hazard.key, hazard.transform_id)
         fname = os.path.join(data_path, hazard.path)
         cell_index_col = f'cell_index_{hazard.transform_id}'
         associate_raster(edges, hazard.key, fname, cell_index_col)
@@ -223,7 +222,7 @@ def split_df(df, t):
             del s_dict['Index']
             s_dict['geometry'] = s
             core_splits.append(s_dict)
-    print(f"  Split {len(df)} edges into {len(core_splits)} pieces")
+    logging.info(f"  Split {len(df)} edges into {len(core_splits)} pieces")
     sdf = geopandas.GeoDataFrame(core_splits, crs=t.crs, geometry='geometry')
     return sdf
 
@@ -241,7 +240,7 @@ def process_areas(areas, transforms, hazard_transforms, data_path):
 
     # associate hazard values
     for hazard in hazard_transforms.itertuples():
-        print(hazard.key, hazard.transform_id)
+        logging.info(hazard.key, hazard.transform_id)
         fname = os.path.join(data_path, hazard.path)
         cell_index_col = f'cell_index_{hazard.transform_id}'
         associate_raster(areas, hazard.key, fname, cell_index_col)
@@ -287,7 +286,7 @@ def split_area_df(df, t):
             del s_dict['Index']
             s_dict['geometry'] = s
             core_splits.append(s_dict)
-    print(f"  Split {len(df)} areas into {len(core_splits)} pieces")
+    logging.info(f"  Split {len(df)} areas into {len(core_splits)} pieces")
     sdf = geopandas.GeoDataFrame(core_splits)
     sdf.crs = t.crs
     return sdf
@@ -320,6 +319,20 @@ if __name__ == '__main__':
         networks_csv = sys.argv[1]
         hazards_csv = sys.argv[2]
     except IndexError:
-        print("Error. Please provide networks and hazards as CSV.")
-        print(f"Usage: python {__file__} networks/network_files.csv hazards/hazard_layers.csv")
+        logging.error(
+            "Error. Please provide networks and hazards as CSV.\n",
+            f"Usage: python {__file__} networks/network_files.csv hazards/hazard_layers.csv")
+
+    # Ignore writing-to-parquet warnings
+    warnings.filterwarnings('ignore', message='.*initial implementation of Parquet.*')
+    # Ignore reading-geopackage warnings
+    warnings.filterwarnings('ignore', message='.*Sequential read of iterator was interrupted.*')
+
+    # Enable progress_apply
+    tqdm.pandas()
+
+    # Enable info logging
+    logging.basicConfig(format='%(asctime)s %(message)s', level=logging.INFO)
+    logging.info("Start.")
     main(data_path, networks_csv, hazards_csv)
+    logging.info("Done.")
