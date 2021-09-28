@@ -55,6 +55,7 @@ def main(config):
                                     'rail.gpkg'),
                             layer='edges')
     edges = gpd.GeoDataFrame(edges,geometry='geometry',crs={'init': f'epsg:{epsg_jamaica}'})
+    edges['asset_type'] = edges.progress_apply(lambda x: 'rail' if x.status == 'Functional' else x.status, axis=1)
     edges['rail_length_m'] = edges.progress_apply(lambda x:x.geometry.length,axis=1)
     edges['cost_unit'] = 'USD/km'
     edges['min_damage_cost'] = min_cost

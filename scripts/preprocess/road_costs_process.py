@@ -70,7 +70,7 @@ def modify_road_construction(x):
 
 def assign_costs(x,all_costs):
     road_surface = x['road_construction']
-    if road_surface in ['Asphaltic Concrete', 'SC & AC', 'Surface Dressed']:
+    if road_surface in ['Asphaltic Concrete', 'SD & AC', 'Surface Dressed']:
         road_costs = all_costs[~all_costs['cost_code'].isin(['4140'])]
     else:
         road_costs = all_costs[~all_costs['cost_code'].isin(['4130'])]
@@ -95,12 +95,17 @@ def find_bridge_in_string(x):
     else:
         return 0
 
+def create_road_surface_type(x):
+    road_surface = x['road_construction']
+    if road_surface in ['Asphaltic Concrete', 'SD & AC', 'Surface Dressed']:
+        return 'asphalt'
+    else:
+        return 'non-asphalt'
+
 def main(config):
     incoming_data_path = config['paths']['incoming_data']
     processed_data_path = config['paths']['data']
     epsg_jamaica = 3448
-
-    # road_edges[['length_km','lengthkm','length_m']].to_csv('test0.csv')
 
     road_cost_file_path = os.path.join(incoming_data_path,
                         'Financial Data Post Flood Events')
@@ -317,17 +322,17 @@ def main(config):
 
     all_costs = pd.DataFrame(all_costs,columns=['cost_description','min','mean','max'])
     all_costs['cost_code'] = ['4110', '4120', '4130', '4140', '4310', '4310b', '4320', '4330' ,'4520']
-    # reopen_costs = all_costs[all_costs['cost_code'].isin(['4110', '4120','4310b'])]
-    # all_costs = all_costs.set_index(['cost_code','cost_description'])
-    # all_costs.loc[('Total','Estimated total damage cost ($J/m2)'),:] = all_costs.sum(axis=0,numeric_only=True)
-    # all_costs.loc[('Reopen','Estimated cost to reopen (4110 + 4120 + 4310b) ($J/m2)'),:]= reopen_costs.sum(axis=0,numeric_only=True)
-    # all_costs = all_costs.reset_index()
+    reopen_costs = all_costs[all_costs['cost_code'].isin(['4110', '4120','4310b'])]
+    all_costs = all_costs.set_index(['cost_code','cost_description'])
+    all_costs.loc[('Total','Estimated total damage cost ($J/m2)'),:] = all_costs.sum(axis=0,numeric_only=True)
+    all_costs.loc[('Reopen','Estimated cost to reopen (4110 + 4120 + 4310b) ($J/m2)'),:]= reopen_costs.sum(axis=0,numeric_only=True)
+    all_costs = all_costs.reset_index()
     
     # print (all_costs.sum(axis=0,numeric_only=True).values.tolist())
-    # all_costs[['cost_code',
-    #         'cost_description',
-    #         'min','mean','max']].to_csv(os.path.join(road_cost_file_path,
-    #                                         'roads_damage_cost_estimates.csv'),index=False)
+    all_costs[['cost_code',
+            'cost_description',
+            'min','mean','max']].to_csv(os.path.join(road_cost_file_path,
+                                            'roads_damage_cost_estimates.csv'),index=False)
     # print (all_costs[['cost_code','cost_description','min','mean','max']])
 
     """Step 5: Integrate the costs with the road edges dataset
@@ -336,15 +341,15 @@ def main(config):
             - Total damage cost
             - Cost to reopen the roads
     """
+    all_costs = pd.read_csv(os.path.join(road_cost_file_path,
+                                            'roads_damage_cost_estimates.csv'))
     edges = gpd.read_file(os.path.join(processed_data_path,
                                     'networks',
                                     'transport',
                                     'roads.gpkg'),
                             layer='edges')
     edges = gpd.GeoDataFrame(edges,geometry='geometry',crs={'init': f'epsg:{epsg_jamaica}'})
-    # print (edges.crs)
-    # edges.set_crs(epsg=epsg_jamaica, allow_override=True)
-    # print (edges.crs)
+    edges['asset_type'] = edges.progress_apply(lambda x:create_road_surface_type(x),axis=1)
     edges['road_length_m'] = edges.progress_apply(lambda x:x.geometry.length,axis=1)
     edges['road_construction'] = edges.progress_apply(lambda x:modify_road_construction(x),axis=1)
     edges['cost_unit'] = '$J/m2'
@@ -356,7 +361,7 @@ def main(config):
             'mean_reopen_cost',
             'max_reopen_cost']] = edges['assigned_costs'].apply(pd.Series)
     edges.drop('assigned_costs',axis=1,inplace=True)
-    print (edges)
+    # print (edges)
     edges.to_file(os.path.join(processed_data_path,
                                     'networks',
                                     'transport',
