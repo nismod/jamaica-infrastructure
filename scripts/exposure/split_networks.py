@@ -30,6 +30,7 @@ def load_config():
 def main(data_path, networks_csv, hazards_csv):
     # read transforms, record with hazards
     hazards = pandas.read_csv(hazards_csv)
+    hazard_slug = os.path.basename(hazards_csv).replace(".csv", "")
     hazard_transforms, transforms = read_transforms(hazards, data_path)
     hazard_transforms.to_csv(hazards_csv.replace(".csv", "__with_transforms.csv"), index=False)
 
@@ -38,10 +39,13 @@ def main(data_path, networks_csv, hazards_csv):
 
     for network_path in networks.path:
         fname = os.path.join(data_path, network_path)
-        out_fname = fname.replace(".gpkg", "_splits.gpkg")
-        pq_fname_nodes = out_fname.replace("_splits.gpkg","_split_nodes.geoparquet")
-        pq_fname_edges = out_fname.replace("_splits.gpkg","_split_edges.geoparquet")
-        pq_fname_areas = out_fname.replace("_splits.gpkg","_split_areas.geoparquet")
+        out_fname = os.path.join(
+            data_path, "hazard_network_intersections",
+            os.path.basename(network_path).replace(".gpkg", f"_splits__{hazard_slug}.gpkg")
+        )
+        pq_fname_nodes = out_fname.replace(".gpkg","__nodes.geoparquet")
+        pq_fname_edges = out_fname.replace(".gpkg","__edges.geoparquet")
+        pq_fname_areas = out_fname.replace(".gpkg","__areas.geoparquet")
 
         # skip if output is there already (not using gpkg currently)
         # if os.path.exists(out_fname):

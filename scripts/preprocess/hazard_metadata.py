@@ -97,5 +97,14 @@ df["key"] = df.apply(
     axis=1,
 )
 
-# Save
-df.to_csv("hazard_layers.csv")
+# Save all
+df.to_csv("hazard_layers.csv", index=False)
+
+# Save broken down by hazard, RCP, epoch
+for hazard in df.hazard.unique():
+    hazard_subset = df[df.hazard == hazard].copy()
+    for rcp in hazard_subset.rcp.unique():
+        rcp_subset = hazard_subset[hazard_subset.rcp == rcp].copy()
+        for epoch in rcp_subset.epoch.unique():
+            epoch_subset = rcp_subset[rcp_subset.epoch == epoch].copy()
+            epoch_subset.to_csv(f"{hazard}__rcp_{rcp}__epoch_{epoch}.csv")
