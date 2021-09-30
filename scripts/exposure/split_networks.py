@@ -10,9 +10,11 @@ from collections import namedtuple
 
 import fiona
 import geopandas
+import numpy
 import pandas
 import rasterio
 
+from shapely.geometry import mapping, shape
 from shapely.ops import linemerge, polygonize
 from snail.intersections import get_cell_indices, split_linestring, split_polygon
 from tqdm import tqdm
@@ -264,6 +266,14 @@ def explode_multi(df):
     return df
 
 
+def set_precision(geom, precision):
+    """Set geometry precision"""
+    geom_mapping = mapping(geom)
+    geom_mapping["coordinates"] = numpy.round(
+        numpy.array(geom_mapping["coordinates"]), precision)
+    return shape(geom_mapping)
+
+
 def split_area_df(df, t):
     # split
     core_splits = []
@@ -275,6 +285,9 @@ def split_area_df(df, t):
             t.height,
             t.transform
         )
+        # round to high precision (avoid floating point errors)
+        splits = [set_precision(s, 9) for s in splits]
+        # to polygons
         splits = list(polygonize(splits))
         # add to collection
         for s in splits:
