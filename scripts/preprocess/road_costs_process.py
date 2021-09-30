@@ -81,6 +81,24 @@ def assign_costs(x,all_costs):
     asset_costs = road_costs.sum(axis=0,numeric_only=True).values.tolist() + reopen_costs.sum(axis=0,numeric_only=True).values.tolist()
     return tuple(asset_costs)
 
+def assign_costs_roads(x,all_costs):
+    road_surface = x['road_construction']
+    road_width = x['road_width']
+    if road_surface in ['Asphaltic Concrete', 'SD & AC', 'Surface Dressed']:
+        road_costs = all_costs[~all_costs['cost_code'].isin(['4140'])]
+    else:
+        road_costs = all_costs[~all_costs['cost_code'].isin(['4130'])]
+
+    reopen_costs = road_costs[road_costs['cost_code'].isin(['4110', '4120','4310b'])]
+    road_costs = road_costs.set_index(['cost_code','cost_description'])
+    
+    asset_costs = list(
+                road_width*road_costs.sum(
+                    axis=0,numeric_only=True).values) + list(
+                        road_width*reopen_costs.sum(
+                            axis=0,numeric_only=True).values)
+    return tuple(asset_costs)
+
 def assign_costs_bridges(x,all_costs):
     if x.asset_type == 'bridge':
         road_costs = all_costs[~all_costs['cost_code'].isin(['4140'])]
@@ -333,7 +351,7 @@ def main(config):
             'cost_description',
             'min','mean','max']].to_csv(os.path.join(road_cost_file_path,
                                             'roads_damage_cost_estimates.csv'),index=False)
-    # print (all_costs[['cost_code','cost_description','min','mean','max']])
+    print (all_costs[['cost_code','cost_description','min','mean','max']])
 
     """Step 5: Integrate the costs with the road edges dataset
         We will use the road surface type to assign costs
@@ -352,8 +370,8 @@ def main(config):
     edges['asset_type'] = edges.progress_apply(lambda x:create_road_surface_type(x),axis=1)
     edges['road_length_m'] = edges.progress_apply(lambda x:x.geometry.length,axis=1)
     edges['road_construction'] = edges.progress_apply(lambda x:modify_road_construction(x),axis=1)
-    edges['cost_unit'] = '$J/m2'
-    edges['assigned_costs'] = edges.progress_apply(lambda x:assign_costs(x,all_costs), axis=1)
+    edges['cost_unit'] = '$J/m'
+    edges['assigned_costs'] = edges.progress_apply(lambda x:assign_costs_roads(x,all_costs), axis=1)
     edges[['min_damage_cost',
             'mean_damage_cost',
             'max_damage_cost',

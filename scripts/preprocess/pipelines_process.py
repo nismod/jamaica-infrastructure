@@ -48,9 +48,9 @@ def main(config):
     pipelines = pd.merge(pipelines, cost_data, left_on = 'asset_type_cost_data', right_on = 'asset', how='left')
     # print (pipelines[['cost ($J) - lower bound','cost ($J) - upper bound','Diameter','Length']])
     
-    pipelines['cost ($J) - lower bound'] = pipelines['cost ($J) - lower bound'].str.replace(",","").astype(float)*pipelines['Diameter']
-    pipelines['cost ($J) - upper bound'] = pipelines['cost ($J) - upper bound'].str.replace(",","").astype(float)*pipelines['Diameter']
-    pipelines.rename(columns={"Type": "asset_type","curve":"cost_unit"},inplace=True)
+    pipelines['min_damage_cost'] = pipelines['cost ($J) - lower bound'].str.replace(",","").astype(float)*pipelines['Diameter']
+    pipelines['max_damage_cost'] = pipelines['cost ($J) - upper bound'].str.replace(",","").astype(float)*pipelines['Diameter']
+    pipelines.rename(columns={"Type": "asset_type"},inplace=True)
     pipelines['cost_unit'] = '$J/m'
 
     # provide id

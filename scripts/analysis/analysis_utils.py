@@ -28,7 +28,6 @@ def geopandas_read_file_type(file_path, file_layer, file_database=None):
     else:
         return gpd.read_file(os.path.join(file_path, file_layer))
 
-
 def curve_interpolation(x_curve,y_curve,x_new):
     if x_new <= x_curve[0]:
         return y_curve[0]
@@ -37,6 +36,7 @@ def curve_interpolation(x_curve,y_curve,x_new):
     else:
         interpolate_values = interp1d(x_curve, y_curve)
         return interpolate_values(x_new)
+
 
 def expected_risks_pivot(v,probabilites,probability_threshold,flood_protection_column):
     """Calculate expected risks

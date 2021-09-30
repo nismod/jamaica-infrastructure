@@ -8,6 +8,19 @@ import geopandas as gpd
 import numpy as np
 from preprocess_utils import *
 
+def estimate_costs_and_units(x):
+    if x.asset_type == 'pipeline':
+        min_damage_cost = float(str(x['cost ($J) - lower bound']).replace(",",""))/x.geometry.length
+        max_damage_cost = float(str(x['cost ($J) - upper bound']).replace(",",""))/x.geometry.length
+        cost_unit = '$J/m'
+    else:
+        min_damage_cost = float(str(x['cost ($J) - lower bound']).replace(",",""))
+        max_damage_cost = float(str(x['cost ($J) - upper bound']).replace(",",""))
+        cost_unit = '$J'
+
+    return cost_unit,min_damage_cost,max_damage_cost
+
+
 
 def main(config):
     incoming_data_path = config["paths"]["incoming_data"]
@@ -71,7 +84,10 @@ def main(config):
         nodes, cost_data, 
         left_on = 'asset_type_cost_data',
         right_on = 'asset', how='left'
-    ).rename(columns={"curve": "cost_unit"})
+    )
+    nodes['min_damage_cost'] = nodes['cost ($J) - lower bound'].str.replace(",","").astype(float)
+    nodes['max_damage_cost'] = nodes['cost ($J) - upper bound'].str.replace(",","").astype(float)
+    nodes['cost_unit'] = '$J'
 
     edges = pd.concat([canals, pipelines])
     edges = gpd.GeoDataFrame(edges, crs=f"EPSG:{epsg_jamaica}",geometry='geometry')
@@ -79,7 +95,10 @@ def main(config):
         edges, cost_data, 
         left_on = 'asset_type_cost_data',
         right_on = 'asset', how='left'
-    ).rename(columns={"curve": "cost_unit"})
+    )
+    edges['cost_and_units'] = edges.progress_apply(lambda x: estimate_costs_and_units(x),axis=1)
+    edges[['cost_unit','min_damage_cost','max_damage_cost']] = edges['cost_and_units'].apply(pd.Series)
+    edges.drop('cost_and_units',axis=1,inplace=True)
 
     # provide id
     nodes["node_id"] = nodes.apply(lambda node: f"{node.asset_type}_{node.OBJECTID}", axis=1)

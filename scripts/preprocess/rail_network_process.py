@@ -38,14 +38,14 @@ def main(config):
     ppi_data['rehab_tag'] = ppi_data.progress_apply(lambda x: identify_rehabilitation_projects(x),axis=1)
     ppi_data = ppi_data[ppi_data['rehab_tag'] == 1]
     ppi_data = ppi_data[(ppi_data['capacity'] == 'KM') & (ppi_data['pcapacity'] > 0) & (ppi_data['realphysicalassets'] > 0)]
-    ppi_data = ppi_data.groupby('pcapacity')['realphysicalassets'].sum().reset_index()
+    ppi_data = ppi_data.groupby('pcapacity',dropna=False)['realphysicalassets'].sum().reset_index()
     ppi_data['cost_per_km'] = ppi_data['realphysicalassets']/ppi_data['pcapacity']
 
-    min_cost = 1e6*ppi_data.cost_per_km.quantile(0.10)
-    average_cost = 1e6*ppi_data.cost_per_km.quantile(0.50)
-    max_cost = 1e6*ppi_data.cost_per_km.quantile(0.90)
+    min_cost = 1e3*ppi_data.cost_per_km.quantile(0.10)
+    average_cost = 1e3*ppi_data.cost_per_km.quantile(0.50)
+    max_cost = 1e3*ppi_data.cost_per_km.quantile(0.90)
 
-    average_cost = 945827.0/1.609 # Cost estimate obtained from JRC project report
+    average_cost = 0.001*945827.0/1.609 # Cost estimate obtained from JRC project report is 945,827 US$/mile
     min_cost = 0.8*average_cost
     max_cost = 1.2*average_cost  
 
@@ -57,7 +57,7 @@ def main(config):
     edges = gpd.GeoDataFrame(edges,geometry='geometry',crs={'init': f'epsg:{epsg_jamaica}'})
     edges['asset_type'] = edges.progress_apply(lambda x: 'rail' if x.status == 'Functional' else x.status, axis=1)
     edges['rail_length_m'] = edges.progress_apply(lambda x:x.geometry.length,axis=1)
-    edges['cost_unit'] = 'USD/km'
+    edges['cost_unit'] = 'USD/m'
     edges['min_damage_cost'] = min_cost
     edges['mean_damage_cost'] = average_cost
     edges['max_damage_cost'] = max_cost

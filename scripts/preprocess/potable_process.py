@@ -8,6 +8,18 @@ import geopandas as gpd
 from shapely.geometry import Point
 from preprocess_utils import *
 
+def estimate_costs_and_units(x):
+    if x.curve == 'Y (/mgd)':
+        # print (str(x['capacity (mgd) from supplement']), x['capacity_inferred'])
+        min_damage_cost = float(str(x['cost ($J) - lower bound']).replace(",",""))*float(x['capacity_inferred'])
+        max_damage_cost = float(str(x['cost ($J) - upper bound']).replace(",",""))*float(x['capacity_inferred'])
+        cost_unit = '$J'
+    else:
+        min_damage_cost = float(str(x['cost ($J) - lower bound']).replace(",",""))
+        max_damage_cost = float(str(x['cost ($J) - upper bound']).replace(",",""))
+        cost_unit = '$J'
+
+    return cost_unit,min_damage_cost,max_damage_cost
 
 def main(config):
     incoming_data_path = config["paths"]["incoming_data"]
@@ -93,7 +105,19 @@ def main(config):
                                 cost_data, 
                                 left_on = 'asset_type_cost_data', 
                                 right_on = 'asset', how='left')
-    potable_facilities_NWC.rename(columns={"Type": "asset_type","curve":"cost_unit"},inplace=True)
+
+    potable_facilities_NWC['capacity_inferred'] = potable_facilities_NWC['capacity (mgd) from supplement'].astype(float).fillna(0.1)
+    # print (potable_facilities_NWC[['capacity (mgd) from supplement','capacity_inferred']])
+    potable_facilities_NWC['cost_and_units'] = potable_facilities_NWC.progress_apply(lambda x: estimate_costs_and_units(x),axis=1)
+    potable_facilities_NWC[[
+                    'cost_unit',
+                    'min_damage_cost',
+                    'max_damage_cost']] = potable_facilities_NWC['cost_and_units'].apply(pd.Series)
+    potable_facilities_NWC['min_damage_cost'] = potable_facilities_NWC['min_damage_cost'].fillna(0)
+    potable_facilities_NWC['max_damage_cost'] = potable_facilities_NWC['max_damage_cost'].fillna(0)
+    potable_facilities_NWC.drop(['cost_and_units','capacity_inferred'],axis=1,inplace=True)
+
+    potable_facilities_NWC.rename(columns={"Type": "asset_type"},inplace=True)
 
     # provide id
     potable_facilities_NWC["node_id"] = potable_facilities_NWC \
