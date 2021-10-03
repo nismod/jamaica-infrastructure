@@ -6,7 +6,6 @@ import os
 
 import pandas as pd
 import geopandas as gpd
-import geoparquet as gpq
 from shapely import wkb
 import numpy as np
 from SALib.sample import morris
@@ -49,11 +48,11 @@ def get_damage_data(x,damage_data_path,
 
     return x_data.values, y_data.values
 
-def modify_cost_units(x,cost_dimension):
+def modify_cost_units(x,cost_dimension,damage_cost_column='damage_cost'):
     if '/km' in str(x[cost_dimension]):
-        return 0.001*x['damage_cost']
+        return 0.001*x[damage_cost_column]
     else:
-        return x['damage_cost']
+        return x[damage_cost_column]
 
 
 def add_exposure_dimensions(dataframe,dataframe_type="nodes",epsg=4326):
@@ -89,11 +88,11 @@ def create_damage_curves(damage_data_path,
 
     return damage_curve_lookup_df
 
-def estimate_direct_damage_costs_and_units(x,cost_unit_column):
+def estimate_direct_damage_costs_and_units(x,cost_unit_column,damage_cost_column='damage_cost'):
     if '/' in x[cost_unit_column]:
-        return x['damage_ratio']*x['damage_cost']*x['exposure'], "/".join(x[cost_unit_column].split('/')[:-1])
+        return x['damage_ratio']*x[damage_cost_column]*x['exposure'], "/".join(x[cost_unit_column].split('/')[:-1])
     else:
-        return x['damage_ratio']*x['damage_cost'], x[cost_unit_column]
+        return x['damage_ratio']*x[damage_cost_column], x[cost_unit_column]
 
 def main(config):
     incoming_data_path = config['paths']['incoming_data']
@@ -109,7 +108,7 @@ def main(config):
                                 "hazard_asset_intersection")
     asset_data_details = pd.read_csv(os.path.join(processed_data_path,
                         "networks",
-                        "network_layers_hazard_intersections_details_0.csv"))
+                        "network_layers_hazard_intersections_details_1.csv"))
 
     hazard_data_path = os.path.join(processed_data_path,
                         "hazards",
@@ -213,11 +212,25 @@ def main(config):
                                             asset_df[asset_max_cost] - asset_df[asset_min_cost]
                                                                     )
             asset_df['damage_cost'] = asset_df.progress_apply(lambda x:modify_cost_units(x,asset_cost_unit),axis=1)
+            if asset_info.asset_min_reopen_cost_column != 'none' and asset_info.asset_max_reopen_cost_column != 'none':
+                asset_df['reopen_cost'] = asset_df[
+                                            asset_info.asset_min_reopen_cost_column
+                                            ] + cost_uncertainty_parameter*(
+                                            asset_df[
+                                                asset_info.asset_max_reopen_cost_column
+                                                ] - asset_df[asset_info.asset_min_reopen_cost_column]
+                                                                    )
+                asset_df['reopen_cost'] = asset_df.progress_apply(lambda x:modify_cost_units(x,asset_cost_unit,'reopen_cost'),axis=1)
+                reopen_cost = True
+            else:
+                reopen_cost = False
+
+
             hazard_damages = []
             for hazard_file in hazard_data_files:
                 hazard_intersection_file = os.path.join(hazard_asset_intersection_path,
                                     f"{asset_info.asset_gpkg}_splits__{hazard_file.replace('.csv','')}__{asset_info.asset_layer}.geoparquet")
-                hazard_data_details = pd.read_csv(os.path.join(hazard_data_path,hazard_file))
+                hazard_data_details = pd.read_csv(os.path.join(hazard_data_path,hazard_file),encoding="latin1")
                 if os.path.isfile(hazard_intersection_file) is True: 
                     hazard_df = gpd.read_parquet(hazard_intersection_file)
                     hazard_df = hazard_df.to_crs(epsg=epsg_jamaica)
@@ -233,9 +246,14 @@ def main(config):
                                                             )
                                                         ]
                             damaged_assets = list(set(damages_df['asset_name'].values.tolist()))
-                            affected_assets_df = asset_df[
-                                                    asset_df[asset_hazard].isin(damaged_assets)
-                                                    ][[asset_id,asset_hazard,asset_cost_unit,'damage_cost']]
+                            if reopen_cost is True:
+                                affected_assets_df = asset_df[
+                                                        asset_df[asset_hazard].isin(damaged_assets)
+                                                        ][[asset_id,asset_hazard,asset_cost_unit,'damage_cost','reopen_cost']]
+                            else:
+                                affected_assets_df = asset_df[
+                                                        asset_df[asset_hazard].isin(damaged_assets)
+                                                        ][[asset_id,asset_hazard,asset_cost_unit,'damage_cost']]
                             damaged_assets = list(set(affected_assets_df[asset_hazard].values.tolist()))
                             damages_df = damages_df[damages_df['asset_name'].isin(damaged_assets)]
                             affected_assets_df = pd.merge(
@@ -279,11 +297,37 @@ def main(config):
 
                                 hazard_effect_df[['direct_damage_cost','damage_cost_unit']] = hazard_effect_df['direct_damage_cost_and_units'].apply(pd.Series)
                                 hazard_effect_df.drop('direct_damage_cost_and_units',axis=1,inplace=True)
-                                hazard_effect_df = hazard_effect_df.groupby([asset_id,
-                                                            'exposure_unit','damage_cost_unit',
-                                                            'hazard','rp','rcp','epoch','confidence'
-                                                            ],
-                                                            dropna=False).agg({"exposure": "sum", "direct_damage_cost": "sum"}).reset_index()
+                                if reopen_cost is True:
+                                    hazard_effect_df['reopen_damage_cost_and_units'] =  hazard_effect_df.progress_apply(
+                                                                        lambda x:estimate_direct_damage_costs_and_units(
+                                                                            x,asset_cost_unit,'reopen_cost'),
+                                                                            axis=1)
+
+                                    hazard_effect_df[['direct_reopen_cost','reopen_cost_unit']] = hazard_effect_df['reopen_damage_cost_and_units'].apply(pd.Series)
+                                    hazard_effect_df.drop('reopen_damage_cost_and_units',axis=1,inplace=True)
+
+                                    hazard_effect_df = hazard_effect_df.groupby([asset_id,
+                                                        'exposure_unit',
+                                                        'damage_cost_unit',
+                                                        'reopen_cost_unit',
+                                                        'hazard',
+                                                        'rp','rcp','epoch','confidence'
+                                                        ],
+                                                        dropna=False).agg({
+                                                                "exposure": "sum", 
+                                                                "direct_damage_cost": "sum",
+                                                                "direct_reopen_cost":"sum"}).reset_index()
+                                else:
+                                    hazard_effect_df = hazard_effect_df.groupby([asset_id,
+                                                        'exposure_unit',
+                                                        'damage_cost_unit',
+                                                        'hazard',
+                                                        'rp','rcp','epoch','confidence'
+                                                        ],
+                                                        dropna=False).agg({
+                                                            "exposure": "sum", 
+                                                            "direct_damage_cost": "sum"}).reset_index()
+
                                 hazard_effect_df['damage_uncertainty_parameter'] = damage_uncertainty_parameter
                                 hazard_effect_df['cost_uncertainty_parameter'] = cost_uncertainty_parameter
                                 hazard_effect_df =  hazard_effect_df[hazard_effect_df['direct_damage_cost'] > 0]
@@ -303,10 +347,23 @@ def main(config):
             
 
                 hazard_damages['probability'] = 1.0/hazard_damages['rp']
-                index_columns = [c for c in hazard_damages.columns.values.tolist() if c not in ['rp','probability','direct_damage_cost','exposure']]
+                index_columns = [c for c in hazard_damages.columns.values.tolist() if c not in [
+                                                                    'rp',
+                                                                    'probability',
+                                                                    'direct_damage_cost',
+                                                                    'direct_reopen_cost',
+                                                                    'exposure']
+                                ]
                 expected_damage_df = risks_pivot(hazard_damages,index_columns,'probability',
                                             'direct_damage_cost',None,'EAD',
                                             flood_protection=None)
+                if reopen_cost is True:
+                    expected_reopen_df = risks_pivot(hazard_damages,index_columns,'probability',
+                                            'direct_reopen_cost',None,'EAR',
+                                            flood_protection=None)
+                    expected_damage_df = pd.merge(expected_damage_df,expected_reopen_df,how='left',on=index_columns).fillna(0)
+                    del expected_reopen_df
+
                 expected_damage_df.to_csv(os.path.join(asset_damages_results,
                             f"{asset_info.asset_gpkg}_{asset_info.asset_layer}_EAD_parameter_set_{set_count}.csv"),index=False)
 
