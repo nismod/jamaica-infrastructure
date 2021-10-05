@@ -24,6 +24,13 @@ def identify_rehabilitation_projects(x):
     else:
         return 0
 
+def get_node_status(x,edges):
+    edge_status = list(set(edges[(edges.from_node == x.node_id) | (edges.to_node == x.node_id)]['status'].values.tolist()))
+    if "Functional" in edge_status:
+        return "Functional"
+    else:
+        return "Non-Functional"
+
 
 def main(config):
     incoming_data_path = config['paths']['incoming_data']
@@ -74,6 +81,7 @@ def main(config):
                             layer='nodes')
     nodes = gpd.GeoDataFrame(nodes,geometry='geometry',crs={'init': f'epsg:{epsg_jamaica}'})
     nodes['asset_type'] = nodes.progress_apply(lambda x: 'station' if x.Station else 'junction',axis=1)
+    nodes['status'] = nodes.progress_apply(lambda x: get_node_status(x,edges),axis=1)
     nodes['cost_unit'] = 'USD'
     station_cost = 500000.0 # Cost estimate obtained from JRC project report
     nodes['min_damage_cost'] = 0.8*station_cost

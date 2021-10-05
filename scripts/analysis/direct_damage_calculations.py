@@ -346,26 +346,26 @@ def main(config):
                             f"{asset_info.asset_gpkg}_{asset_info.asset_layer}_direct_damages_parameter_set_{set_count}.csv"),index=False)
             
 
-                hazard_damages['probability'] = 1.0/hazard_damages['rp']
-                index_columns = [c for c in hazard_damages.columns.values.tolist() if c not in [
-                                                                    'rp',
-                                                                    'probability',
-                                                                    'direct_damage_cost',
-                                                                    'direct_reopen_cost',
-                                                                    'exposure']
-                                ]
-                expected_damage_df = risks_pivot(hazard_damages,index_columns,'probability',
-                                            'direct_damage_cost',None,'EAD',
-                                            flood_protection=None)
-                if reopen_cost is True:
-                    expected_reopen_df = risks_pivot(hazard_damages,index_columns,'probability',
-                                            'direct_reopen_cost',None,'EAR',
-                                            flood_protection=None)
-                    expected_damage_df = pd.merge(expected_damage_df,expected_reopen_df,how='left',on=index_columns).fillna(0)
-                    del expected_reopen_df
+                # hazard_damages['probability'] = 1.0/hazard_damages['rp']
+                # index_columns = [c for c in hazard_damages.columns.values.tolist() if c not in [
+                #                                                     'rp',
+                #                                                     'probability',
+                #                                                     'direct_damage_cost',
+                #                                                     'direct_reopen_cost',
+                #                                                     'exposure']
+                #                 ]
+                # expected_damage_df = risks_pivot(hazard_damages,index_columns,'probability',
+                #                             'direct_damage_cost',None,'EAD',
+                #                             flood_protection=None)
+                # if reopen_cost is True:
+                #     expected_reopen_df = risks_pivot(hazard_damages,index_columns,'probability',
+                #                             'direct_reopen_cost',None,'EAR',
+                #                             flood_protection=None)
+                #     expected_damage_df = pd.merge(expected_damage_df,expected_reopen_df,how='left',on=index_columns).fillna(0)
+                #     del expected_reopen_df
 
-                expected_damage_df.to_csv(os.path.join(asset_damages_results,
-                            f"{asset_info.asset_gpkg}_{asset_info.asset_layer}_EAD_parameter_set_{set_count}.csv"),index=False)
+                # expected_damage_df.to_csv(os.path.join(asset_damages_results,
+                #             f"{asset_info.asset_gpkg}_{asset_info.asset_layer}_EAD_parameter_set_{set_count}.csv"),index=False)
 
 
 

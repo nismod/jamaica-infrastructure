@@ -4,14 +4,17 @@ import os
 import json
 import warnings
 
-from collections import namedtuple
+from collections import namedtuple, OrderedDict
 
 import cartopy.crs as ccrs
 import geopandas
+import numpy
+import math
 import matplotlib.pyplot as plt
 import matplotlib.patches as mpatches
+from shapely.geometry import LineString
+from matplotlib.lines import Line2D
 from scalebar import scale_bar
-
 
 def _get_palette():
     colors = {
@@ -25,7 +28,10 @@ def _get_palette():
     Palette = namedtuple('Palette', colors.keys())
     return Palette(**colors)
 
-
+Style = namedtuple('Style', ['color', 'zindex', 'label'])
+Style.__doc__ += """: class to hold an element's styles
+Used to generate legend entries, apply uniform style to groups of map elements
+"""
 Palette = _get_palette()
 JAMAICA_GRID_EPSG = 3448
 
@@ -181,11 +187,11 @@ def plot_line_assets(ax,ax_crs,edges,colors,size,zorder):
 
 def get_sector_layer(sector,sector_data_path,layer_key):
     layer_name_key = f"{layer_key}_layer"
-    layer_filter_key = f"{layer_key}_filter_column"
-    layer_filter_values = f"{layer_key}_categories"
+    layer_classify_key = f"{layer_key}_classify_column"
+    layer_classify_values = f"{layer_key}_categories"
     if sector[layer_name_key] is not None:
         layer = geopandas.read_file(os.path.join(sector_data_path,sector["sector_gpkg"]),layer=sector[layer_name_key])
-        layer = layer[layer[sector[layer_filter_key]].isin(sector[layer_filter_values])]
+        layer = layer[layer[sector[layer_classify_key]].isin(sector[layer_classify_values])]
         return layer
     else:
         return []
@@ -199,7 +205,7 @@ def plot_lines_and_points(ax,legend_handles,sector,sector_dataframe=None,layer_k
     for i,(cat,color,label,zorder) in enumerate(layer_details):
         if layer_key == "edge":
             ax = plot_line_assets(ax,JAMAICA_GRID_EPSG,
-                                sector_dataframe[sector_dataframe[sector["edge_filter_column"]] == cat],
+                                sector_dataframe[sector_dataframe[sector["edge_classify_column"]] == cat],
                                 color,
                                 sector["edge_categories_linewidth"][i],
                                 zorder)
@@ -209,7 +215,7 @@ def plot_lines_and_points(ax,legend_handles,sector,sector_dataframe=None,layer_k
                 use_labels.append(label)
         elif layer_key == "node":
             ax = plot_point_assets(ax,JAMAICA_GRID_EPSG,
-                            sector_dataframe[sector_dataframe[sector["node_filter_column"]] == cat],
+                            sector_dataframe[sector_dataframe[sector["node_classify_column"]] == cat],
                             color,
                             sector["node_categories_markersize"][i],
                             sector["node_categories_marker"][i],
@@ -224,6 +230,329 @@ def plot_lines_and_points(ax,legend_handles,sector,sector_dataframe=None,layer_k
                 use_labels.append(label)
         
     return ax, legend_handles
+
+def legend_from_style_spec(ax, styles, fontsize = 10, loc='lower left'):
+    """Plot legend
+    """
+    handles = [
+        mpatches.Patch(color=style.color, label=style.label)
+        for style in styles.values() if style.label is not None
+    ]
+    ax.legend(
+        handles=handles,
+        fontsize = fontsize,
+        loc=loc
+    )
+
+def generate_weight_bins_old(weights, n_steps=9, width_step=0.01, interpolation='linear'):
+    """Given a list of weight values, generate <n_steps> bins with a width
+    value to use for plotting e.g. weighted network flow maps.
+    """
+    min_weight = min(weights)
+    max_weight = max(weights)
+
+    width_by_range = OrderedDict()
+
+    if interpolation == 'linear':
+        # mins = numpy.linspace(min_weight, max_weight, n_steps,endpoint=True)
+        mins = numpy.linspace(min_weight, max_weight, n_steps)
+    elif interpolation == 'log':
+        # mins = numpy.geomspace(min_weight, max_weight, n_steps,endpoint=True)
+        mins = numpy.geomspace(min_weight, max_weight, n_steps)
+    else:
+        raise ValueError('Interpolation must be log or linear')
+    maxs = list(mins)
+    maxs.append(max_weight*10)
+    maxs = maxs[1:]
+    # mins = mins[:-1]
+    assert len(maxs) == len(mins)
+
+    if interpolation == 'log':
+        scale = numpy.geomspace(1, len(mins),len(mins))
+    else:
+        scale = numpy.linspace(1,len(mins),len(mins))
+
+
+    for i, (min_, max_) in enumerate(zip(mins, maxs)):
+        width_by_range[(min_, max_)] = scale[i] * width_step
+
+    return width_by_range
+
+def generate_weight_bins(weights, n_steps=9, width_step=0.01, interpolation='linear'):
+    """Given a list of weight values, generate <n_steps> bins with a width
+    value to use for plotting e.g. weighted network flow maps.
+    """
+    min_weight = min(weights)
+    max_weight = max(weights)
+    # print (min_weight,max_weight)
+    if min(weights) > 0:
+        min_order = math.floor(math.log10(min(weights)))
+        min_decimal_one = min_weight/(10**min_order)
+        min_nearest = round(min_weight/(10**min_order),1)
+        if min_nearest > min_decimal_one:
+            min_nearest = min_nearest - 0.1
+        min_weight = (10**min_order)*min_nearest
+    
+    if max(weights) > 0:
+        max_order = math.floor(math.log10(max(weights)))
+        max_decimal_one = max_weight/(10**max_order)
+        max_nearest = round(max_weight/(10**max_order),1)
+        if max_nearest < max_decimal_one:
+            max_nearest += 0.1
+        max_weight = (10**max_order)*max_nearest
+    # print (min_weight,max_weight)
+    # print (min_weight, min_order, (10**min_order)*round(min_weight/(10**min_order),1))
+    # print (max_weight, max_order, (10**max_order)*round(max_weight/(10**max_order),1))
+
+
+    width_by_range = OrderedDict()
+
+    if interpolation == 'linear':
+        mins = numpy.linspace(min_weight, max_weight, n_steps,endpoint=True)
+        # mins = numpy.linspace(min_weight, max_weight, n_steps)
+    elif interpolation == 'log':
+        mins = numpy.geomspace(min_weight, max_weight, n_steps,endpoint=True)
+        # mins = numpy.geomspace(min_weight, max_weight, n_steps)
+    else:
+        raise ValueError('Interpolation must be log or linear')
+    # maxs = list(mins)
+    # maxs.append(max_weight*10)
+    maxs = mins[1:]
+    mins = mins[:-1]
+    assert len(maxs) == len(mins)
+
+    if interpolation == 'log':
+        scale = numpy.geomspace(1, len(mins),len(mins))
+    else:
+        scale = numpy.linspace(1,len(mins),len(mins))
+
+
+    for i, (min_, max_) in enumerate(zip(mins, maxs)):
+        width_by_range[(min_, max_)] = scale[i] * width_step
+
+    return width_by_range
+
+def find_significant_digits(divisor,significance,width_by_range):
+    divisor = divisor
+    significance_ndigits = significance
+    max_sig = []
+    for (i, ((nmin, nmax), line_style)) in enumerate(width_by_range.items()):
+        if round(nmin/divisor, significance_ndigits) < round(nmax/divisor, significance_ndigits):
+            max_sig.append(significance_ndigits)
+        elif round(nmin/divisor, significance_ndigits+1) < round(nmax/divisor, significance_ndigits+1):
+            max_sig.append(significance_ndigits+1)
+        elif round(nmin/divisor, significance_ndigits+2) < round(nmax/divisor, significance_ndigits+2):
+            max_sig.append(significance_ndigits+2)
+        else:
+            max_sig.append(significance_ndigits+3)
+
+    significance_ndigits = max(max_sig)
+    return significance_ndigits
+
+def create_figure_legend(divisor,significance,width_by_range,max_weight,legend_type,legend_colors,legend_weight,marker='o'):
+    legend_handles = []
+    significance_ndigits = find_significant_digits(divisor,significance,width_by_range)
+    for (i, ((nmin, nmax), width)) in enumerate(width_by_range.items()):
+        if abs(nmin - max_weight) < 1e-5:
+            value_template = '$\geq${:.' + str(significance_ndigits) + 'f}'
+            label = value_template.format(
+                round(max_weight/divisor, significance_ndigits))
+        else:
+            value_template = '{:.' + str(significance_ndigits) + \
+                'f}-{:.' + str(significance_ndigits) + 'f}'
+            label = value_template.format(
+                round(nmin/divisor, significance_ndigits), round(nmax/divisor, significance_ndigits))
+
+        if legend_type == 'marker':
+            legend_handles.append(plt.plot([],[],
+                                marker=marker, 
+                                ms=width/legend_weight, 
+                                ls="",
+                                color=legend_colors[i],
+                                label=label)[0])
+        else:
+            legend_handles.append(Line2D([0], [0], 
+                            color=legend_colors[i], lw=width/legend_weight, label=label))
+
+    return legend_handles
+
+def create_figure_legend(divisor,significance,width_by_range,max_weight,legend_type,legend_colors,legend_weight,marker='o'):
+    legend_handles = []
+    significance_ndigits = find_significant_digits(divisor,significance,width_by_range)
+    for (i, ((nmin, nmax), width)) in enumerate(width_by_range.items()):
+        value_template = '{:.' + str(significance_ndigits) + \
+            'f}-{:.' + str(significance_ndigits) + 'f}'
+        label = value_template.format(
+            round(nmin/divisor, significance_ndigits), round(nmax/divisor, significance_ndigits))
+
+        if legend_type == 'marker':
+            legend_handles.append(plt.plot([],[],
+                                marker=marker, 
+                                ms=width/legend_weight, 
+                                ls="",
+                                color=legend_colors[i],
+                                label=label)[0])
+        else:
+            legend_handles.append(Line2D([0], [0], 
+                            color=legend_colors[i], lw=width/legend_weight, label=label))
+
+    return legend_handles
+
+def line_map_plotting_colors_width(ax,df,df_value_column,
+                        sector,
+                        divisor,legend_label,
+                        no_value_label,
+                        no_value_color = '#969696',
+                        line_steps = 4,
+                        width_step = 0.02,
+                        interpolation='linear',
+                        plot_title=False,
+                        figure_path=False,
+                        significance=0):
+    column = df_value_column
+    layer_details = list(zip(sector["edge_categories"],
+                                    sector["edge_categories_colors"],
+                                    sector["edge_categories_labels"],
+                                    sector["edge_categories_zorder"]))
+    # min_order = min(sector[f"{layer_key}_categories_zorder"])
+
+    # all_colors = line_colors +[no_value_color]
+    # all_categories = line_categories + [no_value_label]
+    # line_geoms_by_category = {f"{cat}":[] for cat in all_categories}
+    weights = [
+        getattr(record,column)
+        for record in df.itertuples() if getattr(record,column) > 0
+    ]
+    # weights = [
+    #     getattr(record,column)
+    #     for record in df.itertuples()
+    # ]
+    max_weight = max(weights)
+    width_by_range = generate_weight_bins(weights, 
+                                width_step=width_step, 
+                                n_steps=line_steps,
+                                interpolation=interpolation)
+    # print (width_by_range)
+    min_width = 0.8*width_step
+    min_order = min(sector[f"edge_categories_zorder"])
+    line_geoms_by_category = OrderedDict()
+    line_geoms_by_category[no_value_label] = []
+    # styles = OrderedDict()
+    for j,(cat,color,label,zorder) in enumerate(layer_details):
+        line_geoms_by_category[label] = []
+        for record in df[df[sector["edge_classify_column"]] == cat].itertuples():
+            geom = record.geometry
+            val = getattr(record,column)
+            buffered_geom = None
+            geom_key = label
+            for (i, ((nmin, nmax), width)) in enumerate(width_by_range.items()):
+                if val == 0:
+                    buffered_geom = geom.buffer(min_width)
+                    geom_key = no_value_label
+                    # min_width = width
+                    break
+                elif nmin <= val and val < nmax:
+                    buffered_geom = geom.buffer(width)
+
+            if buffered_geom is not None:
+                line_geoms_by_category[geom_key].append(buffered_geom)
+            else:
+                print("Feature was outside range to plot", record.Index)
+
+    # style_noflood = [(str(0),  Style(color=no_value_color, zindex=7,label='No {}'.format(value_label)))]
+    styles = OrderedDict([
+        (label,  
+            Style(color=color, zindex=zorder,label=label)) for j,(cat,color,label,zorder) in enumerate(layer_details)
+    ] + [(no_value_label,  Style(color=no_value_color, zindex=min_order-1,label=no_value_label))])
+    # print (styles)
+    for cat, geoms in line_geoms_by_category.items():
+        # print (cat,geoms)
+        cat_style = styles[cat]
+        ax.add_geometries(
+            geoms,
+            crs=ccrs.epsg(JAMAICA_GRID_EPSG),
+            linewidth=0.0,
+            facecolor=cat_style.color,
+            edgecolor='none',
+            zorder=cat_style.zindex
+        )
+
+    legend_handles = create_figure_legend(divisor,
+                        significance,
+                        width_by_range,
+                        max_weight,
+                        'line',["#023858"]*line_steps,width_step)
+    if plot_title:
+        ax.set_title(plot_title, fontsize=9)
+    print ('* Plotting ',plot_title)
+    first_legend = ax.legend(handles=legend_handles,fontsize=9,title=legend_label,loc='upper right')
+    # print (styles)
+    ax.add_artist(first_legend)
+    legend_from_style_spec(ax, styles,fontsize=9,loc='lower left')
+    return ax
+
+def point_map_plotting_color_width(ax,df,df_column,
+                marker,divisor,
+                legend_label,value_label,
+                point_colors = ['#c6dbef','#6baed6','#2171b5','#08306b'],
+                no_value_color = '#969696',
+                point_steps = 4,
+                width_step = 20,
+                plot_title=False,
+                figure_path=False,
+                significance=0):
+    column = df_column
+
+    all_colors = [no_value_color] + point_colors
+    point_geoms_by_category = {'{}'.format(j):[] for j in range(len(all_colors))}
+    weights = [
+        getattr(record,column)
+        for record in df.itertuples()
+    ]
+    max_weight = max(weights)
+    width_by_range = generate_weight_bins(weights, width_step=width_step, n_steps=point_steps)
+
+    for record in df.itertuples():
+        geom = record.geometry
+        val = getattr(record,column)
+        for (i, ((nmin, nmax), width)) in enumerate(width_by_range.items()):
+            if val == 0:
+                point_geoms_by_category[str(i)].append((geom,width/2))
+                min_width = width/2
+                break
+            elif nmin <= val and val < nmax:
+                point_geoms_by_category[str(i+1)].append((geom,width))
+
+    style_noflood = [(str(0),  Style(color=no_value_color, zindex=7,label='No {}'.format(value_label)))]
+    styles = OrderedDict(style_noflood + [
+        (str(j+1),  Style(color=point_colors[j], zindex=8+j,label=None)) for j in range(len(point_colors))
+    ])
+
+    for cat, geoms in point_geoms_by_category.items():
+        cat_style = styles[cat]
+        for g in geoms:
+            ax.scatter(
+                g[0].x,
+                g[0].y,
+                transform=ccrs.PlateCarree(),
+                facecolor=cat_style.color,
+                s=g[1],
+                marker=marker,
+                zorder=cat_style.zindex
+            )
+
+    legend_handles = create_figure_legend(divisor,
+                        significance,
+                        width_by_range,
+                        max_weight,
+                        'marker',point_colors,10,marker=marker)
+    if plot_title:
+        plt.title(plot_title, fontsize=9)
+    first_legend = ax.legend(handles=legend_handles,fontsize=11,title=legend_label,loc='lower left')
+    ax.add_artist(first_legend)
+    print ('* Plotting ',plot_title)
+    legend_from_style_spec(ax, styles,fontsize=10,loc='lower right')
+    return ax
 
 def test_plot(data_path, figures_path):
     plt.figure(figsize=(12, 8), dpi=500)
