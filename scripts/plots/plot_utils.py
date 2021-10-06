@@ -244,40 +244,6 @@ def legend_from_style_spec(ax, styles, fontsize = 10, loc='lower left'):
         loc=loc
     )
 
-def generate_weight_bins_old(weights, n_steps=9, width_step=0.01, interpolation='linear'):
-    """Given a list of weight values, generate <n_steps> bins with a width
-    value to use for plotting e.g. weighted network flow maps.
-    """
-    min_weight = min(weights)
-    max_weight = max(weights)
-
-    width_by_range = OrderedDict()
-
-    if interpolation == 'linear':
-        # mins = numpy.linspace(min_weight, max_weight, n_steps,endpoint=True)
-        mins = numpy.linspace(min_weight, max_weight, n_steps)
-    elif interpolation == 'log':
-        # mins = numpy.geomspace(min_weight, max_weight, n_steps,endpoint=True)
-        mins = numpy.geomspace(min_weight, max_weight, n_steps)
-    else:
-        raise ValueError('Interpolation must be log or linear')
-    maxs = list(mins)
-    maxs.append(max_weight*10)
-    maxs = maxs[1:]
-    # mins = mins[:-1]
-    assert len(maxs) == len(mins)
-
-    if interpolation == 'log':
-        scale = numpy.geomspace(1, len(mins),len(mins))
-    else:
-        scale = numpy.linspace(1,len(mins),len(mins))
-
-
-    for i, (min_, max_) in enumerate(zip(mins, maxs)):
-        width_by_range[(min_, max_)] = scale[i] * width_step
-
-    return width_by_range
-
 def generate_weight_bins(weights, n_steps=9, width_step=0.01, interpolation='linear'):
     """Given a list of weight values, generate <n_steps> bins with a width
     value to use for plotting e.g. weighted network flow maps.
@@ -349,32 +315,6 @@ def find_significant_digits(divisor,significance,width_by_range):
     significance_ndigits = max(max_sig)
     return significance_ndigits
 
-def create_figure_legend(divisor,significance,width_by_range,max_weight,legend_type,legend_colors,legend_weight,marker='o'):
-    legend_handles = []
-    significance_ndigits = find_significant_digits(divisor,significance,width_by_range)
-    for (i, ((nmin, nmax), width)) in enumerate(width_by_range.items()):
-        if abs(nmin - max_weight) < 1e-5:
-            value_template = '$\geq${:.' + str(significance_ndigits) + 'f}'
-            label = value_template.format(
-                round(max_weight/divisor, significance_ndigits))
-        else:
-            value_template = '{:.' + str(significance_ndigits) + \
-                'f}-{:.' + str(significance_ndigits) + 'f}'
-            label = value_template.format(
-                round(nmin/divisor, significance_ndigits), round(nmax/divisor, significance_ndigits))
-
-        if legend_type == 'marker':
-            legend_handles.append(plt.plot([],[],
-                                marker=marker, 
-                                ms=width/legend_weight, 
-                                ls="",
-                                color=legend_colors[i],
-                                label=label)[0])
-        else:
-            legend_handles.append(Line2D([0], [0], 
-                            color=legend_colors[i], lw=width/legend_weight, label=label))
-
-    return legend_handles
 
 def create_figure_legend(divisor,significance,width_by_range,max_weight,legend_type,legend_colors,legend_weight,marker='o'):
     legend_handles = []
@@ -398,73 +338,111 @@ def create_figure_legend(divisor,significance,width_by_range,max_weight,legend_t
 
     return legend_handles
 
-def line_map_plotting_colors_width(ax,df,df_value_column,
-                        sector,
-                        divisor,legend_label,
-                        no_value_label,
-                        no_value_color = '#969696',
-                        line_steps = 4,
-                        width_step = 0.02,
-                        interpolation='linear',
+def line_map_plotting_colors_width(ax,df,column,
+                        edge_classify_column=None,
+                        edge_categories=["1","2","3","4","5"],
+                        edge_colors=['#7bccc4','#6baed6','#807dba','#2171b5','#08306b'],
+                        edge_labels=[None,None,None,None,None],
+                        edge_zorder=[6,7,8,9,10],
+                        divisor=1.0,legend_label="Legend",
+                        no_value_label="No value",
+                        no_value_color="#969696",
+                        line_steps=6,
+                        width_step=0.02,
+                        interpolation="linear",
                         plot_title=False,
-                        figure_path=False,
                         significance=0):
-    column = df_value_column
-    layer_details = list(zip(sector["edge_categories"],
-                                    sector["edge_categories_colors"],
-                                    sector["edge_categories_labels"],
-                                    sector["edge_categories_zorder"]))
-    # min_order = min(sector[f"{layer_key}_categories_zorder"])
-
-    # all_colors = line_colors +[no_value_color]
-    # all_categories = line_categories + [no_value_label]
-    # line_geoms_by_category = {f"{cat}":[] for cat in all_categories}
+    #6baed6
+    #4292c6
+    #2171b5
+    #08519c
+    #08306b
+    # column = df_value_column
+    layer_details = list(
+                        zip(
+                            edge_categories,
+                            edge_colors,
+                            edge_labels,
+                            edge_zorder
+                            )
+                        )
     weights = [
         getattr(record,column)
         for record in df.itertuples() if getattr(record,column) > 0
     ]
-    # weights = [
-    #     getattr(record,column)
-    #     for record in df.itertuples()
-    # ]
     max_weight = max(weights)
     width_by_range = generate_weight_bins(weights, 
                                 width_step=width_step, 
                                 n_steps=line_steps,
                                 interpolation=interpolation)
-    # print (width_by_range)
     min_width = 0.8*width_step
-    min_order = min(sector[f"edge_categories_zorder"])
-    line_geoms_by_category = OrderedDict()
-    line_geoms_by_category[no_value_label] = []
-    # styles = OrderedDict()
-    for j,(cat,color,label,zorder) in enumerate(layer_details):
-        line_geoms_by_category[label] = []
-        for record in df[df[sector["edge_classify_column"]] == cat].itertuples():
+    min_order = min(edge_zorder)
+
+    if edge_classify_column is None:
+        line_geoms_by_category = {j:[] for j in edge_categories + [no_value_label]}
+        for record in df.itertuples():
             geom = record.geometry
             val = getattr(record,column)
             buffered_geom = None
-            geom_key = label
             for (i, ((nmin, nmax), width)) in enumerate(width_by_range.items()):
                 if val == 0:
                     buffered_geom = geom.buffer(min_width)
-                    geom_key = no_value_label
+                    cat = no_value_label
                     # min_width = width
                     break
                 elif nmin <= val and val < nmax:
                     buffered_geom = geom.buffer(width)
+                    cat = str(i+1)
 
             if buffered_geom is not None:
-                line_geoms_by_category[geom_key].append(buffered_geom)
+                line_geoms_by_category[cat].append(buffered_geom)
             else:
                 print("Feature was outside range to plot", record.Index)
 
-    # style_noflood = [(str(0),  Style(color=no_value_color, zindex=7,label='No {}'.format(value_label)))]
-    styles = OrderedDict([
-        (label,  
-            Style(color=color, zindex=zorder,label=label)) for j,(cat,color,label,zorder) in enumerate(layer_details)
-    ] + [(no_value_label,  Style(color=no_value_color, zindex=min_order-1,label=no_value_label))])
-    # print (styles)
+        legend_handles = create_figure_legend(divisor,
+                        significance,
+                        width_by_range,
+                        max_weight,
+                        'line',edge_colors,width_step)
+        styles = OrderedDict([
+            (cat,  
+                Style(color=color, zindex=zorder,label=label)) for j,(cat,color,label,zorder) in enumerate(layer_details)
+        ] + [(no_value_label,  Style(color=no_value_color, zindex=min_order-1,label=no_value_label))])
+    else:
+        line_geoms_by_category = OrderedDict()
+        line_geoms_by_category[no_value_label] = []
+        for j,(cat,color,label,zorder) in enumerate(layer_details):
+            line_geoms_by_category[label] = []
+            for record in df[df[edge_classify_column] == cat].itertuples():
+                geom = record.geometry
+                val = getattr(record,column)
+                buffered_geom = None
+                geom_key = label
+                for (i, ((nmin, nmax), width)) in enumerate(width_by_range.items()):
+                    if val == 0:
+                        buffered_geom = geom.buffer(min_width)
+                        geom_key = no_value_label
+                        # min_width = width
+                        break
+                    elif nmin <= val and val < nmax:
+                        buffered_geom = geom.buffer(width)
+
+                if buffered_geom is not None:
+                    line_geoms_by_category[geom_key].append(buffered_geom)
+                else:
+                    print("Feature was outside range to plot", record.Index)
+
+            legend_handles = create_figure_legend(divisor,
+                        significance,
+                        width_by_range,
+                        max_weight,
+                        'line',["#023858"]*line_steps,width_step)
+
+        styles = OrderedDict([
+            (label,  
+                Style(color=color, zindex=zorder,label=label)) for j,(cat,color,label,zorder) in enumerate(layer_details)
+        ] + [(no_value_label,  Style(color=no_value_color, zindex=min_order-1,label=no_value_label))])
+    
     for cat, geoms in line_geoms_by_category.items():
         # print (cat,geoms)
         cat_style = styles[cat]
@@ -476,57 +454,105 @@ def line_map_plotting_colors_width(ax,df,df_value_column,
             edgecolor='none',
             zorder=cat_style.zindex
         )
-
-    legend_handles = create_figure_legend(divisor,
-                        significance,
-                        width_by_range,
-                        max_weight,
-                        'line',["#023858"]*line_steps,width_step)
+    
     if plot_title:
         ax.set_title(plot_title, fontsize=9)
     print ('* Plotting ',plot_title)
-    first_legend = ax.legend(handles=legend_handles,fontsize=9,title=legend_label,loc='upper right')
-    # print (styles)
+    first_legend = ax.legend(handles=legend_handles,fontsize=8,title=legend_label,loc='upper right')
     ax.add_artist(first_legend)
     legend_from_style_spec(ax, styles,fontsize=9,loc='lower left')
     return ax
 
-def point_map_plotting_color_width(ax,df,df_column,
-                marker,divisor,
-                legend_label,value_label,
-                point_colors = ['#c6dbef','#6baed6','#2171b5','#08306b'],
-                no_value_color = '#969696',
-                point_steps = 4,
-                width_step = 20,
-                plot_title=False,
-                figure_path=False,
-                significance=0):
-    column = df_column
+def point_map_plotting_colors_width(ax,df,column,
+                        point_classify_column=None,
+                        point_categories=["1","2","3","4","5"],
+                        point_colors=['#7bccc4','#6baed6','#807dba','#2171b5','#08306b'],
+                        point_labels=[None,None,None,None,None],
+                        point_zorder=[6,7,8,9,10],
+                        marker="o",
+                        divisor=1.0,
+                        legend_label="Legend",
+                        no_value_label="No value",
+                        no_value_color="#969696",
+                        point_steps=6,
+                        width_step=0.02,
+                        interpolation="linear",
+                        plot_title=False,
+                        significance=0):
 
-    all_colors = [no_value_color] + point_colors
-    point_geoms_by_category = {'{}'.format(j):[] for j in range(len(all_colors))}
+
+    layer_details = list(
+                        zip(
+                            point_categories,
+                            point_colors,
+                            point_labels,
+                            point_zorder
+                            )
+                        )
     weights = [
         getattr(record,column)
-        for record in df.itertuples()
+        for record in df.itertuples() if getattr(record,column) > 0
     ]
     max_weight = max(weights)
-    width_by_range = generate_weight_bins(weights, width_step=width_step, n_steps=point_steps)
+    width_by_range = generate_weight_bins(weights, 
+                                width_step=width_step, 
+                                n_steps=point_steps,
+                                interpolation=interpolation)
+    min_width = 0.8*width_step
+    min_order = min(point_zorder)
 
-    for record in df.itertuples():
-        geom = record.geometry
-        val = getattr(record,column)
-        for (i, ((nmin, nmax), width)) in enumerate(width_by_range.items()):
-            if val == 0:
-                point_geoms_by_category[str(i)].append((geom,width/2))
-                min_width = width/2
-                break
-            elif nmin <= val and val < nmax:
-                point_geoms_by_category[str(i+1)].append((geom,width))
+    if point_classify_column is None:
+        point_geoms_by_category = {j:[] for j in point_categories + [no_value_label]}
+        for record in df.itertuples():
+            geom = record.geometry
+            val = getattr(record,column)
+            for (i, ((nmin, nmax), width)) in enumerate(width_by_range.items()):
+                if val == 0:
+                    point_geoms_by_category[no_value_label].append((geom,min_width))
+                    break
+                elif nmin <= val and val < nmax:
+                    point_geoms_by_category[str(i+1)].append((geom,width))
 
-    style_noflood = [(str(0),  Style(color=no_value_color, zindex=7,label='No {}'.format(value_label)))]
-    styles = OrderedDict(style_noflood + [
-        (str(j+1),  Style(color=point_colors[j], zindex=8+j,label=None)) for j in range(len(point_colors))
-    ])
+        legend_handles = create_figure_legend(divisor,
+                        significance,
+                        width_by_range,
+                        max_weight,
+                        'marker',point_colors,width_step/2,marker=marker)
+        styles = OrderedDict([
+            (cat,  
+                Style(color=color, zindex=zorder,label=label)) for j,(cat,color,label,zorder) in enumerate(layer_details)
+        ] + [(no_value_label,  Style(color=no_value_color, zindex=min_order-1,label=no_value_label))])
+    else:
+        point_geoms_by_category = OrderedDict()
+        point_geoms_by_category[no_value_label] = []
+        for j,(cat,color,label,zorder) in enumerate(layer_details):
+            point_geoms_by_category[label] = []
+            for record in df[df[point_classify_column] == cat].itertuples():
+                geom = record.geometry
+                val = getattr(record,column)
+                buffered_geom = None
+                geom_key = label
+                for (i, ((nmin, nmax), width)) in enumerate(width_by_range.items()):
+                    if val == 0:
+                        point_geoms_by_category[no_value_label].append((geom,min_width))
+                        # geom_key = no_value_label
+                        # min_width = width
+                        break
+                    elif nmin <= val and val < nmax:
+                        point_geoms_by_category[label].append((geom,width))
+
+
+            legend_handles = create_figure_legend(divisor,
+                        significance,
+                        width_by_range,
+                        max_weight,
+                        'marker',["#023858"]*point_steps,width_step/2,marker=marker)
+
+        styles = OrderedDict([
+            (label,  
+                Style(color=color, zindex=zorder,label=label)) for j,(cat,color,label,zorder) in enumerate(layer_details)
+        ] + [(no_value_label,  Style(color=no_value_color, zindex=min_order-1,label=no_value_label))])
+
 
     for cat, geoms in point_geoms_by_category.items():
         cat_style = styles[cat]
@@ -534,24 +560,25 @@ def point_map_plotting_color_width(ax,df,df_column,
             ax.scatter(
                 g[0].x,
                 g[0].y,
-                transform=ccrs.PlateCarree(),
+                transform=ccrs.epsg(JAMAICA_GRID_EPSG),
                 facecolor=cat_style.color,
                 s=g[1],
+                alpha=0.8,
                 marker=marker,
                 zorder=cat_style.zindex
             )
 
-    legend_handles = create_figure_legend(divisor,
-                        significance,
-                        width_by_range,
-                        max_weight,
-                        'marker',point_colors,10,marker=marker)
+    # legend_handles = create_figure_legend(divisor,
+    #                     significance,
+    #                     width_by_range,
+    #                     max_weight,
+    #                     'marker',point_colors,10,marker=marker)
     if plot_title:
         plt.title(plot_title, fontsize=9)
-    first_legend = ax.legend(handles=legend_handles,fontsize=11,title=legend_label,loc='lower left')
+    first_legend = ax.legend(handles=legend_handles,fontsize=9,title=legend_label,loc='upper right')
     ax.add_artist(first_legend)
     print ('* Plotting ',plot_title)
-    legend_from_style_spec(ax, styles,fontsize=10,loc='lower right')
+    legend_from_style_spec(ax, styles,fontsize=9,loc='lower left')
     return ax
 
 def test_plot(data_path, figures_path):

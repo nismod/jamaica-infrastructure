@@ -222,7 +222,7 @@ def jamaica_sector_attributes():
                                 "edge_categories_zorder":[10,9,8,7],
                                 "node_categories_markersize":[15.0,15.0,15.0,15.0,15.0,15.0],
                                 "node_categories_marker":["s","s","s","s","s","o"],
-                                "node_categories_zorder":[15,15,15,15,15,15],
+                                "node_categories_zorder":[15,15,15,15,15,14],
                             },
                             {
                                 "sector":"water",
