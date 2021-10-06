@@ -38,6 +38,7 @@ def main(config):
                             dpi=500)
             ax = get_axes(ax,extent=JAMAICA_EXTENT)
             plot_basemap(ax, processed_data_path, plot_regions=True, region_labels=True)
+            scale_bar_and_direction(ax)
 
             if len(edges) > 0:
                 ax, legend_handles = plot_lines_and_points(ax,legend_handles,sector,sector_dataframe=edges,layer_key="edge")
@@ -73,6 +74,7 @@ def main(config):
                 dpi=500)
     ax = get_axes(ax,extent=JAMAICA_EXTENT)
     plot_basemap(ax, processed_data_path, plot_regions=True, region_labels=False)
+    scale_bar_and_direction(ax)
     for node_type,node_color in nodes_categories_colors.items():
         ax = plot_point_assets(ax,JAMAICA_GRID_EPSG,nodes[nodes["asset_type"] == node_type],node_color,15.0,'o',11)
         legend_handles.append(plt.plot([],[],

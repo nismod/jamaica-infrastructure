@@ -45,6 +45,7 @@ def main(config):
                             dpi=500)
             ax = get_axes(ax,extent=JAMAICA_EXTENT)
             plot_basemap(ax, processed_data_path, plot_regions=True, region_labels=True)
+            scale_bar_and_direction(ax)
             if len(edges) > 0:
                 ax, legend_handles = plot_lines_and_points(ax,legend_handles,sector,sector_dataframe=edges,layer_key="edge")
             if len(nodes) > 0:

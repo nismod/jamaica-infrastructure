@@ -8,6 +8,7 @@ from collections import namedtuple, OrderedDict
 
 import cartopy.crs as ccrs
 import geopandas
+import pandas
 import numpy
 import math
 import matplotlib.pyplot as plt
@@ -261,6 +262,11 @@ def generate_weight_bins(weights, n_steps=9, width_step=0.01, interpolation='lin
     elif interpolation == 'log':
         mins = numpy.geomspace(min_weight, max_weight, n_steps,endpoint=True)
         # mins = numpy.geomspace(min_weight, max_weight, n_steps)
+    elif interpolation == 'quantiles':
+        weights = numpy.array([min_weight] + list(weights) + [max_weight])
+        mins = numpy.quantile(weights,q=numpy.linspace(0,1,n_steps,endpoint=True))
+    elif interpolation == 'equal bins':
+        mins = numpy.array([min_weight] + list(sorted(set([cut.right for cut in pandas.qcut(sorted(weights),n_steps-1)])))[:-1] + [max_weight])  
     else:
         raise ValueError('Interpolation must be log or linear')
     # maxs = list(mins)
