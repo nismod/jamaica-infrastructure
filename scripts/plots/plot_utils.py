@@ -77,7 +77,7 @@ def get_axes(ax,extent=None):
 
     return ax
 
-def scale_bar_and_direction(ax,ax_crs=None,length=100,location=(0.5, 0.05), linewidth=3):
+def scale_bar_and_direction(ax,arrow_location=(0.86,0.08),scalebar_location=(0.88,0.05),scalebar_distance=25,zorder=20):
     """Draw a scale bar and direction arrow
 
     Parameters
@@ -93,31 +93,13 @@ def scale_bar_and_direction(ax,ax_crs=None,length=100,location=(0.5, 0.05), line
         thickness of the scalebar.
     """
     # lat-lon limits
-    scale_bar(ax, (0.71, 0.05), 25, color='k')
+    scale_bar(ax, scalebar_location, scalebar_distance, color='k',zorder=zorder)
 
-    # Make the direction arrow specific for Jamaica
-    if ax_crs is not None:
-        x0, x1, y0, y1 = ax.get_extent()
-        tmc = ccrs.epsg(ax_crs)
-
-    else:
-        llx0, llx1, lly0, lly1 = ax.get_extent(ccrs.PlateCarree())
-        # Transverse mercator for length
-        x = (llx1 + llx0) / 2
-        y = lly0 + (lly1 - lly0) * location[1]
-        tmc = ccrs.TransverseMercator(x, y)
-
-        # Extent of the plotted area in coordinates in metres
-        x0, x1, y0, y1 = ax.get_extent(tmc)
-
-    # Scalebar location coordinates in metres
-    sbx = x0 + (x1 - x0) * location[0]
-    sby = y0 + (y1 - y0) * location[1]
-    bar_xs = [sbx - length * 10, sbx - length * 90]
-
-    ax.text(x=sbx - length * 150, y=sby + 50*length, s='N', fontsize=14)
-    ax.arrow(sbx - length * 135, sby - 5*length, 0, 50*length, length_includes_head=True,
-          head_width=50*length, head_length=60*length, overhang=0.2, facecolor='k')
+    ax.text(*arrow_location,transform=ax.transAxes, s='N', fontsize=14,zorder=zorder)
+    arrow_location = numpy.asarray(arrow_location) + numpy.asarray((0.008,-0.03))
+    # arrow_location[1] = arrow_location[1] - 0.02
+    ax.arrow(*arrow_location, 0, 0.02, length_includes_head=True,
+          head_width=0.01, head_length=0.04, overhang=0.2,transform=ax.transAxes, facecolor='k',zorder=zorder)
 
 def plot_basemap_labels(ax,ax_crs=None,labels=None,label_column=None,label_offset=0,include_zorder=20):
     """Plot countries and regions background
@@ -158,7 +140,7 @@ def plot_basemap(ax, data_path, ax_crs=JAMAICA_GRID_EPSG, plot_regions=False, re
         if region_labels is True:
             plot_basemap_labels(ax,ax_crs=ax_crs,
                                 labels=regions,label_column='PARISH',label_offset=100)
-    scale_bar_and_direction(ax,ax_crs,location=(0.75, 0.05))
+    # scale_bar_and_direction(ax,ax_crs,location=(0.75, 0.05))
 
 def plot_point_assets(ax,ax_crs,nodes,colors,size,marker,zorder):
     proj_lat_lon = ccrs.epsg(ax_crs)
@@ -231,7 +213,7 @@ def plot_lines_and_points(ax,legend_handles,sector,sector_dataframe=None,layer_k
         
     return ax, legend_handles
 
-def legend_from_style_spec(ax, styles, fontsize = 10, loc='lower left'):
+def legend_from_style_spec(ax, styles, fontsize = 10, loc='lower left',zorder=20):
     """Plot legend
     """
     handles = [
@@ -242,7 +224,7 @@ def legend_from_style_spec(ax, styles, fontsize = 10, loc='lower left'):
         handles=handles,
         fontsize = fontsize,
         loc=loc
-    )
+    ).set_zorder(zorder)
 
 def generate_weight_bins(weights, n_steps=9, width_step=0.01, interpolation='linear'):
     """Given a list of weight values, generate <n_steps> bins with a width
@@ -409,10 +391,11 @@ def line_map_plotting_colors_width(ax,df,column,
                 Style(color=color, zindex=zorder,label=label)) for j,(cat,color,label,zorder) in enumerate(layer_details)
         ] + [(no_value_label,  Style(color=no_value_color, zindex=min_order-1,label=no_value_label))])
     else:
-        line_geoms_by_category = OrderedDict()
-        line_geoms_by_category[no_value_label] = []
+        # line_geoms_by_category = OrderedDict()
+        # line_geoms_by_category[no_value_label] = []
+        line_geoms_by_category = OrderedDict([(j,[]) for j in edge_labels + [no_value_label]])
         for j,(cat,color,label,zorder) in enumerate(layer_details):
-            line_geoms_by_category[label] = []
+            # line_geoms_by_category[label] = []
             for record in df[df[edge_classify_column] == cat].itertuples():
                 geom = record.geometry
                 val = getattr(record,column)
@@ -459,8 +442,8 @@ def line_map_plotting_colors_width(ax,df,column,
         ax.set_title(plot_title, fontsize=9)
     print ('* Plotting ',plot_title)
     first_legend = ax.legend(handles=legend_handles,fontsize=8,title=legend_label,loc='upper right')
-    ax.add_artist(first_legend)
-    legend_from_style_spec(ax, styles,fontsize=9,loc='lower left')
+    ax.add_artist(first_legend).set_zorder(20)
+    legend_from_style_spec(ax, styles,fontsize=9,loc='lower left',zorder=20)
     return ax
 
 def point_map_plotting_colors_width(ax,df,column,
@@ -523,10 +506,11 @@ def point_map_plotting_colors_width(ax,df,column,
                 Style(color=color, zindex=zorder,label=label)) for j,(cat,color,label,zorder) in enumerate(layer_details)
         ] + [(no_value_label,  Style(color=no_value_color, zindex=min_order-1,label=no_value_label))])
     else:
-        point_geoms_by_category = OrderedDict()
-        point_geoms_by_category[no_value_label] = []
+        # point_geoms_by_category = OrderedDict()
+        # point_geoms_by_category[no_value_label] = []
+        point_geoms_by_category = OrderedDict([(j,[]) for j in point_labels + [no_value_label]])
+        # point_geoms_by_category[label] = []
         for j,(cat,color,label,zorder) in enumerate(layer_details):
-            point_geoms_by_category[label] = []
             for record in df[df[point_classify_column] == cat].itertuples():
                 geom = record.geometry
                 val = getattr(record,column)
@@ -575,10 +559,10 @@ def point_map_plotting_colors_width(ax,df,column,
     #                     'marker',point_colors,10,marker=marker)
     if plot_title:
         plt.title(plot_title, fontsize=9)
-    first_legend = ax.legend(handles=legend_handles,fontsize=9,title=legend_label,loc='upper right')
-    ax.add_artist(first_legend)
+    first_legend = ax.legend(handles=legend_handles,fontsize=8,title=legend_label,loc='upper right')
+    ax.add_artist(first_legend).set_zorder(20)
     print ('* Plotting ',plot_title)
-    legend_from_style_spec(ax, styles,fontsize=9,loc='lower left')
+    legend_from_style_spec(ax, styles,fontsize=8,loc='lower left',zorder=20)
     return ax
 
 def test_plot(data_path, figures_path):
@@ -586,6 +570,7 @@ def test_plot(data_path, figures_path):
     ax = plt.axes([0.025, 0.025, 0.95, 0.95], projection=ccrs.epsg(JAMAICA_GRID_EPSG))
     ax = get_axes(ax,extent=(598251, 838079, 610353, 714779))
     plot_basemap(ax, data_path, plot_regions=True, region_labels=True)
+    scale_bar_and_direction(ax,arrow_location=(0.86,0.08),scalebar_location=(0.88,0.05))
     save_fig(os.path.join(figures_path, "admin_map.png"))
 
 

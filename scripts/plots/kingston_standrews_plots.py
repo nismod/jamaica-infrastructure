@@ -114,15 +114,25 @@ def main(config):
                                                 damage_groupby,damage_columns,"edge")
             edges_damages["losses"] = edges_damages.progress_apply(lambda x:convert_to_usd(x,"EAD_undefended_mean"),axis=1)
 
+            boundaries = gpd.read_file(os.path.join(processed_data_path,
+                                                "boundaries",
+                                                "admin_boundaries.gpkg"),
+                                layer='admin1').to_crs(JAMAICA_GRID_EPSG)
+            boundaries= boundaries[boundaries["PARISH"].isin(["Kingston","St. Andrew"])]
+            print (boundaries)
+            bounds = boundaries.geometry.total_bounds # this gives your boundaries of the map as (xmin,ymin,xmax,ymax)
+            # ax_proj = get_projection(extent = (bounds[0]+5,bounds[2]-10,bounds[1],bounds[3]))
+            # del admin_gpd
+            kst_extent = (bounds[0]-10000,bounds[2]+10000,bounds[1],bounds[3])
             """plot the damage results
             """
             fig, ax = plt.subplots(1,1,
                             subplot_kw={'projection': ccrs.epsg(JAMAICA_GRID_EPSG)},
                             figsize=(12,8),
                             dpi=500)
-            ax = get_axes(ax,extent=JAMAICA_EXTENT)
+            ax = get_axes(ax,extent=kst_extent)
             plot_basemap(ax, processed_data_path, plot_regions=True, region_labels=True)
-            scale_bar_and_direction(ax)
+            scale_bar_and_direction(ax,scalebar_distance=5)
 
             if len(edges_damages) > 0:
                 if sector["sector_label"] in ["Roads","Railways","Potable water"]:
@@ -130,7 +140,7 @@ def main(config):
                                                         ax,edges_damages,"losses",
                                                         legend_label=legend_title,
                                                         no_value_label=no_value_string,
-                                                        width_step=40,
+                                                        width_step=10,
                                                         interpolation="log",
                                                         plot_title=f"{sector['sector_label']} multi-hazard Expected Annual Damages"
                                                         )
@@ -147,7 +157,7 @@ def main(config):
                                                         legend_label=legend_title,
                                                         no_value_label=no_value_string,
                                                         line_steps=6,
-                                                        width_step=200,
+                                                        width_step=20,
                                                         # interpolation="log",
                                                         plot_title=f"{sector['sector_label']} multi-hazard Expected Annual Damages",
                                                         )
@@ -155,7 +165,7 @@ def main(config):
                 save_fig(
                         os.path.join(
                             figures_data_path, 
-                            f"{sector['sector_label'].lower().replace(' ','_')}_{sector['edge_layer']}_EAD.png"
+                            f"k_st_{sector['sector_label'].lower().replace(' ','_')}_{sector['edge_layer']}_EAD.png"
                             )
                         )
             
@@ -181,9 +191,9 @@ def main(config):
                             subplot_kw={'projection': ccrs.epsg(JAMAICA_GRID_EPSG)},
                             figsize=(12,8),
                             dpi=500)
-            ax = get_axes(ax,extent=JAMAICA_EXTENT)
+            ax = get_axes(ax,extent=kst_extent)
             plot_basemap(ax, processed_data_path, plot_regions=True, region_labels=True)
-            scale_bar_and_direction(ax)
+            scale_bar_and_direction(ax,scalebar_distance=5)
 
             if len(nodes_damages) > 0:
                 if sector["sector_label"] in ["Roads","Railways","Potable water","Irrigation","Wastewater Treatment"]:
@@ -191,7 +201,7 @@ def main(config):
                                                         ax,nodes_damages,"losses",
                                                         legend_label=legend_title,
                                                         no_value_label=no_value_string,
-                                                        width_step=20,
+                                                        width_step=10,
                                                         interpolation="log",
                                                         plot_title=f"{sector['sector_label']} multi-hazard Expected Annual Damages"
                                                         )
@@ -208,7 +218,7 @@ def main(config):
                                                         legend_label=legend_title,
                                                         no_value_label=no_value_string,
                                                         point_steps=6,
-                                                        width_step=20,
+                                                        width_step=10,
                                                         # interpolation="log",
                                                         plot_title=f"{sector['sector_label']} multi-hazard Expected Annual Damages",
                                                         )
@@ -218,7 +228,7 @@ def main(config):
                 save_fig(
                         os.path.join(
                             figures_data_path, 
-                            f"{sector['sector_label'].lower().replace(' ','_')}_{sector['node_layer']}_EAD.png"
+                            f"k_st_{sector['sector_label'].lower().replace(' ','_')}_{sector['node_layer']}_EAD.png"
                             )
                         )
 
