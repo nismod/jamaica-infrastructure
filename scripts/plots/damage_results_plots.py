@@ -74,16 +74,11 @@ def main(config):
     figures_data_path = config['paths']['figures']
 
 
-    # asset_data_path = os.path.join(processed_data_path,
-    #                     "networks",
-    #                     "transport")
     damage_data_path = os.path.join(output_data_path,
                         "direct_damages_summary")
     damage_string = "EAD_without_confidence_value" 
     damage_columns = ["EAD_undefended_mean"]
     damage_groupby = ["exposure_unit","damage_cost_unit","epoch"]
-    # damages_filter_columns = ["rcp","epoch"]
-    # damages_filter_values = [("baseline",2010),("4.5",2010)]
     damages_filter_columns = ["epoch"]
     damages_filter_values = [2010]
     sector_attributes = jamaica_sector_attributes()
@@ -101,70 +96,64 @@ def main(config):
         if sector["sector_label"] == "Potable water":
             sector["sector_gpkg"] = "pipelines_NWC.gpkg"
             edges = get_sector_layer(sector,asset_data_path,"edge")
-            # sector["sector_gpkg"] = "potable_facilities_NWC.gpkg"
-            # nodes = get_sector_layer(sector,asset_data_path,"node")
-            # legend_font = 7
         else:
             edges = get_sector_layer(sector,asset_data_path,"edge")
-            # nodes = get_sector_layer(sector,asset_data_path,"node")
-            # legend_font = 12
-        # edges = get_sector_layer(sector,asset_data_path,"edge")
-        # if len(edges) > 0:
-        #     edges_damages = get_asset_total_damage_values(sector,
-        #                                         damage_data_path,damage_string,
-        #                                         edges,
-        #                                         damages_filter_columns,
-        #                                         damages_filter_values,
-        #                                         damage_groupby,damage_columns,"edge")
-        #     edges_damages["losses"] = edges_damages.progress_apply(lambda x:convert_to_usd(x,"EAD_undefended_mean"),axis=1)
 
-        #     """plot the damage results
-        #     """
-        #     fig, ax = plt.subplots(1,1,
-        #                     subplot_kw={'projection': ccrs.epsg(JAMAICA_GRID_EPSG)},
-        #                     figsize=(12,8),
-        #                     dpi=500)
-        #     ax = get_axes(ax,extent=JAMAICA_EXTENT)
-        #     plot_basemap(ax, processed_data_path, plot_regions=True, region_labels=True)
-        #     scale_bar_and_direction(ax)
+        if len(edges) > 0:
+            edges_damages = get_asset_total_damage_values(sector,
+                                                damage_data_path,damage_string,
+                                                edges,
+                                                damages_filter_columns,
+                                                damages_filter_values,
+                                                damage_groupby,damage_columns,"edge")
+            edges_damages["losses"] = edges_damages.progress_apply(lambda x:convert_to_usd(x,"EAD_undefended_mean"),axis=1)
 
-        #     if len(edges_damages) > 0:
-        #         if sector["sector_label"] in ["Roads","Railways","Potable water"]:
-        #             ax = line_map_plotting_colors_width(
-        #                                                 ax,edges_damages,"losses",
-        #                                                 legend_label=legend_title,
-        #                                                 no_value_label=no_value_string,
-        #                                                 width_step=40,
-        #                                                 interpolation="log",
-        #                                                 plot_title=f"{sector['sector_label']} multi-hazard Expected Annual Damages"
-        #                                                 )
+            """plot the damage results
+            """
+            fig, ax = plt.subplots(1,1,
+                            subplot_kw={'projection': ccrs.epsg(JAMAICA_GRID_EPSG)},
+                            figsize=(12,8),
+                            dpi=500)
+            ax = get_axes(ax,extent=JAMAICA_EXTENT)
+            plot_basemap(ax, processed_data_path, plot_regions=True, region_labels=True)
+            scale_bar_and_direction(ax)
 
-        #         else:
-        #             # print ("* Don't plot")
-        #             ax = line_map_plotting_colors_width(
-        #                                                 ax,edges_damages,"losses",
-        #                                                 edge_classify_column=sector["edge_classify_column"],
-        #                                                 edge_categories=sector["edge_categories"],
-        #                                                 edge_colors=sector["edge_categories_colors"],
-        #                                                 edge_labels=sector["edge_categories_labels"],
-        #                                                 edge_zorder=sector["edge_categories_zorder"],
-        #                                                 legend_label=legend_title,
-        #                                                 no_value_label=no_value_string,
-        #                                                 line_steps=6,
-        #                                                 width_step=200,
-        #                                                 # interpolation="log",
-        #                                                 plot_title=f"{sector['sector_label']} multi-hazard Expected Annual Damages",
-        #                                                 )
+            if len(edges_damages) > 0:
+                if sector["sector_label"] in ["Roads","Railways","Potable water"]:
+                    ax = line_map_plotting_colors_width(
+                                                        ax,edges_damages,"losses",
+                                                        legend_label=legend_title,
+                                                        no_value_label=no_value_string,
+                                                        width_step=40,
+                                                        interpolation="log",
+                                                        plot_title=f"{sector['sector_label']} multi-hazard Expected Annual Damages"
+                                                        )
+
+                else:
+                    # print ("* Don't plot")
+                    ax = line_map_plotting_colors_width(
+                                                        ax,edges_damages,"losses",
+                                                        edge_classify_column=sector["edge_classify_column"],
+                                                        edge_categories=sector["edge_categories"],
+                                                        edge_colors=sector["edge_categories_colors"],
+                                                        edge_labels=sector["edge_categories_labels"],
+                                                        edge_zorder=sector["edge_categories_zorder"],
+                                                        legend_label=legend_title,
+                                                        no_value_label=no_value_string,
+                                                        line_steps=6,
+                                                        width_step=200,
+                                                        # interpolation="log",
+                                                        plot_title=f"{sector['sector_label']} multi-hazard Expected Annual Damages",
+                                                        )
             
-        #         save_fig(
-        #                 os.path.join(
-        #                     figures_data_path, 
-        #                     f"{sector['sector_label'].lower().replace(' ','_')}_{sector['edge_layer']}_EAD.png"
-        #                     )
-        #                 )
+                save_fig(
+                        os.path.join(
+                            figures_data_path, 
+                            f"{sector['sector_label'].lower().replace(' ','_')}_{sector['edge_layer']}_EAD.png"
+                            )
+                        )
             
 
-        # nodes = get_sector_layer(sector,asset_data_path,"node")
         if sector["sector_label"] == "Potable water":
             sector["sector_gpkg"] = "potable_facilities_NWC.gpkg"
             nodes = get_sector_layer(sector,asset_data_path,"node")
@@ -232,7 +221,6 @@ def main(config):
                                                         )
 
                 else:
-                    # print ("* Don't plot")
                     ax = point_map_plotting_colors_width(
                                                         ax,nodes_damages,"losses",
                                                         point_classify_column=sector["node_classify_column"],
