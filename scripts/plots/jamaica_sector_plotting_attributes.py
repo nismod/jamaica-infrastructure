@@ -1,5 +1,8 @@
 import os
 import sys
+import geopandas as gpd
+import pandas as pd
+from plot_utils import *
 
 def jamaica_currency_conversion():
     """Conversion from J$ to US$
@@ -60,10 +63,10 @@ def jamaica_sector_attributes():
                                 "area_damage_categories":None,
                                 "edge_classify_column":None,
                                 "node_classify_column":None,
-                                "area_classify_column":"asset_type",
+                                "area_classify_column":"category",
                                 "edge_categories":None,
                                 "node_categories":None,
-                                "area_categories":["ports"],
+                                "area_categories":["transport"],
                                 "edge_categories_colors":None,
                                 "node_categories_colors":None,
                                 "area_categories_colors":["#08306b"],
@@ -94,10 +97,10 @@ def jamaica_sector_attributes():
                                 "area_damage_categories":None,
                                 "edge_classify_column":None,
                                 "node_classify_column":None,
-                                "area_classify_column":"asset_type",
+                                "area_classify_column":"category",
                                 "edge_categories":None,
                                 "node_categories":None,
-                                "area_categories":["airports"],
+                                "area_categories":["transport"],
                                 "edge_categories_colors":None,
                                 "node_categories_colors":None,
                                 "area_categories_colors":["#8c510a"],
@@ -109,6 +112,40 @@ def jamaica_sector_attributes():
                                 "node_categories_markersize":[15.0],
                                 "node_categories_marker":["o"],
                                 "node_categories_zorder":[11],
+                            },
+                            {
+                                "sector":"transport",
+                                "sector_gpkg":"", # We will call this separately
+                                "sector_label":"Ports and Airports",
+                                "edge_layer":None,
+                                "node_layer":None,
+                                "area_layer":None,
+                                "edge_id_column":None,
+                                "node_id_column":"node_id",
+                                "area_id_column":None,
+                                "edge_damage_filter_column":None,
+                                "node_damage_filter_column":None,
+                                "area_damage_filter_column":None,
+                                "edge_damage_categories":None,
+                                "node_damage_categories":None,
+                                "area_damage_categories":None,
+                                "edge_classify_column":None,
+                                "node_classify_column":"asset_type",
+                                "area_classify_column":None,
+                                "edge_categories":None,
+                                "node_categories":["port","airport"],
+                                "area_categories":None,
+                                "edge_categories_colors":None,
+                                "node_categories_colors":["#08306b","#8c510a"],
+                                "area_categories_colors":None,
+                                "edge_categories_labels":None,
+                                "node_categories_labels":["PORT AREAS","AIRPORT AREAS"],
+                                "area_categories_labels":None,
+                                "edge_categories_linewidth":None,
+                                "edge_categories_zorder":None,
+                                "node_categories_markersize":[15.0,15.0],
+                                "node_categories_marker":["o","o"],
+                                "node_categories_zorder":[11,11],
                             },
                             {
                                 "sector":"transport",
@@ -371,3 +408,28 @@ def jamaica_sector_attributes():
                         ]
 
     return sector_attributes
+
+def jamaica_port_and_airport_nodes():
+    config = load_config()
+    incoming_data_path = config['paths']['incoming_data']
+    processed_data_path = config['paths']['data']
+    figures_data_path = config['paths']['figures']
+
+
+    transport_data_path = os.path.join(processed_data_path,
+                        "networks",
+                        "transport")
+    ports = gpd.read_file(os.path.join(transport_data_path,"port_polygon.gpkg"),layer="areas").to_crs(epsg=JAMAICA_GRID_EPSG)
+    ports["asset_type"] = "port"
+    airports = gpd.read_file(os.path.join(transport_data_path,"airport_polygon.gpkg"),layer="areas").to_crs(epsg=JAMAICA_GRID_EPSG)
+    airports["asset_type"] = "airport"
+    nodes = pd.concat([ports[["node_id","name","asset_type","geometry"]],
+                        airports[["node_id","name","asset_type","geometry"]]],
+                        axis=0,ignore_index=True)
+    
+    nodes["centroid"] = nodes.geometry.centroid
+    nodes.drop("geometry",axis=1,inplace=True)
+    nodes.rename(columns={"centroid":"geometry"},inplace=True)
+    nodes = gpd.GeoDataFrame(nodes,geometry="geometry",crs=f"EPSG:{JAMAICA_GRID_EPSG}")
+
+    return nodes

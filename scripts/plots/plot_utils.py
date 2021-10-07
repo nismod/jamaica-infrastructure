@@ -571,6 +571,34 @@ def point_map_plotting_colors_width(ax,df,column,
     legend_from_style_spec(ax, styles,fontsize=8,loc='lower left',zorder=20)
     return ax
 
+def jamaica_port_and_airport_node_labels(ax,nodes):
+
+    labels = nodes.drop_duplicates("name",keep = "first")
+    used_names = []
+    for l in labels.itertuples():
+        if "kingston" in l.name.lower() or l.name in ["Petrojam","Wherry Wharf","Tinson Pen Aerodrome"]:
+            name = "Kingston Port and Aerodrome"
+        else:
+            name = l.name
+        if name not in used_names:
+            if name == "Kingston Port and Aerodrome":
+                location_x = l.geometry.x - 10000
+                location_y = l.geometry.y + 2000
+            elif name == "Falmouth":
+                location_x = l.geometry.x - 1000
+                location_y = l.geometry.y + 1500
+            elif name == "Port Rhoades":
+                location_x = l.geometry.x
+                location_y = l.geometry.y - 2000
+            else:
+                location_x = l.geometry.x - 10000
+                location_y = l.geometry.y + 1000
+
+            ax.text(location_x,location_y,name,size=6,weight="bold")
+            used_names.append(name)
+
+    return ax
+
 def test_plot(data_path, figures_path):
     plt.figure(figsize=(12, 8), dpi=500)
     ax = plt.axes([0.025, 0.025, 0.95, 0.95], projection=ccrs.epsg(JAMAICA_GRID_EPSG))

@@ -10,7 +10,11 @@ import matplotlib.patches as mpatches
 from plot_utils import *
 from tqdm import tqdm
 tqdm.pandas()
-from jamaica_sector_plotting_attributes import jamaica_sector_attributes, jamaica_currency_conversion
+from jamaica_sector_plotting_attributes import (
+                                                jamaica_sector_attributes, 
+                                                jamaica_currency_conversion, 
+                                                jamaica_port_and_airport_nodes
+                                                )
 from collections import namedtuple, OrderedDict
 
 JAMAICA_EXTENT = (598251, 838079, 610353, 714779)
@@ -105,74 +109,105 @@ def main(config):
             # nodes = get_sector_layer(sector,asset_data_path,"node")
             # legend_font = 12
         # edges = get_sector_layer(sector,asset_data_path,"edge")
-        if len(edges) > 0:
-            edges_damages = get_asset_total_damage_values(sector,
-                                                damage_data_path,damage_string,
-                                                edges,
-                                                damages_filter_columns,
-                                                damages_filter_values,
-                                                damage_groupby,damage_columns,"edge")
-            edges_damages["losses"] = edges_damages.progress_apply(lambda x:convert_to_usd(x,"EAD_undefended_mean"),axis=1)
+        # if len(edges) > 0:
+        #     edges_damages = get_asset_total_damage_values(sector,
+        #                                         damage_data_path,damage_string,
+        #                                         edges,
+        #                                         damages_filter_columns,
+        #                                         damages_filter_values,
+        #                                         damage_groupby,damage_columns,"edge")
+        #     edges_damages["losses"] = edges_damages.progress_apply(lambda x:convert_to_usd(x,"EAD_undefended_mean"),axis=1)
 
-            """plot the damage results
-            """
-            fig, ax = plt.subplots(1,1,
-                            subplot_kw={'projection': ccrs.epsg(JAMAICA_GRID_EPSG)},
-                            figsize=(12,8),
-                            dpi=500)
-            ax = get_axes(ax,extent=JAMAICA_EXTENT)
-            plot_basemap(ax, processed_data_path, plot_regions=True, region_labels=True)
-            scale_bar_and_direction(ax)
+        #     """plot the damage results
+        #     """
+        #     fig, ax = plt.subplots(1,1,
+        #                     subplot_kw={'projection': ccrs.epsg(JAMAICA_GRID_EPSG)},
+        #                     figsize=(12,8),
+        #                     dpi=500)
+        #     ax = get_axes(ax,extent=JAMAICA_EXTENT)
+        #     plot_basemap(ax, processed_data_path, plot_regions=True, region_labels=True)
+        #     scale_bar_and_direction(ax)
 
-            if len(edges_damages) > 0:
-                if sector["sector_label"] in ["Roads","Railways","Potable water"]:
-                    ax = line_map_plotting_colors_width(
-                                                        ax,edges_damages,"losses",
-                                                        legend_label=legend_title,
-                                                        no_value_label=no_value_string,
-                                                        width_step=40,
-                                                        interpolation="log",
-                                                        plot_title=f"{sector['sector_label']} multi-hazard Expected Annual Damages"
-                                                        )
+        #     if len(edges_damages) > 0:
+        #         if sector["sector_label"] in ["Roads","Railways","Potable water"]:
+        #             ax = line_map_plotting_colors_width(
+        #                                                 ax,edges_damages,"losses",
+        #                                                 legend_label=legend_title,
+        #                                                 no_value_label=no_value_string,
+        #                                                 width_step=40,
+        #                                                 interpolation="log",
+        #                                                 plot_title=f"{sector['sector_label']} multi-hazard Expected Annual Damages"
+        #                                                 )
 
-                else:
-                    # print ("* Don't plot")
-                    ax = line_map_plotting_colors_width(
-                                                        ax,edges_damages,"losses",
-                                                        edge_classify_column=sector["edge_classify_column"],
-                                                        edge_categories=sector["edge_categories"],
-                                                        edge_colors=sector["edge_categories_colors"],
-                                                        edge_labels=sector["edge_categories_labels"],
-                                                        edge_zorder=sector["edge_categories_zorder"],
-                                                        legend_label=legend_title,
-                                                        no_value_label=no_value_string,
-                                                        line_steps=6,
-                                                        width_step=200,
-                                                        # interpolation="log",
-                                                        plot_title=f"{sector['sector_label']} multi-hazard Expected Annual Damages",
-                                                        )
+        #         else:
+        #             # print ("* Don't plot")
+        #             ax = line_map_plotting_colors_width(
+        #                                                 ax,edges_damages,"losses",
+        #                                                 edge_classify_column=sector["edge_classify_column"],
+        #                                                 edge_categories=sector["edge_categories"],
+        #                                                 edge_colors=sector["edge_categories_colors"],
+        #                                                 edge_labels=sector["edge_categories_labels"],
+        #                                                 edge_zorder=sector["edge_categories_zorder"],
+        #                                                 legend_label=legend_title,
+        #                                                 no_value_label=no_value_string,
+        #                                                 line_steps=6,
+        #                                                 width_step=200,
+        #                                                 # interpolation="log",
+        #                                                 plot_title=f"{sector['sector_label']} multi-hazard Expected Annual Damages",
+        #                                                 )
             
-                save_fig(
-                        os.path.join(
-                            figures_data_path, 
-                            f"{sector['sector_label'].lower().replace(' ','_')}_{sector['edge_layer']}_EAD.png"
-                            )
-                        )
+        #         save_fig(
+        #                 os.path.join(
+        #                     figures_data_path, 
+        #                     f"{sector['sector_label'].lower().replace(' ','_')}_{sector['edge_layer']}_EAD.png"
+        #                     )
+        #                 )
             
 
         # nodes = get_sector_layer(sector,asset_data_path,"node")
         if sector["sector_label"] == "Potable water":
             sector["sector_gpkg"] = "potable_facilities_NWC.gpkg"
             nodes = get_sector_layer(sector,asset_data_path,"node")
+        elif sector["sector_label"] == "Ports and Airports":
+            nodes = jamaica_port_and_airport_nodes()
         else:
             nodes = get_sector_layer(sector,asset_data_path,"node")
         if len(nodes) > 0:
-            nodes_damages = get_asset_total_damage_values(sector,
-                                                damage_data_path,damage_string,
-                                                nodes,
-                                                damages_filter_columns,
-                                                damages_filter_values,
-                                                damage_groupby,damage_columns,"node")
+            if sector["sector_label"] == "Ports and Airports":
+                port_sector = [s for s in sector_attributes if s["sector_label"] == "Ports"][0]
+                port_nodes = get_sector_layer(port_sector,asset_data_path,"area")
+                port_damages = get_asset_total_damage_values(port_sector,
+                                                    damage_data_path,damage_string,
+                                                    port_nodes,
+                                                    damages_filter_columns,
+                                                    damages_filter_values,
+                                                    damage_groupby,damage_columns,"area")
+                airport_sector = [s for s in sector_attributes if s["sector_label"] == "Airports"][0]
+                airport_nodes = get_sector_layer(airport_sector,asset_data_path,"area")
+                airport_damages = get_asset_total_damage_values(airport_sector,
+                                                    damage_data_path,damage_string,
+                                                    airport_nodes,
+                                                    damages_filter_columns,
+                                                    damages_filter_values,
+                                                    damage_groupby,damage_columns,"area")
+                nodes_damages = pd.concat(
+                                            [
+                                            port_damages.drop("geometry",axis=1),
+                                            airport_damages.drop("geometry",axis=1)
+                                            ],
+                                            axis=0,
+                                            ignore_index=True
+                                        )
+                nodes_damages = pd.merge(
+                                            nodes,
+                                            nodes_damages,how='left',on=[sector["node_id_column"]]).fillna(0)
+            else:
+                nodes_damages = get_asset_total_damage_values(sector,
+                                                    damage_data_path,damage_string,
+                                                    nodes,
+                                                    damages_filter_columns,
+                                                    damages_filter_values,
+                                                    damage_groupby,damage_columns,"node")
             nodes_damages["losses"] = nodes_damages.progress_apply(lambda x:convert_to_usd(x,"EAD_undefended_mean"),axis=1)
 
             """plot the damage results
@@ -207,9 +242,8 @@ def main(config):
                                                         point_zorder=sector["node_categories_zorder"],
                                                         legend_label=legend_title,
                                                         no_value_label=no_value_string,
-                                                        point_steps=6,
                                                         width_step=20,
-                                                        # interpolation="log",
+                                                        interpolation="log",
                                                         plot_title=f"{sector['sector_label']} multi-hazard Expected Annual Damages",
                                                         )
             
