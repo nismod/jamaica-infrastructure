@@ -115,7 +115,7 @@ def main(config):
                     'max_damage_cost']] = potable_facilities_NWC['cost_and_units'].apply(pd.Series)
     potable_facilities_NWC['min_damage_cost'] = potable_facilities_NWC['min_damage_cost'].fillna(0)
     potable_facilities_NWC['max_damage_cost'] = potable_facilities_NWC['max_damage_cost'].fillna(0)
-    potable_facilities_NWC.drop(['cost_and_units','capacity_inferred'],axis=1,inplace=True)
+    potable_facilities_NWC.drop(['cost_and_units'],axis=1,inplace=True)
 
     potable_facilities_NWC.rename(columns={"Type": "asset_type"},inplace=True)
 

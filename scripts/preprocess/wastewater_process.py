@@ -115,7 +115,7 @@ def main(config):
                     'cost_unit',
                     'min_damage_cost',
                     'max_damage_cost']] = waste_water_facilities_NWC['cost_and_units'].apply(pd.Series)
-    waste_water_facilities_NWC.drop(['cost_and_units','capacity_inferred'],axis=1,inplace=True)
+    waste_water_facilities_NWC.drop(['cost_and_units'],axis=1,inplace=True)
 
 
     # provide id
