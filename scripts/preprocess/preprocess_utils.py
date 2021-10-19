@@ -292,3 +292,74 @@ def assign_node_weights_by_population_proximity(nodes_dataframe,
     del gdf_pops, population_dataframe
 
     return nodes_dataframe
+
+def spatial_scenario_selection(dataframe_1, 
+                                dataframe_2, 
+                                dataframe_1_columns, 
+                                dataframe_2_columns,
+                            ):
+    """Intersect Polygons to collect attributes
+
+    Parameters
+        - dataframe_1 - First polygon dataframe
+        - dataframe_2 - Second polygon dataframe
+        - dataframe_1_columns - First polygon dataframe columns to collect
+        - dataframe_2_columns - Second polygon dataframe columns to collect
+
+    Outputs
+        data_dictionary - Dictionary of intersection attributes:
+    """
+
+    intersection_dictionary = []
+
+    # create spatial index
+    dataframe_1_sindex = dataframe_1.sindex
+    total_values = len(dataframe_2.index)
+    for values in dataframe_2.itertuples():
+        intersected_polys = dataframe_1.iloc[list(
+            dataframe_1_sindex.intersection(values.geometry.bounds))]
+        for intersected_values in intersected_polys.itertuples():
+            if (
+                intersected_values.geometry.intersects(values.geometry) is True
+                ) and (
+                    values.geometry.is_valid is True
+                    ) and (
+                        intersected_values.geometry.is_valid is True
+                        ):
+                dataframe_1_dictionary = dict([(v,getattr(intersected_values,v)) for v in dataframe_1_columns])
+                dataframe_2_dictionary = dict([(v,getattr(values,v)) for v in dataframe_2_columns])
+                geometry_dictionary = {"geometry":values.geometry.intersection(intersected_values.geometry)}
+
+                intersection_dictionary.append({**dataframe_1_dictionary, **dataframe_2_dictionary,**geometry_dictionary})
+        print (f"* Done with Index {values.Index} out of {total_values}")
+    return intersection_dictionary
+
+def split_multigeometry(dataframe,split_geometry_type="GeometryCollection"):
+    """Create multiple geometries from any MultiGeomtery and GeometryCollection
+
+    Ensures that edge geometries are all Points,LineStrings,Polygons, duplicates attributes over any
+    created multi-geomteries.
+    """
+    simple_geom_attrs = []
+    simple_geom_geoms = []
+    for v in tqdm(dataframe.itertuples(index=False),
+                     desc="split_multi",
+                     total=len(dataframe)):
+        if v.geometry.geom_type == split_geometry_type:
+            geom_parts = list(v.geometry)
+        else:
+            geom_parts = [v.geometry]
+
+        for part in geom_parts:
+            simple_geom_geoms.append(part)
+
+        attrs = gpd.GeoDataFrame([v] * len(geom_parts))
+        simple_geom_attrs.append(attrs)
+
+    simple_geom_geoms = gpd.GeoDataFrame(simple_geom_geoms, columns=["geometry"])
+    dataframe = (pd.concat(simple_geom_attrs,
+                           axis=0).reset_index(drop=True).drop("geometry",
+                                                               axis=1))
+    dataframe = pd.concat([dataframe, simple_geom_geoms], axis=1)
+
+    return dataframe
