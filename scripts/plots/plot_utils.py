@@ -11,6 +11,8 @@ import geopandas
 import pandas
 import numpy
 import math
+import rasterio
+import rioxarray
 import matplotlib.pyplot as plt
 import matplotlib.patches as mpatches
 from shapely.geometry import LineString
@@ -179,7 +181,7 @@ def get_sector_layer(sector,sector_data_path,layer_key):
     else:
         return []
 
-def plot_lines_and_points(ax,legend_handles,sector,sector_dataframe=None,layer_key=None):  
+def plot_lines_and_points(ax,legend_handles,sector,sector_dataframe=None,layer_key=None,marker_size_factor=1):  
     layer_details = list(zip(sector[f"{layer_key}_categories"],
                                         sector[f"{layer_key}_categories_colors"],
                                         sector[f"{layer_key}_categories_labels"],
@@ -190,7 +192,7 @@ def plot_lines_and_points(ax,legend_handles,sector,sector_dataframe=None,layer_k
             ax = plot_line_assets(ax,JAMAICA_GRID_EPSG,
                                 sector_dataframe[sector_dataframe[sector["edge_classify_column"]] == cat],
                                 color,
-                                sector["edge_categories_linewidth"][i],
+                                marker_size_factor*sector["edge_categories_linewidth"][i],
                                 zorder)
             if label not in use_labels:
                 legend_handles.append(mpatches.Patch(color=color,
@@ -206,7 +208,7 @@ def plot_lines_and_points(ax,legend_handles,sector,sector_dataframe=None,layer_k
             if label not in use_labels:
                 legend_handles.append(plt.plot([],[],
                                         marker=sector["node_categories_marker"][i], 
-                                        ms=sector["node_categories_markersize"][i], 
+                                        ms=marker_size_factor*sector["node_categories_markersize"][i], 
                                         ls="",
                                         color=color,
                                         label=label)[0])
@@ -338,6 +340,7 @@ def line_map_plotting_colors_width(ax,df,column,
                         line_steps=6,
                         width_step=0.02,
                         interpolation="linear",
+                        legend_size=7,
                         plot_title=False,
                         significance=0):
     #6baed6
@@ -447,9 +450,9 @@ def line_map_plotting_colors_width(ax,df,column,
     if plot_title:
         ax.set_title(plot_title, fontsize=9)
     print ('* Plotting ',plot_title)
-    first_legend = ax.legend(handles=legend_handles,fontsize=8,title=legend_label,loc='upper right')
+    first_legend = ax.legend(handles=legend_handles,fontsize=legend_size,title=legend_label,loc='upper right')
     ax.add_artist(first_legend).set_zorder(20)
-    legend_from_style_spec(ax, styles,fontsize=9,loc='lower left',zorder=20)
+    legend_from_style_spec(ax, styles,fontsize=legend_size,loc='lower left',zorder=20)
     return ax
 
 def point_map_plotting_colors_width(ax,df,column,
@@ -466,6 +469,7 @@ def point_map_plotting_colors_width(ax,df,column,
                         point_steps=6,
                         width_step=0.02,
                         interpolation="linear",
+                        legend_size=6,
                         plot_title=False,
                         significance=0):
 
@@ -565,10 +569,10 @@ def point_map_plotting_colors_width(ax,df,column,
     #                     'marker',point_colors,10,marker=marker)
     if plot_title:
         plt.title(plot_title, fontsize=9)
-    first_legend = ax.legend(handles=legend_handles,fontsize=8,title=legend_label,loc='upper right')
+    first_legend = ax.legend(handles=legend_handles,fontsize=legend_size,title=legend_label,loc='upper right')
     ax.add_artist(first_legend).set_zorder(20)
     print ('* Plotting ',plot_title)
-    legend_from_style_spec(ax, styles,fontsize=8,loc='lower left',zorder=20)
+    legend_from_style_spec(ax, styles,fontsize=legend_size,loc='lower left',zorder=20)
     return ax
 
 def jamaica_port_and_airport_node_labels(ax,nodes):
@@ -598,6 +602,44 @@ def jamaica_port_and_airport_node_labels(ax,nodes):
             used_names.append(name)
 
     return ax
+
+def plot_raster(ax, tif_path, cmap='viridis', levels=None, colors=None,
+                reproject_transform=None,clip_extent=None):
+    """Plot raster with vectors/labels
+    """
+    # Open raster
+    ds = rioxarray.open_rasterio(tif_path, mask_and_scale=True)
+    if reproject_transform is not None:
+        ds = ds.rio.reproject(f"EPSG:{reproject_transform}")
+    if clip_extent is not None:
+        left, right, bottom, top = clip_extent
+        ds = ds.rio.clip_box(
+            minx=left,
+            miny=bottom,
+            maxx=right,
+            maxy=top,
+        )
+    crs = ccrs.epsg(reproject_transform)
+    # Plot raster
+    if levels is not None and colors is not None:
+        im = ds.plot(
+            ax=ax,
+            levels=levels,
+            colors=colors,
+            transform=crs,
+            alpha=0.6,
+            add_colorbar=False
+        )
+    else:
+        im =ds.plot(
+            ax=ax,
+            cmap=cmap,
+            transform=crs,
+            alpha=0.6,
+            add_colorbar=False
+        )
+
+    return im
 
 def test_plot(data_path, figures_path):
     plt.figure(figsize=(12, 8), dpi=500)

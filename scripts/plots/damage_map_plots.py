@@ -57,7 +57,7 @@ def get_asset_total_damage_values(sector,damage_data_path,
                             damage_string,asset_dataframe,
                             damages_filter_columns,damages_filter_values,
                             damage_groupby,
-                            damage_sum_columns,layer_key):
+                            damage_sum_columns,layer_key,damage_divisor=1.0):
     asset_id_column = sector[f"{layer_key}_id_column"]
     asset_filter_column = sector[f"{layer_key}_damage_filter_column"]
     asset_filter_list = sector[f"{layer_key}_damage_categories"]
@@ -67,6 +67,7 @@ def get_asset_total_damage_values(sector,damage_data_path,
                         f"{sector['sector_gpkg'].replace('.gpkg','')}_{sector[f'{layer_key}_layer']}_{damage_string}.csv"
                         )
                     )
+    damages.loc[damages["epoch"] == 2010,"rcp"] = "baseline"
     damages = damages.set_index(damages_filter_columns)
     # print (damages)
     # print (list(set(damages.index.values.tolist())))
@@ -84,7 +85,10 @@ def get_asset_total_damage_values(sector,damage_data_path,
                                 damage_sum_columns,["sum"]*len(damage_sum_columns)
                                 )
                             )
-                        ).reset_index() 
+                        ).reset_index()
+    if damage_divisor != 1:
+        for d in damage_sum_columns:
+            damages[d] = 1.0*damages[d]/damage_divisor
     return pd.merge(
                     asset_dataframe[[asset_id_column,sector[f"{layer_key}_classify_column"],"geometry"]],
                     damages,how="left",on=[asset_id_column]).fillna(0)
@@ -94,13 +98,6 @@ def main(config):
     output_data_path = config['paths']['output']
     figures_data_path = config['paths']['figures']
 
-    boundaries = gpd.read_file(os.path.join(processed_data_path,
-                                                "boundaries",
-                                                "admin_boundaries.gpkg"),
-                                layer='admin1').to_crs(JAMAICA_GRID_EPSG)
-    boundaries= boundaries[boundaries["PARISH"].isin(["Kingston","St. Andrew"])]
-    bounds = boundaries.geometry.total_bounds # this gives your boundaries of the map as (xmin,ymin,xmax,ymax)
-    kst_extent = (bounds[0]-10000,bounds[2]+10000,bounds[1],bounds[3])
 
     damage_data_path = os.path.join(output_data_path,
                         "direct_damages_summary")
@@ -116,26 +113,21 @@ def main(config):
         asset_data_path = os.path.join(processed_data_path,
                         "networks",
                         sector["sector"])
-        # if sector["sector"] == "energy":
-        #     legend_title = "Expected Annual Damages (US$/MW)"
-        # else:
-        #     legend_title = "Expected Annual Damages (US$)"
-        legend_title = "Expected Annual Damages (US$)"    
-
+        legend_title = "Expected Annual Damages (J$ million)"    
         if sector["sector_label"] == "Potable water":
             sector["sector_gpkg"] = "pipelines_NWC.gpkg"
             edges = get_sector_layer(sector,asset_data_path,"edge")
         else:
             edges = get_sector_layer(sector,asset_data_path,"edge")
+
         if len(edges) > 0:
             edges_damages = get_asset_total_damage_values(sector,
                                                 damage_data_path,damage_string,
                                                 edges,
                                                 damages_filter_columns,
                                                 damages_filter_values,
-                                                damage_groupby,damage_columns,"edge")
-
-            edges_damages["losses"] = edges_damages.progress_apply(lambda x:convert_to_usd(x,"EAD_undefended_mean"),axis=1)
+                                                damage_groupby,damage_columns,"edge",damage_divisor=1.0e6)
+            edges_damages["losses"] = edges_damages.progress_apply(lambda x:convert_to_jd(x,"EAD_undefended_mean"),axis=1)
             if sector["sector"] == "energy":
                 edges_damages = get_electricity_costs(asset_data_path,
                             edges_damages,
@@ -144,24 +136,24 @@ def main(config):
                             "max",
                             sector["edge_layer"]
                             )
-            
+
             """plot the damage results
             """
             fig, ax = plt.subplots(1,1,
                             subplot_kw={'projection': ccrs.epsg(JAMAICA_GRID_EPSG)},
-                            figsize=(8,6),
+                            figsize=(12,8),
                             dpi=500)
-            ax = get_axes(ax,extent=kst_extent)
+            ax = get_axes(ax,extent=JAMAICA_EXTENT)
             plot_basemap(ax, processed_data_path, plot_regions=True, region_labels=True)
-            scale_bar_and_direction(ax,scalebar_distance=5)
+            scale_bar_and_direction(ax)
 
             if len(edges_damages) > 0:
-                if sector["sector_label"] in ["Roads","Railways","Potable water"]:
+                if sector["sector_label"] in ["Roads","Potable water"]:
                     ax = line_map_plotting_colors_width(
                                                         ax,edges_damages,"losses",
                                                         legend_label=legend_title,
                                                         no_value_label=no_value_string,
-                                                        width_step=10,
+                                                        width_step=40,
                                                         interpolation="log",
                                                         plot_title=f"{sector['sector_label']} multi-hazard Expected Annual Damages"
                                                         )
@@ -178,7 +170,7 @@ def main(config):
                                                         legend_label=legend_title,
                                                         no_value_label=no_value_string,
                                                         line_steps=6,
-                                                        width_step=20,
+                                                        width_step=200,
                                                         # interpolation="log",
                                                         plot_title=f"{sector['sector_label']} multi-hazard Expected Annual Damages",
                                                         )
@@ -186,10 +178,10 @@ def main(config):
                 save_fig(
                         os.path.join(
                             figures_data_path, 
-                            f"k_st_{sector['sector_label'].lower().replace(' ','_')}_{sector['edge_layer']}_EAD.png"
+                            f"{sector['sector_label'].lower().replace(' ','_')}_{sector['edge_layer']}_EAD_JD.png"
                             )
                         )
-            
+                del (edges_damages)
 
         if sector["sector_label"] == "Potable water":
             sector["sector_gpkg"] = "potable_facilities_NWC.gpkg"
@@ -207,7 +199,7 @@ def main(config):
                                                     port_nodes,
                                                     damages_filter_columns,
                                                     damages_filter_values,
-                                                    damage_groupby,damage_columns,"area")
+                                                    damage_groupby,damage_columns,"area",damage_divisor=1.0e6)
                 airport_sector = [s for s in sector_attributes if s["sector_label"] == "Airports"][0]
                 airport_nodes = get_sector_layer(airport_sector,asset_data_path,"area")
                 airport_damages = get_asset_total_damage_values(airport_sector,
@@ -215,7 +207,7 @@ def main(config):
                                                     airport_nodes,
                                                     damages_filter_columns,
                                                     damages_filter_values,
-                                                    damage_groupby,damage_columns,"area")
+                                                    damage_groupby,damage_columns,"area",damage_divisor=1.0e6)
                 nodes_damages = pd.concat(
                                             [
                                             port_damages.drop("geometry",axis=1),
@@ -233,8 +225,8 @@ def main(config):
                                                     nodes,
                                                     damages_filter_columns,
                                                     damages_filter_values,
-                                                    damage_groupby,damage_columns,"node")
-            nodes_damages["losses"] = nodes_damages.progress_apply(lambda x:convert_to_usd(x,"EAD_undefended_mean"),axis=1)
+                                                    damage_groupby,damage_columns,"node",damage_divisor=1.0e6)
+            nodes_damages["losses"] = nodes_damages.progress_apply(lambda x:convert_to_jd(x,"EAD_undefended_mean"),axis=1)
             if sector["sector"] == "energy":
                 nodes_damages = get_electricity_costs(asset_data_path,
                             nodes_damages,
@@ -248,25 +240,24 @@ def main(config):
             """
             fig, ax = plt.subplots(1,1,
                             subplot_kw={'projection': ccrs.epsg(JAMAICA_GRID_EPSG)},
-                            figsize=(8,6),
+                            figsize=(12,8),
                             dpi=500)
-            ax = get_axes(ax,extent=kst_extent)
+            ax = get_axes(ax,extent=JAMAICA_EXTENT)
             plot_basemap(ax, processed_data_path, plot_regions=True, region_labels=True)
-            scale_bar_and_direction(ax,scalebar_distance=5)
+            scale_bar_and_direction(ax)
 
             if len(nodes_damages) > 0:
-                if sector["sector_label"] in ["Roads","Railways","Potable water","Irrigation","Wastewater Treatment"]:
+                if sector["sector_label"] in ["Roads","Ports and Airports","Railways","Potable water","Irrigation","Wastewater Treatment"]:
                     ax = point_map_plotting_colors_width(
                                                         ax,nodes_damages,"losses",
                                                         legend_label=legend_title,
                                                         no_value_label=no_value_string,
-                                                        width_step=10,
+                                                        width_step=20,
                                                         interpolation="log",
                                                         plot_title=f"{sector['sector_label']} multi-hazard Expected Annual Damages"
                                                         )
 
                 else:
-                    # print ("* Don't plot")
                     ax = point_map_plotting_colors_width(
                                                         ax,nodes_damages,"losses",
                                                         point_classify_column=sector["node_classify_column"],
@@ -276,7 +267,7 @@ def main(config):
                                                         point_zorder=sector["node_categories_zorder"],
                                                         legend_label=legend_title,
                                                         no_value_label=no_value_string,
-                                                        width_step=10,
+                                                        width_step=20,
                                                         interpolation="log",
                                                         plot_title=f"{sector['sector_label']} multi-hazard Expected Annual Damages",
                                                         )
@@ -286,9 +277,10 @@ def main(config):
                 save_fig(
                         os.path.join(
                             figures_data_path, 
-                            f"k_st_{sector['sector_label'].lower().replace(' ','_')}_{sector['node_layer']}_EAD.png"
+                            f"{sector['sector_label'].lower().replace(' ','_')}_{sector['node_layer']}_EAD_JD.png"
                             )
                         )
+                del (nodes_damages)
 
 
 
