@@ -274,25 +274,33 @@ def main(config):
         # print (hazards_df)
         if hazard == 'cyclone':
             fig, ax = plt.subplots(1,1,figsize=(8,8),dpi=500)
+            # ax.plot(1.0/hazard_df['rp'],
+            #             1e-9*hazard_df["direct_damage_cost_mean"],'-',
+            #             marker='o',
+            #             color="#cb181d",linewidth=2.0,
+            #             label=f'{hazard_label} damages')
             ax.plot(1.0/hazard_df['rp'],
                         1e-9*hazard_df["direct_damage_cost_mean"],'-',
                         marker='o',
-                        color="#cb181d",linewidth=2.0,
-                        label=f'{hazard_label} damages')    
+                        color="#000000",linewidth=2.0,
+                        label="Damage or Loss vs Exceedance probability curve")    
 
             ax.fill_between(1.0/hazard_df['rp'],
                             np.array([0]*len(hazard_df.index)),
                             1e-9*hazard_df["direct_damage_cost_mean"],
-                            alpha=0.5,facecolor="#cb181d",
-                            label='Uncertainty range')
+                            alpha=0.5,facecolor="#737373",
+                            label="Area under curve")
 
             ax.legend(loc='upper right',fontsize=14)
-            ax.set_xlabel("Exceedance probability",fontweight='bold',fontsize=12)
-            ax.set_ylabel('Direct damages (J$ billion)',fontweight='bold',fontsize=12)
+            ax.set_xlabel("Exceedance probability",fontweight='bold',fontsize=16)
+            # ax.set_ylabel('Direct damages (J$ billion)',fontweight='bold',fontsize=12)
+            ax.set_ylabel('Damages or Losses',fontweight='bold',fontsize=16)
 
             plt.tight_layout()
+            # save_fig(os.path.join(figures_data_path,
+            #         f'jamaica_probability_damages_{hazard}.png'))
             save_fig(os.path.join(figures_data_path,
-                    f'jamaica_probability_damages_{hazard}.png'))
+                    "example_loss_probability_curve.png"))
             plt.close()
 
 

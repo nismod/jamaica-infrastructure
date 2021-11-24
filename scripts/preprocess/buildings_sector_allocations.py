@@ -23,10 +23,48 @@ def get_sector_subsector(x,column_pairs):
     """
     vals = list(set([(x[cl[0]],x[cl[1]]) for cl in column_pairs]))
     if len(vals) > 1:
-        vals = [v for v in vals if v[0] != 'X']
+        sector_val = ",".join([v[0] for v in vals if v[0] != 'X'])
+        subsector_val = ",".join([v[1] for v in vals if v[1] != 'X'])
+    else:
+        sector_val = vals[0][0]
+        subsector_val = vals[0][1]
     
-    return vals[0][0],vals[0][1]
+    return sector_val, subsector_val
 
+def sector_subsector_asset_mapping(building_dataframe,building_sector_mapping_file,columns_types):
+    merge_columns = []
+    new_columns = []
+    for column in columns_types:
+        sector_map = pd.read_excel(os.path.join(
+                                    building_dataframe_data_path,
+                                    'hotosm_mapping_economic_sectors.xlsx'),
+                                    building_sector_mapping_file,
+                                    sheet_name=column)
+        sector_map = sector_map.drop_duplicates([column,'sector_code','subsector_code'],keep='first')
+        sector_map = sector_map[[column,'sector_code','subsector_code']] 
+        sector_map.rename(columns = {'sector_code':f'{column}_sector_code',
+                                    'subsector_code':f'{column}_subsector_code'},
+                        inplace=True)
+        merge_columns += [(f'{column}_sector_code',f'{column}_subsector_code')]
+        new_columns += [f'{column}_sector_code',f'{column}_subsector_code']
+        building_dataframe = pd.merge(building_dataframe,sector_map,how='left',on=[column])
+
+    
+    print (building_dataframe)
+    # building_dataframe[new_columns] = building_dataframe[new_columns].fillna('X',inplace=True)
+    building_dataframe[new_columns] = building_dataframe[new_columns].astype('str')
+    building_dataframe[new_columns] = building_dataframe[new_columns].replace([r"^\s+$",'nan','None','none'], 'X', regex=True)
+    print (building_dataframe)
+
+    building_dataframe['sector_subsector'] = building_dataframe.progress_apply(lambda x: get_sector_subsector(x,merge_columns),axis=1)
+    building_dataframe[['sector_code','subsector_code']] = building_dataframe['sector_subsector'].apply(pd.Series)
+    building_dataframe['shop'] = building_dataframe['shop'].replace('yes','wholesale',regex=True)
+    building_dataframe['assigned_attribute'] = building_dataframe.progress_apply(
+                                            lambda x:",".join([str(x[c]) for c in columns_types if str(x[c]) not in ['None','none']]),
+                                            axis=1)
+    building_dataframe.drop(new_columns + ['sector_subsector'],axis=1,inplace=True)
+    building_dataframe = building_dataframe.drop_duplicates(subset=['osm_id'],keep='first')
+        
 def match_points_to_nearest_buildings(buildings_input,points_file,sector_codes):
     """Match points to their nearest buildings corresponding to a set of sector codes
     """
@@ -60,7 +98,7 @@ def main(config):
     buildings_input = gpd.read_file(os.path.join(building_data_path,'jamaica-buildings.gpkg'))
     buildings_input = buildings_input.to_crs(epsg=epsg_jamaica)
     buildings_input['bid'] = buildings_input.index.values.tolist()
-    # print (buildings_input)
+    print (buildings_input)
     """Extract categories within columns
     """
     output_excel = os.path.join(incoming_data_path,'buildings','unique_column_mapping.xlsx')
@@ -69,8 +107,9 @@ def main(config):
         df = buildings_input[column].value_counts().reset_index()
         df.columns = [column,'count']
         df.to_excel(output_wrtr,sheet_name=column, index=False)
-        output_wrtr.save()
-   
+
+    output_wrtr.save()
+
 
     """Step 2: Use a preprocessed file that maps buildings to economic sectors and subsectors
        The preprocessed file builds on the file output of Step 1 where now we have added two new columns
@@ -94,10 +133,16 @@ def main(config):
         new_columns += [f'{column}_sector_code',f'{column}_subsector_code']
         buildings_input = pd.merge(buildings_input,sector_map,how='left',on=[column])
     
-    buildings_input[new_columns] = buildings_input[new_columns].fillna('X',inplace=True)
+    # buildings_input[new_columns] = buildings_input[new_columns].fillna('X',inplace=True)
+    buildings_input[new_columns] = buildings_input[new_columns].astype('str')
+    buildings_input[new_columns] = buildings_input[new_columns].replace([r"^\s+$",'nan'], 'X', regex=True)
 
     buildings_input['sector_subsector'] = buildings_input.progress_apply(lambda x: get_sector_subsector(x,merge_columns),axis=1)
     buildings_input[['sector_code','subsector_code']] = buildings_input['sector_subsector'].apply(pd.Series)
+    columns_types = ['building','amenity','office','shop']
+    buildings_input['assigned_attribute'] = buildings_input.progress_apply(
+                                            lambda x:",".join([str(x[c]) for c in columns_types if str(x[c]) not in ['None','none']]),
+                                            axis=1)
     buildings_input.drop(new_columns + ['sector_subsector'],axis=1,inplace=True)
 
     write_output = True
@@ -107,7 +152,7 @@ def main(config):
                                     'buildings_assigned_economic_sectors_intermediate.gpkg'), driver='GPKG')
 
 
-    # print (buildings_input)
+    print (buildings_input)
     # print (buildings_input.crs)
     
     """Step 3: Match buildings to known point locations provided from sources within Jamaica
@@ -127,7 +172,7 @@ def main(config):
     buildings_input.rename(columns={'centroid':'geometry'},inplace=True)
     buildings_input = gpd.GeoDataFrame(buildings_input,geometry='geometry',crs={'init': f'epsg:{epsg_jamaica}'})
 
-    points_layers_data = os.path.join(processed_data_path,'locations','points_of_interest.gpkg')
+    points_layers_data = os.path.join(processed_data_path,'locations','building_dataframe.gpkg')
 
     nsdmb_layers = pd.read_excel(os.path.join(
                                     building_data_path,
