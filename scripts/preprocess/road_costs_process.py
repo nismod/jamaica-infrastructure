@@ -38,9 +38,9 @@ def modify_road_surface(x):
             else:
                 return x['constructi']
     else:
-        return 'Surface Dressed' 
+        return 'Surface Dressed'
 
-def modify_road_width(x,standard_width=6.1):
+def modify_road_width(x,standard_width=7.3):
     if float(x['average_wi']) > 0:
         return float(x['average_wi'])
     elif float(x['averagewid']) > 0:
@@ -77,7 +77,7 @@ def assign_costs(x,all_costs):
 
     reopen_costs = road_costs[road_costs['cost_code'].isin(['4110', '4120','4310b'])]
     road_costs = road_costs.set_index(['cost_code','cost_description'])
-    
+
     asset_costs = road_costs.sum(axis=0,numeric_only=True).values.tolist() + reopen_costs.sum(axis=0,numeric_only=True).values.tolist()
     return tuple(asset_costs)
 
@@ -91,7 +91,7 @@ def assign_costs_roads(x,all_costs):
 
     reopen_costs = road_costs[road_costs['cost_code'].isin(['4110', '4120','4310b'])]
     road_costs = road_costs.set_index(['cost_code','cost_description'])
-    
+
     asset_costs = list(
                 road_width*road_costs.sum(
                     axis=0,numeric_only=True).values) + list(
@@ -217,8 +217,8 @@ def main(config):
                                     'roads.gpkg'),
                             layer='nodes',driver="GPKG")
 
-    
-    """Step 1: Match the ones with the same section ID values 
+
+    """Step 1: Match the ones with the same section ID values
     """
     road_costs = road_costs_all.copy()
     road_edges = gpd.read_file(os.path.join(incoming_data_path,'nsdmb','GWP_Jamaica_NSP_Master_Geodatabase_v01.gdb'),
@@ -241,11 +241,11 @@ def main(config):
 
     road_edges.rename(columns={'from_':'from_road','to':'to_road'},inplace=True)
     road_edges['from_to_road'] = road_edges.progress_apply(lambda x: f'{x.from_road}-{x.to_road}',axis=1)
-    road_edges['to_from_road'] = road_edges.progress_apply(lambda x: f'{x.to_road}-{x.from_road}',axis=1) 
+    road_edges['to_from_road'] = road_edges.progress_apply(lambda x: f'{x.to_road}-{x.from_road}',axis=1)
     road_edges['road_section'] = road_edges.progress_apply(lambda x: re.sub('[/-]', '', str(x['section'])),axis=1)
     road_edges['road_surface'] = road_edges.progress_apply(lambda x:modify_road_surface(x),axis=1)
     road_edges['road_width'] = road_edges.progress_apply(lambda x:modify_road_width(x),axis=1)
-    road_edges['length_m'] = road_edges.progress_apply(lambda x: x.geometry.length,axis=1) 
+    road_edges['length_m'] = road_edges.progress_apply(lambda x: x.geometry.length,axis=1)
     print (road_edges.columns)
     road_edges = road_edges[['road_section','road_class','str_name',
                             'from_road','to_road',
@@ -255,8 +255,8 @@ def main(config):
     road_costs = pd.merge(road_costs,road_edges,
                             how='left',left_on='section',right_on='road_section')
 
-    """Step 2: Match the ones with similar names 
-    """ 
+    """Step 2: Match the ones with similar names
+    """
     for mt in ['from_to','to_from']:
         road_costs[f'{mt}_matches'] = road_costs.progress_apply(lambda x: nearest_name(x,road_edges,'from_to',f'{mt}_road'),axis=1)
         road_costs[[f'{mt}_match',f'{mt}_section',f'{mt}_parish',f'{mt}_value']] = road_costs[f'{mt}_matches'].apply(pd.Series)
@@ -310,7 +310,7 @@ def main(config):
                                 from_matches,to_matches],
                                 axis=0,ignore_index=True)
     completed_matches.drop_duplicates(subset=['cost_id','road_section'],keep='first',inplace=True)
-    
+
     """Step 4: Find the unit costs in $J/m2 and get the highest values as estimates
     """
     data_columns = [
@@ -345,7 +345,7 @@ def main(config):
     all_costs.loc[('Total','Estimated total damage cost ($J/m2)'),:] = all_costs.sum(axis=0,numeric_only=True)
     all_costs.loc[('Reopen','Estimated cost to reopen (4110 + 4120 + 4310b) ($J/m2)'),:]= reopen_costs.sum(axis=0,numeric_only=True)
     all_costs = all_costs.reset_index()
-    
+
     # print (all_costs.sum(axis=0,numeric_only=True).values.tolist())
     all_costs[['cost_code',
             'cost_description',
