@@ -12,8 +12,8 @@ from shapely.geometry import Polygon, shape
 gpd._compat.USE_PYGEOS = False
 import fiona
 import numpy as np
+from scipy.spatial import cKDTree
 import snkit
-#import snkit_network
 from tqdm import tqdm
 tqdm.pandas()
 
@@ -221,6 +221,66 @@ def extract_nodes_within_gdf(x, input_nodes, column_name):
     else:
         return ''
 
+def create_voronoi_layer(nodes_dataframe,
+                        node_id_column,epsg=4326,**kwargs):
+    """Assign weights to nodes based on their nearest populations
+
+        - By finding the population that intersect with the Voronoi extents of nodes
+
+    Parameters
+        - nodes_dataframe - Geodataframe of the nodes
+        - population_dataframe - Geodataframe of the population
+        - nodes_id_column - String name of node ID column
+        - population_value_column - String name of column containing population values
+
+    Outputs
+        - nodes - Geopandas dataframe of nodes with new column called population
+    """
+
+    # load provinces and get geometry of the right population_dataframe
+    
+    # create Voronoi polygons for the nodes
+    xy_list = []
+    for iter_, values in nodes_dataframe.iterrows():
+        xy = list(values.geometry.coords)
+        xy_list += [list(xy[0])]
+
+    vor = Voronoi(np.array(xy_list))
+    regions, vertices = voronoi_finite_polygons_2d(vor)
+    min_x = vor.min_bound[0] - 0.1
+    max_x = vor.max_bound[0] + 0.1
+    min_y = vor.min_bound[1] - 0.1
+    max_y = vor.max_bound[1] + 0.1
+
+    mins = np.tile((min_x, min_y), (vertices.shape[0], 1))
+    bounded_vertices = np.max((vertices, mins), axis=0)
+    maxs = np.tile((max_x, max_y), (vertices.shape[0], 1))
+    bounded_vertices = np.min((bounded_vertices, maxs), axis=0)
+
+    box = Polygon([[min_x, min_y], [min_x, max_y], [max_x, max_y], [max_x, min_y]])
+
+    poly_list = []
+    for region in regions:
+        polygon = vertices[region]
+        # Clipping polygon
+        poly = Polygon(polygon)
+        poly = poly.intersection(box)
+        poly_list.append(poly)
+
+    poly_index = list(np.arange(0, len(poly_list), 1))
+    poly_df = pd.DataFrame(list(zip(poly_index, poly_list)),
+                                   columns=['gid', 'geometry'])
+    gdf_voronoi = gpd.GeoDataFrame(poly_df, geometry = 'geometry',crs=f'epsg:{epsg}')
+    gdf_voronoi['areas'] = gdf_voronoi.progress_apply(lambda x:x.geometry.area,axis=1)
+    gdf_voronoi[node_id_column] = gdf_voronoi.progress_apply(
+        lambda x: extract_nodes_within_gdf(x, nodes_dataframe, node_id_column), axis=1)
+    if not kwargs.get('save',False):
+        pass
+    else:
+        gdf_voronoi.to_file(kwargs.get('voronoi_path','voronoi-output.shp'))
+
+    return gdf_voronoi
+
 def assign_node_weights_by_population_proximity(nodes_dataframe,
                         population_dataframe,
                         node_id_column,population_value_column,epsg=4326,**kwargs):
@@ -363,3 +423,21 @@ def split_multigeometry(dataframe,split_geometry_type="GeometryCollection"):
     dataframe = pd.concat([dataframe, simple_geom_geoms], axis=1)
 
     return dataframe
+
+def ckdnearest(gdA, gdB):
+    """Taken from https://gis.stackexchange.com/questions/222315/finding-nearest-point-in-other-geodataframe-using-geopandas
+    """
+    nA = np.array(list(gdA.geometry.apply(lambda x: (x.x, x.y))))
+    nB = np.array(list(gdB.geometry.apply(lambda x: (x.x, x.y))))
+    btree = cKDTree(nB)
+    dist, idx = btree.query(nA, k=1)
+    gdB_nearest = gdB.iloc[idx].drop(columns="geometry").reset_index(drop=True)
+    gdf = pd.concat(
+        [
+            gdA.reset_index(drop=True),
+            gdB_nearest,
+            pd.Series(dist, name='dist')
+        ], 
+        axis=1)
+
+    return gdf

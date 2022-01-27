@@ -1,5 +1,6 @@
 """Create a combined land use layer from TNC and Forestry land use layers
     Also combine a global mining areas land use layer 
+    Add macroeconomic sector and subsector codes to the data
 """
 import sys
 import os
@@ -163,6 +164,50 @@ def main(config):
                         processed_data_path,
                         "land_type_and_use",
                         "jamaica_land_use_combined.gpkg"
+                            ),
+                        layer="areas",
+                        driver="GPKG"
+                    )
+    tnc_forest_df.groupby("Classify")["area_m2"].sum().reset_index().to_csv(os.path.join(
+                        processed_data_path,
+                        "land_type_and_use","forest_classes.csv"),index=False)
+    tnc_forest_df.groupby("NAME")["area_m2"].sum().reset_index().to_csv(os.path.join(
+                        processed_data_path,
+                        "land_type_and_use","tnc_classes.csv"),index=False)
+
+    """Add the economics sector mapping information
+    """
+    tnc_forest_df = gpd.read_file(
+                        os.path.join(
+                        processed_data_path,
+                        "land_type_and_use",
+                        "jamaica_land_use_combined.gpkg"
+                            ),
+                        layer="areas"
+                    )
+    forest_sector_mapping = pd.read_csv(os.path.join(
+                        processed_data_path,
+                        "land_type_and_use","forest_classes_with_sector_mapping.csv"))
+    forest_sector_mapping.rename(columns={"sector_code":"sector_code_forest",
+                                        "subsector_code":"subsector_code_forest",
+                                        "infra_sector":"infra_sector_forest"},
+                                inplace=True)
+    tnc_sector_mapping = pd.read_csv(os.path.join(
+                        processed_data_path,
+                        "land_type_and_use","tnc_classes_with_sector_mapping.csv"))
+    tnc_sector_mapping.rename(columns={"sector_code":"sector_code_tnc",
+                                        "subsector_code":"subsector_code_tnc",
+                                        "infra_sector":"infra_sector_tnc"},
+                                inplace=True)
+
+    tnc_forest_df = pd.merge(tnc_forest_df,forest_sector_mapping,how="left",on=["Classify"])
+    tnc_forest_df = pd.merge(tnc_forest_df,tnc_sector_mapping,how="left",on=["NAME"])
+
+    gpd.GeoDataFrame(tnc_forest_df,geometry="geometry",crs=f"EPSG:{epsg_jamaica}").to_file(
+                        os.path.join(
+                        processed_data_path,
+                        "land_type_and_use",
+                        "jamaica_land_use_combined_with_sectors.gpkg"
                             ),
                         layer="areas",
                         driver="GPKG"
