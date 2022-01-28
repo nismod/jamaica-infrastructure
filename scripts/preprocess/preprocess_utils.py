@@ -136,7 +136,6 @@ def voronoi_finite_polygons_2d(vor, radius=None):
         of input vertices, with 'points at infinity' appended to the
         end
     """
-
     if vor.points.shape[1] != 2:
         raise ValueError("Requires 2D input")
 
@@ -262,6 +261,8 @@ def create_voronoi_layer(nodes_dataframe,
     poly_list = []
     for region in regions:
         polygon = vertices[region]
+        print (region)
+        print (polygon)
         # Clipping polygon
         poly = Polygon(polygon)
         poly = poly.intersection(box)
