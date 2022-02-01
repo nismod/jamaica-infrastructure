@@ -70,7 +70,7 @@ def get_index(geom, width, height, transform):
     return x + width * y
 
 
-def main(slope_fname, landuse_fname):
+def main(slope_fname, landuse_fname, output_fname, attributes):
     with rasterio.open(slope_fname) as slope:
         pass
 
@@ -78,7 +78,7 @@ def main(slope_fname, landuse_fname):
     land_use = (
         geopandas.read_file(
             landuse_fname
-        )[["Classify", "LU_CODE", "geometry"]]
+        )[attributes + ["geometry"]]
         .explode()
         .reset_index(drop=True)
     )
@@ -97,16 +97,22 @@ def main(slope_fname, landuse_fname):
     # associate hazard values
     land_use_slope = associate_raster(slope_fname, land_use_split, "slope_degrees")
 
-    land_use_slope.to_file("processed_data/nbs/landuse_slope.gpkg", driver="GPKG")
+    land_use_slope.to_file(output_fname, driver="GPKG")
 
 if __name__ == '__main__':
     try:
-        slope_fname, landuse_fname = sys.argv[1:]
+        slope_fname, landuse_fname, output_fname, attributes = sys.argv[1:]
     except:
         print(sys.argv[1:])
         print("Expected usage:")
-        print(f"    python {__file__} slope.tif landuse.gpkg")
+        print(f"    python {__file__} slope.tif landuse.gpkg output.gpkg column1,attribute2,etc")
         exit()
 
-    main(slope_fname, landuse_fname)
+    attributes = attributes.split(",")
+
+    print(f"Reading slope from {slope_fname}")
+    print(f"Reading land use from {landuse_fname}")
+    print(f"Reading {attributes} attributes")
+    print(f"Writing output to {output_fname}")
+    main(slope_fname, landuse_fname, output_fname, attributes)
 
