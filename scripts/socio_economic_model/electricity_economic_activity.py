@@ -103,7 +103,6 @@ def main(config):
                                     "energy",
                                     "electricity_network_v3.0.gpkg"),
                                     layer="voronoi",driver="GPKG")
-
     """Step 2: Find the Daily GDP of other sectors dependent upon electricity
             This is done by mapping the assets of other sectors to electricity output areas, having pre-computed their daily GDP
             At present we have two dependeny cases:
@@ -151,8 +150,10 @@ def main(config):
                             index=False)
 
     # Get the aggreagted independent and dependent GDP estimate for electricity output areas 
+    electricity_output_areas = electricity_output_areas.groupby([electricity_id])[f"{sector_code}_GDP"].sum().reset_index()
     electricity_telecoms = electricity_telecoms.groupby([electricity_id])["T_GDP"].sum().reset_index()
     electricity_buildings = electricity_buildings.groupby([electricity_id])[gdp_columns].sum().reset_index()
+
     electricity_output_areas = pd.merge(electricity_output_areas[[electricity_id,f"{sector_code}_GDP"]],
                                         electricity_telecoms,how="left",on=[electricity_id]).fillna(0)
     electricity_output_areas = pd.merge(electricity_output_areas,
