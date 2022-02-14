@@ -32,7 +32,6 @@ def main(network_fname, out_fname, node_id_col):
     edges.to_file(out_fname, layer="edges", driver="GPKG")
     nodes.to_file(out_fname, layer="nodes", driver="GPKG")
 
-
 if __name__ == "__main__":
     network_fname, out_fname, node_id_col = sys.argv[1:]
     main(network_fname, out_fname, node_id_col)

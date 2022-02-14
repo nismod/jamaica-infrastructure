@@ -8,9 +8,12 @@
 import sys
 import os
 
+import pandas as pd
 import geopandas as gpd
+import numpy as np
 from shapely.geometry import Point,LineString
 import assign_network_components
+from collections import defaultdict
 from preprocess_utils import *
 from tqdm import tqdm
 tqdm.pandas()
@@ -189,6 +192,16 @@ def add_edge_speeds(x):
         return 80
     else:
         return 110
+
+def add_road_lanes(x):
+    if x["road_class"] in ["CLASS A","CLASS B","CLASS C"]:
+        lanes = round(x["road_width"]/3.65,0) 
+    else:
+        lanes = round(x["road_width"]/3.048,0)
+    if lanes % 2 == 0:
+        return lanes
+    else:
+        return lanes + 1
 
 def main(config):
     incoming_data_path = config['paths']['incoming_data']
@@ -480,45 +493,183 @@ def main(config):
     """Join the roads that are not linked
     """
     # network_file = os.path.join(processed_data_path,'networks','transport','roads.gpkg')
-    component_file = os.path.join(road_network_path,'road_components.gpkg')
-    component_edges = gpd.read_file(os.path.join(component_file),layer="edges")
-    max_id = max([int(v.split("_")[1]) for v in component_edges["edge_id"].values.tolist()])
-    component_nodes = gpd.read_file(os.path.join(component_file),layer="nodes")
-    edges_links = gpd.read_file(os.path.join(road_network_path,"roads_link.gpkg"))
-    component_edges = component_edges.to_crs(epsg=epsg_jamaica)
-    component_nodes = component_nodes.to_crs(epsg=epsg_jamaica)
-    edges_links = edges_links.to_crs(epsg=epsg_jamaica)
+    # component_file = os.path.join(road_network_path,'road_components.gpkg')
+    # component_edges = gpd.read_file(os.path.join(component_file),layer="edges")
+    # max_id = max([int(v.split("_")[1]) for v in component_edges["edge_id"].values.tolist()])
+    # component_nodes = gpd.read_file(os.path.join(component_file),layer="nodes")
+    # edges_links = gpd.read_file(os.path.join(road_network_path,"roads_link.gpkg"))
+    # component_edges = component_edges.to_crs(epsg=epsg_jamaica)
+    # component_nodes = component_nodes.to_crs(epsg=epsg_jamaica)
+    # edges_links = edges_links.to_crs(epsg=epsg_jamaica)
 
-    component_edges["link_intersection"] = component_edges.progress_apply(
-                                        lambda x: 1 if x.geometry.intersects(edges_links.geometry.values[0]) is True else 0,axis=1)
+    # component_edges["link_intersection"] = component_edges.progress_apply(
+    #                                     lambda x: 1 if x.geometry.intersects(edges_links.geometry.values[0]) is True else 0,axis=1)
 
-    largest_components = component_nodes[component_nodes["component"].isin([0,1])]
-    remaining_componets = component_nodes[~(component_nodes["component"].isin([0,1]))]
+    # largest_components = component_nodes[component_nodes["component"].isin([0,1])]
+    # remaining_componets = component_nodes[~(component_nodes["component"].isin([0,1]))]
 
-    largest_component_distances = ckdnearest(component_nodes[component_nodes["component"] == 0][["id","component","geometry"]],
-                                            component_nodes[component_nodes["component"] == 1][["id","component","geometry"]])
-    remaining_component_distances = ckdnearest(remaining_componets[["id","component","geometry"]], largest_components[["id","component","geometry"]])
-    distances = pd.concat([largest_component_distances,remaining_component_distances],axis=0,ignore_index=True)
-    distances = distances[distances["dist"] <= 50]
-    distances.columns = ["from_node","from_component","from_geometry","id","to_component","distance_m"]
-    distances = pd.merge(distances,component_nodes[["id","geometry"]],how="left",on=["id"])
-    distances.rename(columns={"id":"to_node","geometry":"to_geometry"},inplace=True)
-    distances["geometry"] = distances.progress_apply(lambda x:LineString([x.from_geometry,x.to_geometry]),axis=1)
-    distances["edge_id"] = list(max_id + 1 + distances.index.values)
-    distances["edge_id"] = distances.progress_apply(lambda x: f"roadse_{x.edge_id}",axis=1)
-    distances.drop(["from_geometry","to_geometry"],axis=1,inplace=True)
-    distances = gpd.GeoDataFrame(distances,geometry="geometry",crs=f"EPSG:{epsg_jamaica}")
-    distances.to_file(component_file,layer="bridge_edges",driver="GPKG")
+    # largest_component_distances = ckdnearest(component_nodes[component_nodes["component"] == 0][["id","component","geometry"]],
+    #                                         component_nodes[component_nodes["component"] == 1][["id","component","geometry"]])
+    # remaining_component_distances = ckdnearest(remaining_componets[["id","component","geometry"]], largest_components[["id","component","geometry"]])
+    # distances = pd.concat([largest_component_distances,remaining_component_distances],axis=0,ignore_index=True)
+    # distances = distances[distances["dist"] <= 50]
+    # distances.columns = ["from_node","from_component","from_geometry","id","to_component","distance_m"]
+    # distances = pd.merge(distances,component_nodes[["id","geometry"]],how="left",on=["id"])
+    # distances.rename(columns={"id":"to_node","geometry":"to_geometry"},inplace=True)
+    # distances["geometry"] = distances.progress_apply(lambda x:LineString([x.from_geometry,x.to_geometry]),axis=1)
+    # distances["edge_id"] = list(max_id + 1 + distances.index.values)
+    # distances["edge_id"] = distances.progress_apply(lambda x: f"roadse_{x.edge_id}",axis=1)
+    # distances.drop(["from_geometry","to_geometry"],axis=1,inplace=True)
+    # distances = gpd.GeoDataFrame(distances,geometry="geometry",crs=f"EPSG:{epsg_jamaica}")
+    # distances.to_file(component_file,layer="bridge_edges",driver="GPKG")
 
-    combined_network = pd.concat([component_edges[["from_node","to_node","edge_id","geometry"]],
-                                distances[["from_node","to_node","edge_id","geometry"]]],
-                                axis=0,ignore_index=True)
-    combined_network = gpd.GeoDataFrame(combined_network,geometry="geometry",crs=f"EPSG:{epsg_jamaica}")
-    component_file = os.path.join(road_network_path,'road_components_connected.gpkg')
-    combined_network.to_file(os.path.join(component_file),layer="edges",driver="GPKG")
-    component_nodes[["id","geometry"]].to_file(os.path.join(component_file),layer="nodes",driver="GPKG")
-    edges_components = assign_network_components.main(component_file,component_file,"id")
+    # combined_network = pd.concat([component_edges[["from_node","to_node","edge_id","geometry"]],
+    #                             distances[["from_node","to_node","edge_id","geometry"]]],
+    #                             axis=0,ignore_index=True)
+    # combined_network = gpd.GeoDataFrame(combined_network,geometry="geometry",crs=f"EPSG:{epsg_jamaica}")
+    # component_file = os.path.join(road_network_path,'road_components_connected.gpkg')
+    # combined_network.to_file(os.path.join(component_file),layer="edges",driver="GPKG")
+    # component_nodes[["id","geometry"]].to_file(os.path.join(component_file),layer="nodes",driver="GPKG")
+    # edges_components = assign_network_components.main(component_file,component_file,"id")
 
+    # roads_connected_edges = gpd.read_file(os.path.join(processed_data_path,
+    #                                 'networks',
+    #                                 'transport',
+    #                                 'road_components_connected.gpkg'),
+    #                         layer='edges')
+    # roads_connected_nodes = gpd.read_file(os.path.join(processed_data_path,
+    #                                 'networks',
+    #                                 'transport',
+    #                                 'road_components_connected.gpkg'),
+    #                         layer='nodes')
+    # roads_edges = gpd.read_file(os.path.join(processed_data_path,
+    #                                 'networks',
+    #                                 'transport',
+    #                                 'roads.gpkg'),
+    #                         layer='edges')
+    # roads_nodes = gpd.read_file(os.path.join(processed_data_path,
+    #                                 'networks',
+    #                                 'transport',
+    #                                 'roads.gpkg'),
+    #                         layer='nodes')
+
+    # roads_edges.drop("geometry",axis=1,inplace=True)
+    # roads_nodes.drop("geometry",axis=1,inplace=True)
+    # roads_connected_edges = pd.merge(roads_connected_edges,roads_edges,how="left",on=["edge_id","from_node","to_node"])
+    # print (roads_connected_edges)
+    # roads_connected_nodes = pd.merge(roads_connected_nodes,roads_nodes,how="left",on=["id"])
+    # print (roads_connected_nodes)
+
+    # print (roads_connected_edges[roads_connected_edges["speed"].isna()])
+    # unassigned_roads = roads_connected_edges[roads_connected_edges["speed"].isna()]
+    # assigned_roads = roads_connected_edges[~roads_connected_edges["speed"].isna()]
+    # unassigned_roads["road_length_m"] = unassigned_roads.progress_apply(lambda x:x.geometry.length,axis=1)
+    # print (roads_edges.columns.values.tolist())
+
+    # assigned_columns = ["edge_id","from_node","to_node",
+    #                     "component","section_name", "street_name", "street_type",
+    #                     "vertalignm","road_length_m","geometry"]
+    # unassigned_columns = [c for c in roads_edges.columns.values.tolist() if c not in assigned_columns]
+    # reassigned_roads = []
+    # for row in unassigned_roads.itertuples():
+    #     row_dict = defaultdict()
+    #     row_dict["edge_id"] = row.edge_id
+    #     from_values = roads_edges[(
+    #                         roads_edges["from_node"] == row.from_node
+    #                         ) | (
+    #                         roads_edges["to_node"] == row.from_node
+    #                         )]
+    #     to_values = roads_edges[(
+    #                         roads_edges["from_node"] == row.to_node
+    #                         ) | (
+    #                         roads_edges["to_node"] == row.to_node
+    #                         )]
+    #     for col in unassigned_columns:
+    #         col_type = roads_edges[col].dtype
+    #         values = list(set(from_values[col].values.tolist() + to_values[col].values.tolist()))
+    #         if len(values) == 1:
+    #             row_dict[col] = values[0]
+    #         elif col_type in (float,int):
+    #             row_dict[col] = np.mean(values)
+    #         else:
+    #             row_dict[col] = values[0]
+
+    #     reassigned_roads.append(row_dict)
+    #     print ("* Done with row",row.Index)
+
+    # reassigned_roads = pd.DataFrame(reassigned_roads)
+    # reassigned_roads = pd.merge(reassigned_roads,unassigned_roads[assigned_columns],how="left",on=["edge_id"])
+    # print (reassigned_roads)
+    # roads = gpd.GeoDataFrame(pd.concat([assigned_roads,
+    #                                 reassigned_roads],
+    #                                 axis=0,
+    #                                 ignore_index=True),
+    #                         geometry="geometry",crs=f"EPSG:{epsg_jamaica}")
+    # print (roads)
+    # roads.to_file(os.path.join(processed_data_path,
+    #                                 'networks',
+    #                                 'transport',
+    #                                 'roads.gpkg'),
+    #                         layer='edges')
+    # roads_connected_nodes.to_file(os.path.join(processed_data_path,
+    #                                 'networks',
+    #                                 'transport',
+    #                                 'roads.gpkg'),
+    #                         layer='nodes')
+
+    # edges = gpd.read_file(os.path.join(processed_data_path,
+    #                                 'networks',
+    #                                 'transport',
+    #                                 'roads.gpkg'),
+    #                         layer='edges')
+    # edges.rename(columns={"road_length_m":"length_m"},inplace=True)
+    # edges["lanes"] = edges.progress_apply(lambda x:add_road_lanes(x),axis=1)
+    # print (edges)
+    # # From NWA - Cost of 2 lane road reconstruction is US$ 1.5 million/km
+    # # We convert it into US$ 0.75 million/km/lane and to J$ by assuming exchange rate is 1 J$ = 0.0068 US$
+    # costs = 0.5*1.5*1.0e6/1.0e3/0.0067
+    # print (costs)
+    # edges["mean_damage_cost"] = costs*edges["lanes"]
+    # edges["min_damage_cost"] = 0.8*costs*edges["lanes"]
+    # edges["max_damage_cost"] = 1.2*costs*edges["lanes"]
+    # edges["reopen_cost"] = 152000.0 # Estimate from NWA
+    # edges["reopen_cost_unit"] = "J$/day"
+    # edges.drop(['min_reopen_cost',
+    #         'mean_reopen_cost',
+    #         'max_reopen_cost'],axis=1,inplace=True)
+    # edges.to_file(os.path.join(processed_data_path,
+    #                                 'networks',
+    #                                 'transport',
+    #                                 'roads.gpkg'),
+    #                         layer='edges')
+    nodes = gpd.read_file(os.path.join(processed_data_path,
+                                    'networks',
+                                    'transport',
+                                    'roads.gpkg'),
+                            layer='nodes')
+    nodes.rename(columns={"id":"node_id"},inplace=True)
+    # nodes.drop(['min_reopen_cost',
+    #         'mean_reopen_cost',
+    #         'max_reopen_cost'],axis=1,inplace=True)
+    # bridges = nodes[nodes["asset_type"] == "bridge"]
+    # non_bridges = nodes[nodes["asset_type"] != "bridge"]
+    # bridges["reopen_cost"] = 152000.0 # Estimate from NWA
+    # bridges["reopen_cost_unit"] = "J$/day" 
+    
+    # costs = 1.5*1.0e6/0.0067
+    # bridges["mean_damage_cost"] = costs
+    # bridges["min_damage_cost"] = 0.8*costs
+    # bridges["max_damage_cost"] = 1.2*costs
+
+    # nodes = gpd.GeoDataFrame(pd.concat([bridges,non_bridges],axis=0,ignore_index=True),
+    #             geometry="geometry",crs=f"EPSG:{epsg_jamaica}")
+    # print (nodes)
+
+    nodes.to_file(os.path.join(processed_data_path,
+                                    'networks',
+                                    'transport',
+                                    'roads.gpkg'),
+                            layer='nodes')
 if __name__ == '__main__':
     CONFIG = load_config()
     main(CONFIG)

@@ -7,7 +7,7 @@ import json
 import pandas as pd
 import geopandas as gpd
 from scipy.spatial import Voronoi
-from shapely.geometry import Polygon, shape
+from shapely.geometry import Polygon, shape, LineString
 # workaround for geopandas >0.9 until snkit #37 and geopandas #1977 are fixed
 gpd._compat.USE_PYGEOS = False
 import fiona
@@ -16,7 +16,7 @@ from scipy.spatial import cKDTree
 import snkit
 from tqdm import tqdm
 tqdm.pandas()
-
+epsg_jamaica = 3448
 
 def load_config():
     """Read config.json"""
@@ -62,7 +62,7 @@ def get_nearest_node(x, sindex_input_nodes, input_nodes, id_column):
     """
     return input_nodes.loc[list(sindex_input_nodes.nearest(x.bounds[:2]))][id_column].values[0]
 
-def create_network_from_nodes_and_edges(nodes,edges,node_edge_prefix,out_fname,by=None):
+def create_network_from_nodes_and_edges(nodes,edges,node_edge_prefix,by=None):
     edges.columns = map(str.lower, edges.columns)
     if "id" in edges.columns.values.tolist():
         edges.rename(columns={"id": "e_id"}, inplace=True)
@@ -94,6 +94,9 @@ def create_network_from_nodes_and_edges(nodes,edges,node_edge_prefix,out_fname,b
     network = snkit.network.add_endpoints(network)   
     print ('* Done with adding endpoints')
 
+    network = snkit.network.split_edges_at_nodes(network,tolerance=1.0e-3)
+    print ('* Done with splitting edges at nodes')
+
     network = snkit.network.add_ids(network, 
                             edge_prefix=f"{node_edge_prefix}e", 
                             node_prefix=f"{node_edge_prefix}n")
@@ -101,7 +104,7 @@ def create_network_from_nodes_and_edges(nodes,edges,node_edge_prefix,out_fname,b
     print ('* Done with network topology')
 
     if by is not None:
-        network = snkit_network.merge_edges(network,by=by)
+        network = snkit.merge_edges(network,by=by)
         print ('* Done with merging network')
 
     network.edges.rename(columns={'from_id':'from_node',
@@ -110,8 +113,8 @@ def create_network_from_nodes_and_edges(nodes,edges,node_edge_prefix,out_fname,b
                                 inplace=True)
     network.nodes.rename(columns={'id':'node_id'},inplace=True)
     
-    network.edges.to_file(out_fname, layer='edges', driver='GPKG')
-    network.nodes.to_file(out_fname, layer='nodes', driver='GPKG')
+    # network.edges.to_file(out_fname, layer='edges', driver='GPKG')
+    # network.nodes.to_file(out_fname, layer='nodes', driver='GPKG')
 
     return network
 
@@ -442,3 +445,18 @@ def ckdnearest(gdA, gdB):
         axis=1)
 
     return gdf
+
+def map_nearest_locations_and_create_lines(from_gdf,to_gdf,from_gdf_id,to_gdf_id,from_mode,to_mode):
+    from_gdf.rename(columns={from_gdf_id:"from_node"},inplace=True)
+    to_gdf.rename(columns={to_gdf_id:"to_node"},inplace=True)
+    nearest_pts = ckdnearest(from_gdf[["from_node","geometry"]],to_gdf[["to_node","geometry"]])
+    nearest_pts.rename(columns={"geometry":"from_geometry","dist":"length_m"},inplace=True)
+    nearest_pts = pd.merge(nearest_pts,to_gdf[["to_node","geometry"]],how="left",on=["to_node"])
+    nearest_pts.rename(columns={"geometry":"to_geometry"},inplace=True)
+    nearest_pts["geometry"] = nearest_pts.progress_apply(lambda x:LineString([x.from_geometry,x.to_geometry]),axis=1)
+    nearest_pts.drop(["from_geometry","to_geometry"],axis=1,inplace = True)
+    nearest_pts["from_mode"] = from_mode
+    nearest_pts["to_mode"] = to_mode
+    nearest_pts = gpd.GeoDataFrame(nearest_pts,geometry="geometry",crs=f"EPSG:{epsg_jamaica}")
+
+    return nearest_pts

@@ -11,11 +11,12 @@ import rioxarray
 import pandas as pd
 import geopandas as gpd
 from scipy.spatial import Voronoi
-from shapely.geometry import Polygon, shape
+from shapely.geometry import Polygon, shape, LineString
 # workaround for geopandas >0.9 until snkit #37 and geopandas #1977 are fixed
 gpd._compat.USE_PYGEOS = False
 import fiona
 import numpy as np
+from scipy.spatial import cKDTree
 import snkit
 from tqdm import tqdm
 tqdm.pandas()
@@ -580,3 +581,42 @@ def network_od_paths_assembly(points_dataframe, graph,
                                   & (save_paths_df['origin_id'] != 0)]
 
     return save_paths_df
+
+def ckdnearest(gdA, gdB):
+    """Taken from https://gis.stackexchange.com/questions/222315/finding-nearest-point-in-other-geodataframe-using-geopandas
+    """
+    nA = np.array(list(gdA.geometry.apply(lambda x: (x.x, x.y))))
+    nB = np.array(list(gdB.geometry.apply(lambda x: (x.x, x.y))))
+    btree = cKDTree(nB)
+    dist, idx = btree.query(nA, k=1)
+    gdB_nearest = gdB.iloc[idx].drop(columns="geometry").reset_index(drop=True)
+    gdf = pd.concat(
+        [
+            gdA.reset_index(drop=True),
+            gdB_nearest,
+            pd.Series(dist, name='dist')
+        ], 
+        axis=1)
+
+    return gdf
+
+def polygon_to_points(gdf):
+    gdf = gdf.to_crs(epsg=epsg_jamaica)
+    gdf["geometry"] = gdf.progress_apply(lambda x:x.geometry.centroid,axis=1)
+    
+    return gdf
+
+def map_nearest_locations_and_create_lines(from_gdf,to_gdf,from_gdf_id,to_gdf_id,from_mode,to_mode):
+    from_gdf.rename(columns={from_gdf_id:"from_node"},inplace=True)
+    to_gdf.rename(columns={to_gdf_id:"to_node"},inplace=True)
+    nearest_pts = ckdnearest(from_gdf[["from_node","geometry"]],to_gdf[["to_node","geometry"]])
+    nearest_pts.rename(columns={"geometry":"from_geometry","dist":"length_m"},inplace=True)
+    nearest_pts = pd.merge(nearest_pts,to_gdf[["to_node","geometry"]],how="left",on=["to_node"])
+    nearest_pts.rename(columns={"geometry":"to_geometry"},inplace=True)
+    nearest_pts["geometry"] = nearest_pts.progress_apply(lambda x:LineString([x.from_geometry,x.to_geometry]),axis=1)
+    nearest_pts.drop(["from_geometry","to_geometry"],axis=1,inplace = True)
+    nearest_pts["from_mode"] = from_mode
+    nearest_pts["to_mode"] = to_mode
+    nearest_pts = gpd.GeoDataFrame(nearest_pts,geometry="geometry",crs=f"EPSG:{epsg_jamaica}")
+
+    return nearest_pts

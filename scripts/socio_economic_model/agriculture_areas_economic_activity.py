@@ -289,7 +289,7 @@ def main(config):
                     crs=f"EPSG:{epsg_jamaica}").to_file(os.path.join(processed_data_path,
                                 "agriculture_data",
                                 "agricuture_gdp.gpkg"),
-                            layer="areas")
+                            layer="areas",river="GPKG")
     agri_buildings.to_csv(os.path.join(processed_data_path,
                                     "agriculture_data",
                                     "building_agricuture_gdp.csv"),

@@ -226,6 +226,12 @@ def main(config):
                                     "buildings",
                                     'buildings_assigned_economic_activity.gpkg'),
                                   layer="areas")
+    
+    new_columns = ["ED_ID","ED","PARISH","CONST_NAME"]
+    for col in new_columns:
+        if col in buildings.columns.values.tolist():
+            buildings.drop(col,axis=1,inplace=True)
+      
     buildings_regions = match_buildings_to_areas(buildings,region_attractiveness,"osm_id",["ED_ID","ED"])
     
     buildings_nomatches = buildings[~(buildings["osm_id"].isin(buildings_regions["osm_id"].values.tolist()))]
@@ -319,7 +325,7 @@ def main(config):
         if scode in ('D','H','J','K','L'):
             print (sector_columns)
             sector_df = get_sector_gdp(economic_output,sector_df,sector_columns,scode,"ALL",financial_year,tax_rate)
-        elif scode in ('C','F','G','M','N','O'):
+        elif scode in ('F','G','M','N','O'):
             for sc in sector_columns:
                 sector_code = sc.split("_")[0]
                 subsector_code = sc.split("_")[1]
@@ -341,6 +347,20 @@ def main(config):
             sector_df[f"{scode}_GDP"] += sector_df["A_GDP_building"]
             sector_df.drop("A_GDP_building",axis=1,inplace=True)
             del agri_buildings
+        elif scode == 'C':
+            mining_buildings = pd.read_csv(os.path.join(processed_data_path,"mining_data",
+                                                "building_mining_gdp.csv"))
+
+            mining_buildings['osm_id'] = mining_buildings['osm_id'].astype(int)
+            sector_df["osm_id"] = sector_df["osm_id"].astype(int)
+            sector_df = pd.merge(sector_df,mining_buildings,how="left",on=["osm_id"])
+            sector_df[["osm_id","C_GDP_building"]].to_csv('test.csv')
+            print ("GDP to assign",sector_df["C_GDP_building"].sum())
+            sector_df["C_GDP_building"] = sector_df["C_GDP_building"].fillna(0)
+            sector_df[f"{scode}_GDP"] += sector_df["C_GDP_building"]
+            sector_df.drop("C_GDP_building",axis=1,inplace=True)
+            del mining_buildings
+
         elif scode == 'I':
             post_office_share = 0.157
             sector_df["find_post"] = sector_df.progress_apply(
@@ -363,6 +383,9 @@ def main(config):
     sector_df = sector_df[["osm_id"] + gdp_columns]
     sector_df["total_GDP"] = sector_df[gdp_columns].sum(axis=1)
     
+    for col in gdp_columns + ["total_GDP"]:
+        if col in buildings.columns.values.tolist():
+            buildings.drop(col,axis=1,inplace=True) 
     # Annoying fix to make sure they merge!!
     sector_df["osm_id"] = sector_df["osm_id"].astype(int)
     buildings["osm_id"] = buildings["osm_id"].astype(int)
