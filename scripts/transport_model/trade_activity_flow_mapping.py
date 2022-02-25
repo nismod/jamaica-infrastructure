@@ -1,4 +1,4 @@
-"""Map mining flows onto the rail network of Jamaica
+"""Map import and export trade activites to Ports in Jamaica
 """
 import sys
 import os
@@ -32,10 +32,8 @@ def route_areas_to_nearest_ports(areas,areas_id,areas_gdp,
         nearest_stations["edge_id"] = nearest_stations.progress_apply(lambda x:f"{connection_type}raile_{x.name}",axis=1)
         nearest_stations["speed"] = 10.0
         nearest_stations["time"] = 0.001*nearest_stations["length_m"]/nearest_stations["speed"]
+        nearest_stations = nearest_stations[nearest_stations["length_m"] < 5000]
 
-        multi_edges = edges[edges["from_mode"] != edges["to_mode"]]
-        multi_edges = multi_edges[multi_edges["length_m"] >= 5000]["edge_id"].values.tolist()
-        edges = edges[~edges["edge_id"].isin(multi_edges)]
         network = pd.concat([edges[network_columns],
                             nearest_stations[network_columns],
                             nearest_roads[network_columns]],
@@ -144,7 +142,10 @@ def main(config):
                                     'transport',
                                     'multi_modal_network.gpkg'),
                             layer='edges')
-    # edges = edges[(edges["from_mode"] != "rail") & (edges["to_mode"] != "rail")]
+    multi_edges = edges[edges["from_mode"] != edges["to_mode"]]
+    multi_edges = multi_edges[multi_edges["length_m"] >= 5000]["edge_id"].values.tolist()
+    edges = edges[~edges["edge_id"].isin(multi_edges)]
+    del multi_edges
     print (edges)
     
     """Read the export datasets and create the specific cases of exports
@@ -300,17 +301,37 @@ def main(config):
     flow_network = flow_network.groupby(flow_index_columns)[flow_gdp_columns].sum().reset_index()
     flow_network["total_trade"] = flow_network[flow_gdp_columns].sum(axis=1)
 
-    edge_flows = gpd.GeoDataFrame(pd.merge(flow_network,
-                    sector_network,how="left",on=["edge_id"]),
+    edge_flows = gpd.GeoDataFrame(pd.merge(sector_network,
+                    flow_network,how="left",on=["edge_id"]),
                     geometry="geometry",
-                    crs=f"EPSG:{epsg_jamaica}")
+                    crs=f"EPSG:{epsg_jamaica}").fillna(0)
     # edge_flows["total_trade"] = edge_flows[[f"{s}_trade" for s in list(set([sc["sector"] for sc in sector_details]))]].sum(axis=1)
     edge_flows.to_file(os.path.join(results_path,
                                     'flow_mapping',
                                     f'sector_imports_exports_to_ports_flows.gpkg'),
                             layer='edges',driver="GPKG")
 
+    flow_paths = pd.read_csv(os.path.join(results_path,
+                                        'flow_mapping',
+                                        f'sector_to_ports_flow_paths.csv')
+                                ).fillna(0)
+    trade_columns = [c for c in flow_paths.columns.values.tolist() if "_trade" in c]
+    common_nodes = flow_paths[flow_paths["origin_id"] == flow_paths["destination_id"]]
+    common_nodes = common_nodes.groupby(["origin_id"])[trade_columns].sum().reset_index()
 
+
+    uncommon_nodes = flow_paths[flow_paths["origin_id"] != flow_paths["destination_id"]]
+    origin_trips = uncommon_nodes.groupby(["origin_id"])[trade_columns].sum().reset_index()
+    destination_trips = uncommon_nodes.groupby(["destination_id"])[trade_columns].sum().reset_index()
+    destination_trips.rename(columns={"destination_id":"origin_id"},inplace=True)
+    node_activity = pd.concat([common_nodes,origin_trips,destination_trips],axis=0,ignore_index=True)
+    node_activity.rename(columns={"origin_id":"node_id"},inplace=True)
+
+    node_activity = node_activity.groupby(["node_id"])[trade_columns].sum().reset_index()
+    node_activity["total_trade"] = node_activity[trade_columns].sum(axis=1)
+    node_activity.to_csv(os.path.join(results_path,
+                                        'flow_mapping',
+                                        'origins_destinations_trade_economic_activity.csv'),index=False) 
 if __name__ == '__main__':
     CONFIG = load_config()
     main(CONFIG)

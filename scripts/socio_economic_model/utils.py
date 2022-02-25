@@ -518,7 +518,7 @@ def network_od_path_estimations(graph,
     return edge_path_list, path_gcost_list
 
 def network_od_paths_assembly(points_dataframe, graph,
-                                cost_criteria,tonnage_column):
+                                cost_criteria,flow_value_column):
     """Assemble estimates of OD paths, distances, times, costs and tonnages on networks
 
     Parameters
@@ -561,10 +561,9 @@ def network_od_paths_assembly(points_dataframe, graph,
             get_path, get_gcost = network_od_path_estimations(
                 graph, origin, destinations, cost_criteria)
 
-            tons = points_dataframe.loc[[origin], tonnage_column].values
+            # flow_value = points_dataframe.loc[[origin], flow_value_column].values
             save_paths += list(zip([origin]*len(destinations),
-                                destinations, get_path,
-                                list(tons*np.array(get_gcost))))
+                                destinations, get_path,get_gcost))
 
             print(f"done with {origin}")
         except:
@@ -577,7 +576,7 @@ def network_od_paths_assembly(points_dataframe, graph,
     save_paths_df = pd.merge(save_paths_df, points_dataframe, how='left', on=[
                              'origin_id', 'destination_id']).fillna(0)
 
-    save_paths_df = save_paths_df[(save_paths_df[tonnage_column] > 0)
+    save_paths_df = save_paths_df[(save_paths_df[flow_value_column] > 0)
                                   & (save_paths_df['origin_id'] != 0)]
 
     return save_paths_df

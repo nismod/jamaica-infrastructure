@@ -18,6 +18,7 @@ import matplotlib.patches as mpatches
 from shapely.geometry import LineString
 from matplotlib.lines import Line2D
 from scalebar import scale_bar
+import jenkspy
 
 def _get_palette():
     colors = {
@@ -269,6 +270,9 @@ def generate_weight_bins(weights, n_steps=9, width_step=0.01, interpolation='lin
         mins = numpy.quantile(weights,q=numpy.linspace(0,1,n_steps,endpoint=True))
     elif interpolation == 'equal bins':
         mins = numpy.array([min_weight] + list(sorted(set([cut.right for cut in pandas.qcut(sorted(weights),n_steps-1)])))[:-1] + [max_weight])  
+    elif interpolation == 'fisher-jenks':
+        weights = numpy.array([min_weight] + list(weights) + [max_weight])
+        mins = jenkspy.jenks_breaks(weights, nb_class=n_steps-1)
     else:
         raise ValueError('Interpolation must be log or linear')
     # maxs = list(mins)
@@ -330,10 +334,11 @@ def create_figure_legend(divisor,significance,width_by_range,max_weight,legend_t
 
 def line_map_plotting_colors_width(ax,df,column,
                         edge_classify_column=None,
-                        edge_categories=["1","2","3","4","5"],
-                        edge_colors=['#7bccc4','#6baed6','#807dba','#2171b5','#08306b'],
-                        edge_labels=[None,None,None,None,None],
-                        edge_zorder=[6,7,8,9,10],
+                        edge_categories=["1","2","3","4","5","6","7","8","9","10"],
+                        edge_colors=['#7bccc4','#92c5de','#6baed6','#807dba','#2171b5','#08306b',
+                                        '#c51b7d','#d6604d','#542788','#b2182b'],
+                        edge_labels=[None,None,None,None,None,None,None,None,None,None],
+                        edge_zorder=[6,7,8,9,10,11,12,13,14,15],
                         divisor=1.0,legend_label="Legend",
                         no_value_label="No value",
                         no_value_color="#969696",
@@ -349,6 +354,10 @@ def line_map_plotting_colors_width(ax,df,column,
     #08519c
     #08306b
     # column = df_value_column
+    edge_categories = edge_categories[:line_steps]
+    edge_colors = edge_colors[:line_steps]
+    edge_labels = edge_labels[:line_steps]
+    edge_zorder = edge_zorder[:line_steps]
     layer_details = list(
                         zip(
                             edge_categories,
@@ -357,6 +366,7 @@ def line_map_plotting_colors_width(ax,df,column,
                             edge_zorder
                             )
                         )
+    # layer_details = layer_details[:line_steps]
     weights = [
         getattr(record,column)
         for record in df.itertuples() if getattr(record,column) > 0

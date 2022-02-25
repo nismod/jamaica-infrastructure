@@ -44,15 +44,17 @@ def jamaica_sector_attributes():
                                 "node_categories_markersize":[10.0],
                                 "node_categories_marker":["."],
                                 "node_categories_zorder":[11],
+                                "node_loss_result": "rail_stations",
+                                "edge_loss_result":"road_rail_edges"
                             },
                             {
                                 "sector":"transport",
                                 "sector_gpkg":"port_polygon.gpkg",
                                 "sector_label":"Ports",
                                 "edge_layer":None,
-                                "node_layer":None,
+                                "node_layer":"nodes",
                                 "edge_id_column":None,
-                                "node_id_column":None,
+                                "node_id_column":"node_id",
                                 "area_id_column":"node_id",
                                 "area_layer":"areas",
                                 "edge_damage_filter_column":None,
@@ -62,7 +64,7 @@ def jamaica_sector_attributes():
                                 "node_damage_categories":None,
                                 "area_damage_categories":None,
                                 "edge_classify_column":None,
-                                "node_classify_column":None,
+                                "node_classify_column":"category",
                                 "area_classify_column":"category",
                                 "edge_categories":None,
                                 "node_categories":None,
@@ -78,6 +80,10 @@ def jamaica_sector_attributes():
                                 "node_categories_markersize":[15.0],
                                 "node_categories_marker":["o"],
                                 "node_categories_zorder":[11],
+                                "node_loss_result": "ports",
+                                "edge_loss_result":None,
+                                "node_loss_result":"ports",
+                                "edge_loss_result":None
                             },
                             {
                                 "sector":"transport",
@@ -155,7 +161,7 @@ def jamaica_sector_attributes():
                                 "node_layer":"nodes",
                                 "area_layer":None,
                                 "edge_id_column":"edge_id",
-                                "node_id_column":"id",
+                                "node_id_column":"node_id",
                                 "area_id_column":None,
                                 "edge_classify_column":"road_class",
                                 "node_classify_column":"asset_type",
@@ -180,6 +186,8 @@ def jamaica_sector_attributes():
                                 "node_categories_markersize":[10.0],
                                 "node_categories_marker":".",
                                 "node_categories_zorder":[11],
+                                "node_loss_result": "road_bridges",
+                                "edge_loss_result":"road_rail_edges"
                             },
                             # {
                             #     "sector":"energy",
@@ -223,7 +231,7 @@ def jamaica_sector_attributes():
                             # },
                             {
                                 "sector":"energy",
-                                "sector_gpkg":"electricity_network_v1.0.gpkg",
+                                "sector_gpkg":"electricity_network_v3.0.gpkg",
                                 "sector_label":"Energy",
                                 "edge_layer":"edges",
                                 "node_layer":"nodes",
@@ -231,7 +239,7 @@ def jamaica_sector_attributes():
                                 "edge_id_column":"id",
                                 "node_id_column":"id",
                                 "area_id_column":None,
-                                "edge_classify_column":"voltage",
+                                "edge_classify_column":"voltage_kV",
                                 "node_classify_column":"subtype",
                                 "area_classify_column":None,
                                 "edge_damage_filter_column":None,
@@ -240,7 +248,7 @@ def jamaica_sector_attributes():
                                 "edge_damage_categories":None,
                                 "node_damage_categories":None,
                                 "area_damage_categories":None,
-                                "edge_categories":["138kV","69 kV","24 kV","12 kV"],
+                                "edge_categories":[138,69,24,12],
                                 # "node_categories":["diesel","gas","hydro","solar","wind",
                                 #                 "substation","pole"],
                                 "node_categories":["diesel","gas","hydro","solar","wind",
@@ -273,6 +281,8 @@ def jamaica_sector_attributes():
                                 "node_categories_markersize":[15.0,15.0,15.0,15.0,15.0,15.0],
                                 "node_categories_marker":["s","s","s","s","s","o"],
                                 "node_categories_zorder":[15,15,15,15,15,14],
+                                "node_loss_result": "electricity_nodes",
+                                "edge_loss_result":"electricity_edges"
                             },
                             {
                                 "sector":"water",
@@ -344,6 +354,8 @@ def jamaica_sector_attributes():
                                                             15,15,15,
                                                             15,15,15,
                                                             15,15,15],
+                                "node_loss_result": "potable_facilities",
+                                "edge_loss_result":"potable_pipelines"                           
                             },
                             {
                                 "sector":"water",
@@ -379,44 +391,46 @@ def jamaica_sector_attributes():
                                 "node_categories_markersize":[10.0],
                                 "node_categories_marker":["o"],
                                 "node_categories_zorder":[15],
+                                "node_loss_result": "irrigation_nodes",
+                                "edge_loss_result":"irrigation_edges"
                             },
-                            {
-                                "sector":"water",
-                                "sector_gpkg":"waste_water_facilities_NWC.gpkg",
-                                "sector_label":"Wastewater Treatment",
-                                "edge_layer":None,
-                                "node_layer":"nodes",
-                                "area_layer":None,
-                                "edge_id_column":None,
-                                "node_id_column":"node_id",
-                                "area_id_column":None,
-                                "edge_classify_column":None,
-                                "node_classify_column":"asset_type",
-                                "area_classify_column":None,
-                                "edge_damage_filter_column":None,
-                                "node_damage_filter_column":None,
-                                "area_damage_filter_column":None,
-                                "edge_damage_categories":None,
-                                "node_damage_categories":None,
-                                "area_damage_categories":None,
-                                "edge_categories":None,
-                                "node_categories":["Sump","WW Pump Station","WW Relift Station","WW Treatment Plant"],
-                                "area_categories":None,
-                                "edge_categories_colors":None,
-                                "node_categories_colors":["#bfd3e6",
-                                                    "#4d004b",
-                                                    "#88419d",
-                                                    "#ef3b2c"],
-                                "area_categories_colors":None,
-                                "edge_categories_labels":None,
-                                "node_categories_labels":["Sump","Pumping Station","Relift Station","Treatment Plant"],
-                                "area_categories_labels":None,
-                                "edge_categories_linewidth":None,
-                                "edge_categories_zorder":None,
-                                "node_categories_markersize":[12.0,12.0,12.0,12.0],
-                                "node_categories_marker":[".","^","s","o"],
-                                "node_categories_zorder":[15,15,15,15],
-                            },
+                            # {
+                            #     "sector":"water",
+                            #     "sector_gpkg":"waste_water_facilities_NWC.gpkg",
+                            #     "sector_label":"Wastewater Treatment",
+                            #     "edge_layer":None,
+                            #     "node_layer":"nodes",
+                            #     "area_layer":None,
+                            #     "edge_id_column":None,
+                            #     "node_id_column":"node_id",
+                            #     "area_id_column":None,
+                            #     "edge_classify_column":None,
+                            #     "node_classify_column":"asset_type",
+                            #     "area_classify_column":None,
+                            #     "edge_damage_filter_column":None,
+                            #     "node_damage_filter_column":None,
+                            #     "area_damage_filter_column":None,
+                            #     "edge_damage_categories":None,
+                            #     "node_damage_categories":None,
+                            #     "area_damage_categories":None,
+                            #     "edge_categories":None,
+                            #     "node_categories":["Sump","WW Pump Station","WW Relift Station","WW Treatment Plant"],
+                            #     "area_categories":None,
+                            #     "edge_categories_colors":None,
+                            #     "node_categories_colors":["#bfd3e6",
+                            #                         "#4d004b",
+                            #                         "#88419d",
+                            #                         "#ef3b2c"],
+                            #     "area_categories_colors":None,
+                            #     "edge_categories_labels":None,
+                            #     "node_categories_labels":["Sump","Pumping Station","Relift Station","Treatment Plant"],
+                            #     "area_categories_labels":None,
+                            #     "edge_categories_linewidth":None,
+                            #     "edge_categories_zorder":None,
+                            #     "node_categories_markersize":[12.0,12.0,12.0,12.0],
+                            #     "node_categories_marker":[".","^","s","o"],
+                            #     "node_categories_zorder":[15,15,15,15],
+                            # },
 
                         ]
 
@@ -424,9 +438,7 @@ def jamaica_sector_attributes():
 
 def jamaica_port_and_airport_nodes():
     config = load_config()
-    incoming_data_path = config['paths']['incoming_data']
     processed_data_path = config['paths']['data']
-    figures_data_path = config['paths']['figures']
 
 
     transport_data_path = os.path.join(processed_data_path,
@@ -446,3 +458,17 @@ def jamaica_port_and_airport_nodes():
     nodes = gpd.GeoDataFrame(nodes,geometry="geometry",crs=f"EPSG:{JAMAICA_GRID_EPSG}")
 
     return nodes
+
+def jamaica_port_nodes():
+    config = load_config()
+    processed_data_path = config['paths']['data']
+
+    transport_data_path = os.path.join(processed_data_path,
+                        "networks",
+                        "transport")
+    ports = gpd.read_file(os.path.join(transport_data_path,"port_polygon.gpkg"),layer="areas").to_crs(epsg=JAMAICA_GRID_EPSG)
+    ports["asset_type"] = "port"
+    ports["geometry"] = ports.apply(lambda x: x.geometry.centroid,axis=1)
+    ports = gpd.GeoDataFrame(ports,geometry="geometry",crs=f"EPSG:{JAMAICA_GRID_EPSG}")
+
+    return ports
