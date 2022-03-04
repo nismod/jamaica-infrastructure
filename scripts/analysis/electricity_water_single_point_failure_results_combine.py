@@ -38,15 +38,16 @@ def main(config):
                                     "networks_economic_activity",
                                     "potable_facilities_buildings_economic_activity_mapping.csv"))
     potable_economic_activity_buildings["osm_id"] = potable_economic_activity_buildings["osm_id"].astype(int)
-    potable_economic_activity_buildings = pd.merge(potable_economic_activity_buildings[["node_id","osm_id","WSZONEID"]],
+    potable_economic_activity_buildings = potable_economic_activity_buildings.drop_duplicates(subset=["node_id","osm_id"],keep="first")
+    potable_economic_activity_buildings = pd.merge(potable_economic_activity_buildings[["node_id","osm_id"]],
                                         buildings[["osm_id"] + buildings_gdp_columns],
-                                        how="left",on=["osm_id"])
+                                        how="left",on=["osm_id"]).fillna(0)
     # del buildings
 
     """Add the potable water-building GDP values and merge with the water asset GDPs to get failure results     
     """
     potable_economic_activity_dependent = potable_economic_activity_buildings.groupby(
-                                                        ["node_id","WSZONEID"]
+                                                        ["node_id"]
                                                         )[buildings_gdp_columns].sum().reset_index()
 
     potable_economic_activity_buildings = potable_economic_activity_buildings[["node_id","osm_id"]]
@@ -54,9 +55,10 @@ def main(config):
     potable_economic_activity = pd.read_csv(os.path.join(processed_data_path,
                                     "networks_economic_activity",
                                     "potable_facilities_dependent_economic_activity.csv"))
-    potable_economic_activity = pd.merge(potable_economic_activity[["node_id","WSZONEID","W_GDP"]],
+    potable_economic_activity = potable_economic_activity.groupby(["node_id"])["W_GDP"].sum().reset_index()
+    potable_economic_activity = pd.merge(potable_economic_activity[["node_id","W_GDP"]],
                                         potable_economic_activity_dependent,
-                                        how="left",on=["node_id","WSZONEID"])
+                                        how="left",on=["node_id"]).fillna(0)
     del potable_economic_activity_dependent
     potable_economic_activity["economic_loss"] = potable_economic_activity[["W_GDP"] + buildings_gdp_columns].sum(axis=1)
     potable_economic_activity["loss_unit"] = "JD/day"
@@ -69,8 +71,10 @@ def main(config):
                                     "networks_economic_activity",
                                     "potable_pipelines_dependent_economic_activity.csv"))
     pipelines_economic_activity = pd.merge(pipelines_economic_activity[["edge_id","node_id"]],
-                                            potable_economic_activity,how="left",on=["node_id"])
-    pipelines_economic_activity.drop("node_id",axis=1,inplace=True)
+                                            potable_economic_activity,how="left",on=["node_id"]).fillna(0)
+    pipelines_gdp_columns = [c for c in pipelines_economic_activity.columns.values.tolist() if c not in ["edge_id","loss_unit"]]
+    pipelines_economic_activity = pipelines_economic_activity.groupby(["edge_id","loss_unit"])[pipelines_gdp_columns].sum().reset_index()
+    # pipelines_economic_activity.drop("node_id",axis=1,inplace=True)
     pipelines_economic_activity.to_csv(os.path.join(results_dir,
                                     "single_point_failure_potable_pipelines_economic_losses.csv"),index=False)
     del pipelines_economic_activity
@@ -93,8 +97,9 @@ def main(config):
                                     "networks_economic_activity",
                                     "irrigation_edges_dependent_economic_activity.csv"))
     irrigation_edges_economic_activity.rename(columns={"GVA (JD/day)":"economic_loss"},inplace=True)
+    irrigation_edges_economic_activity = irrigation_edges_economic_activity.groupby(["edge_id"])["economic_loss"].sum().reset_index()
     irrigation_edges_economic_activity["loss_unit"] = "JD/day"
-    irrigation_edges_economic_activity.drop("node_id",axis=1,inplace=True)
+    # irrigation_edges_economic_activity.drop("node_id",axis=1,inplace=True)
     irrigation_edges_economic_activity.to_csv(os.path.join(results_dir,
                                     "single_point_failure_irrigation_edges_economic_losses.csv"),index=False)
 

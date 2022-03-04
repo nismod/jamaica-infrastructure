@@ -65,10 +65,10 @@ def risks_pivot(dataframe,index_columns,probability_column,
     """
     if flood_protection is None:
         # When there is no flood protection at all
-        expected_risk_column = '{}_undefended'.format(expected_risk_column) 
+        expected_risk_column = f"{expected_risk_column}_undefended"
         probability_threshold = 1 
     else:
-        expected_risk_column = '{}_{}'.format(expected_risk_column,flood_protection_name)
+        expected_risk_column = f"{expected_risk_column}_{flood_protection_name}"
         probability_threshold = 0 
         
     probabilites = list(set(dataframe[probability_column].values.tolist()))
