@@ -16,7 +16,7 @@ import rasterio
 
 from shapely.geometry import mapping, shape
 from shapely.ops import linemerge, polygonize
-from snail.intersections import get_cell_indices, split_linestring, split_polygon
+from snail.core.intersections import get_cell_indices, split_linestring, split_polygon
 from tqdm import tqdm
 
 
@@ -279,12 +279,18 @@ def split_area_df(df, t):
     core_splits = []
     for area in tqdm(df.itertuples(), total=len(df)):
         # split area
-        splits = split_polygon(
-            area.geometry,
-            t.width,
-            t.height,
-            t.transform
-        )
+        try:
+            splits = split_polygon(
+                area.geometry,
+                t.width,
+                t.height,
+                t.transform
+            )
+        except RuntimeError as e:
+            print("SKIPPING GEOMETRY with error:", e)
+            print(t)
+            print(area.geometry.wkt)
+            continue
         # round to high precision (avoid floating point errors)
         splits = [set_precision(s, 9) for s in splits]
         # to polygons
