@@ -140,6 +140,13 @@ def main(config):
     rail_losses["loss_unit"] = "JD/day"
     rail_losses.to_csv(os.path.join(results_dir,"single_point_failure_rail_stations_economic_losses.csv"),index=False)
 
+    """Get the airports results, which are only based on passenger losses
+    """
+    airports = gpd.read_file(os.path.join(processed_data_path,"networks","transport","airport_polygon.gpkg"))
+    airports["economic_loss"] = (35.0/0.0067/365)*airports["passenger_number"]
+    airports["loss_unit"] = "JD/day"
+    airports[["node_id","economic_loss","loss_unit"]].to_csv(os.path.join(results_dir,
+                                "single_point_failure_airports_economic_losses.csv"),index=False)
 if __name__ == "__main__":
     CONFIG = load_config()
     main(CONFIG)

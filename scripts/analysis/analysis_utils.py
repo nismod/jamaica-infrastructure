@@ -29,13 +29,8 @@ def geopandas_read_file_type(file_path, file_layer, file_database=None):
         return gpd.read_file(os.path.join(file_path, file_layer))
 
 def curve_interpolation(x_curve,y_curve,x_new):
-    if x_new <= x_curve[0]:
-        return y_curve[0]
-    elif x_new >= x_curve[-1]:
-        return y_curve[-1]
-    else:
-        interpolate_values = interp1d(x_curve, y_curve)
-        return interpolate_values(x_new)
+    interpolate_values = interp1d(x_curve, y_curve,fill_value=(min(y_curve),max(y_curve)),bounds_error=False)
+    return interpolate_values(x_new)
 
 
 def expected_risks_pivot(v,probabilites,probability_threshold,flood_protection_column):
@@ -81,3 +76,27 @@ def risks_pivot(dataframe,index_columns,probability_column,
                                                         flood_protection_column),axis=1)
     
     return df[index_columns + [expected_risk_column]]
+
+def risks(dataframe,index_columns,probabilities,
+            expected_risk_column,
+            flood_protection_period=0,flood_protection_name=None):
+    
+    """
+    Organise the dataframe to pivot with respect to index columns
+    Find the expected risks
+    """
+    if flood_protection_period == 0:
+        # When there is no flood protection at all
+        expected_risk_column = f"{expected_risk_column}_undefended"
+        probability_columns = [str(p) for p in probabilities]
+        
+    else:
+        expected_risk_column = f"{expected_risk_column}_{flood_protection_name}"
+        probabilities = [pr for pr in probabilities if pr <= 1.0/flood_protection_period]
+        probability_columns = [str(p) for p in probabilities] 
+        
+    dataframe.columns = dataframe.columns.astype(str)
+    dataframe[expected_risk_column] = list(integrate.trapz(dataframe[probability_columns].to_numpy(),
+                                            np.array([probabilities*len(dataframe.index)]).reshape(dataframe[probability_columns].shape)))
+    
+    return dataframe[index_columns + [expected_risk_column]]
