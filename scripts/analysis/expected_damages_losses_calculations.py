@@ -109,8 +109,9 @@ def main(config):
                     # print (expected_damage_df)
                     if 'economic_loss' in damages.columns.values.tolist():
                         losses = damages.copy()
-                        for hz in haz_prob:
-                            losses[str(hz)] = losses["economic_loss"]*np.where(losses[str(hz)]>0,1,0)
+                        # for hz in haz_prob:
+                        #     losses[str(hz)] = losses["economic_loss"]*np.where(losses[str(hz)]>0,1,0)
+                        losses[haz_prob] = losses["economic_loss"].to_numpy()[:,None]*np.where(losses[haz_prob]>0,1,0)
                         # economic_loss_df = risks(losses,index_columns,haz_prob,
                         #                         None,'EAEL',
                         #                         flood_protection=None)

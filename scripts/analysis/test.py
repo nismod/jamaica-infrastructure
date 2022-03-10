@@ -26,6 +26,7 @@ def main(config):
     df[["Y","Z"]] = interp1d(A,B,fill_value=(min(B),max(B)),bounds_error=False)(df[["W","X"]])
     print (df)
     df[["Y","Z"]] = df[["Y","Z"]] - 1
+    df[["Y","Z"]] = df["X"].to_numpy()[:,None]*np.where(df[["Y","Z"]] > 0,1,0)
     print (df)
     df = df[(df[["Y","Z"]]>4).all(axis=1)]
     print (df)
@@ -37,6 +38,8 @@ def main(config):
     A = np.array([[0.01,0.1]*len(df.index)])
     print (A)
     df["A"] = integrate.trapz(df[["Y","Z"]].to_numpy(),A)
+    print (df)
+    df[["Y","Z"]] = ((df["X"].to_numpy().T)*np.where(df[["Y","Z"]] > 0,1,0)).T
     print (df)
 if __name__ == '__main__':
     CONFIG = load_config()

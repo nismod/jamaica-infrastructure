@@ -77,8 +77,9 @@ def main(config):
                                                                                     'damage_uncertainty_parameter',
                                                                                     'cost_uncertainty_parameter',
                                                                                     'exposure']]
-            for hz in hazard_columns:
-                exposures[hz] = exposures["exposure"]*np.where(exposures[hz] > 0,1,0)
+            # for hz in hazard_columns:
+            #     exposures[hz] = exposures["exposure"]*np.where(exposures[hz] > 0,1,0)
+            exposures[hazard_columns] = exposures["exposure"].to_numpy()[:,None]*np.where(exposures[hazard_columns]>0,1,0)
 
             sum_dict = dict([(hk,"sum") for hk in hazard_columns])
             exposures = exposures.groupby([asset_id,
