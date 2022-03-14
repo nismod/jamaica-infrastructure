@@ -13,7 +13,8 @@ from tqdm import tqdm
 tqdm.pandas()
 
 def quantiles(dataframe,grouping_by_columns,grouped_columns):
-    quantiles_list = ['mean','min','max','median','q5','q95']
+    # quantiles_list = ['mean','min','max','median','q5','q95']
+    quantiles_list = ['mean','min','max']
     df_list = []
     for quant in quantiles_list:
         if quant == 'mean':
@@ -23,12 +24,12 @@ def quantiles(dataframe,grouping_by_columns,grouped_columns):
             df = dataframe.groupby(grouping_by_columns,dropna=False)[grouped_columns].min()
         elif quant == 'max':
             df = dataframe.groupby(grouping_by_columns,dropna=False)[grouped_columns].max()
-        elif quant == 'median':
-            df = dataframe.groupby(grouping_by_columns,dropna=False)[grouped_columns].quantile(0.5)
-        elif quant == 'q5':
-            df = dataframe.groupby(grouping_by_columns,dropna=False)[grouped_columns].quantile(0.05)
-        elif quant == 'q95':
-            df = dataframe.groupby(grouping_by_columns,dropna=False)[grouped_columns].quantile(0.95)
+        # elif quant == 'median':
+        #     df = dataframe.groupby(grouping_by_columns,dropna=False)[grouped_columns].quantile(0.5)
+        # elif quant == 'q5':
+        #     df = dataframe.groupby(grouping_by_columns,dropna=False)[grouped_columns].quantile(0.05)
+        # elif quant == 'q95':
+        #     df = dataframe.groupby(grouping_by_columns,dropna=False)[grouped_columns].quantile(0.95)
 
         df.rename(columns=dict((g,'{}_{}'.format(g,quant)) for g in grouped_columns),inplace=True)
         df_list.append(df)
@@ -90,6 +91,7 @@ def main(config):
                             f"{asset_info.asset_gpkg}_{asset_info.asset_layer}_exposures.parquet"),index=False)
             # exposures.to_csv(os.path.join(summary_results,
             #                 f"{asset_info.asset_gpkg}_{asset_info.asset_layer}_exposures.csv"),index=False)
+            del exposures
             damages = [df.groupby([asset_id,
                                 'damage_cost_unit',
                                 ],
@@ -103,6 +105,7 @@ def main(config):
                             f"{asset_info.asset_gpkg}_{asset_info.asset_layer}_damages.parquet"),index=False)
                 # damages.to_csv(os.path.join(summary_results,
                 #             f"{asset_info.asset_gpkg}_{asset_info.asset_layer}_damages.csv"),index=False)
+            del damages
         # Process the EAD and EAEL results 
         damage_files = [os.path.join(
                                 asset_damages_results,
@@ -128,7 +131,7 @@ def main(config):
             summarised_damages = pd.concat(summarised_damages,axis=0,ignore_index=True)
             summarised_damages.to_csv(os.path.join(summary_results,
                         f"{asset_info.asset_gpkg}_{asset_info.asset_layer}_EAD_EAEL.csv"),index=False)
-
+            del summarised_damages
         print (f"* Done with {asset_info.asset_gpkg} {asset_info.asset_layer}")
 
 if __name__ == '__main__':
