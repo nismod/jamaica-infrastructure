@@ -31,12 +31,3 @@ def get_sector_layer(sector,sector_data_path,layer_key):
         return layer
     else:
         return []
-
-if __name__ == '__main__':
-    # Ignore reading-geopackage warnings
-    warnings.filterwarnings('ignore', message='.*Sequential read of iterator was interrupted.*')
-    # Load config
-    CONFIG = load_config()
-    test_plot(CONFIG['paths']['data'], CONFIG['paths']['figures'])
-    # Show for ease of check/test
-    plt.show()

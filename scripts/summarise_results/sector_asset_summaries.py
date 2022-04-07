@@ -55,7 +55,8 @@ def main(config):
 
     asset_groupby_column = "asset_grouping_column"
     asset_cost_unit_column = "asset_cost_unit_column"
-    asset_group_columns = ["asset_capacity_column",
+    asset_group_columns = [
+                    "asset_capacity_column",
                     "asset_min_cost_column",
                     "asset_max_cost_column",
                     "asset_min_reopen_cost_column",

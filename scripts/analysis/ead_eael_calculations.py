@@ -17,23 +17,22 @@ from analysis_utils import *
 from tqdm import tqdm
 tqdm.pandas()
 
-def main(config,set_count,cost_uncertainty_parameter,damage_uncertainty_parameter):
+def main(config,results_folder,
+        network_csv,hazard_csv,
+        flood_protection_name,
+        set_count,
+        cost_uncertainty_parameter,
+        damage_uncertainty_parameter):
+    
     incoming_data_path = config['paths']['incoming_data']
     processed_data_path = config['paths']['data']
     output_data_path = config['paths']['output']
-    epsg_jamaica = 3448
 
-    direct_damages_results = os.path.join(output_data_path,"direct_damages_with_mangroves")
-
-    asset_data_details = pd.read_csv(os.path.join(processed_data_path,
-                        "networks",
-                        "network_layers_hazard_intersections_details.csv"))
+    direct_damages_results = os.path.join(output_data_path,results_folder)
     bridge_flood_protection = 50 # Bridges in Jamaica are designed to withstand 1 in 50 year floods
 
-    hazard_data_file = os.path.join(processed_data_path,
-                        "hazards",
-                        "hazard_descriptions",
-                        "hazard_layers.csv")
+    asset_data_details = pd.read_csv(network_csv)
+
     for asset_info in asset_data_details.itertuples():
         asset_id = asset_info.asset_id_column
         asset_damages_results = os.path.join(direct_damages_results,f"{asset_info.asset_gpkg}_{asset_info.asset_layer}")
@@ -55,23 +54,21 @@ def main(config,set_count,cost_uncertainty_parameter,damage_uncertainty_paramete
                 if asset_info.sector != "buildings":
                     loss_df = pd.read_csv(os.path.join(output_data_path,asset_info.single_failure_scenarios))
                     if asset_info.asset_gpkg == "potable_facilities_NWC":
-                            loss_df[asset_id] = loss_df.progress_apply(
-                                lambda x: str(x[asset_id]).lower().replace(" ","_").replace(".0",""),
-                                axis=1)
+                        loss_df[asset_id] = loss_df.progress_apply(
+                            lambda x: str(x[asset_id]).lower().replace(" ","_").replace(".0",""),
+                            axis=1)
                 else:
                     loss_df = gpd.read_file(os.path.join(processed_data_path,asset_info.single_failure_scenarios),layer="areas")
                     loss_df.rename(columns={"total_GDP":"economic_loss"},inplace=True)
-                    # loss_df["loss_unit"] = "JD/day"
                 df = pd.merge(df,loss_df[[asset_info.asset_id_column,"economic_loss"]],
                                 how="left",on=[asset_info.asset_id_column]).fillna(0)
                 df["economic_loss_unit"] = "J$/day"
             else:
                 df["economic_loss_unit"] = "None"
-            # haz_rcp_epoch_confidence = list(set(df.set_index(["hazard","rcp","epoch","confidence"]).index.values.tolist()))
-            hazard_data_details = pd.read_csv(os.path.join(hazard_data_file),encoding="latin1").fillna(0)
+            
+            hazard_data_details = pd.read_csv(hazard_csv,encoding="latin1").fillna(0)
             hazard_data_details = hazard_data_details[hazard_data_details.key.isin(hazard_columns)]
             haz_rcp_epoch_confidence = list(set(hazard_data_details.set_index(["hazard","rcp","epoch","confidence"]).index.values.tolist()))
-            # print (haz_rcp_epoch_confidence)
             for i,(haz,rcp,epoch,confidence) in enumerate(haz_rcp_epoch_confidence):
                 index_columns = [asset_id,"damage_cost_unit","economic_loss_unit"]
                 haz_df = hazard_data_details[
@@ -83,10 +80,10 @@ def main(config,set_count,cost_uncertainty_parameter,damage_uncertainty_paramete
                                     ) & (
                                     hazard_data_details.confidence == confidence)]
                 haz_cols, haz_rps = map(list,list(zip(*sorted(
-                                                list(zip(haz_df.key.values.tolist(),
-                                                haz_df.rp.values.tolist()
-                                                )),key=lambda x:x[-1],reverse=True))))
-                    
+                                            list(zip(haz_df.key.values.tolist(),
+                                            haz_df.rp.values.tolist()
+                                            )),key=lambda x:x[-1],reverse=True))))
+                
                 haz_prob = [1.0/rp for rp in haz_rps]
                 damages = df[index_columns + loss_column + haz_cols]
                 damages["hazard"] = haz
@@ -96,35 +93,36 @@ def main(config,set_count,cost_uncertainty_parameter,damage_uncertainty_paramete
                 damages.columns = index_columns + loss_column + haz_prob + ["hazard","rcp","epoch","confidence"] 
                 index_columns += ["hazard","rcp","epoch","confidence"] 
                 damages = damages[damages[haz_prob].sum(axis=1) > 0]
-                expected_damage_df = risks(damages,index_columns,haz_prob,
-                                            "EAD")
-                if 'economic_loss' in damages.columns.values.tolist():
-                    losses = damages.copy()
-                    # for hz in haz_prob:
-                    #     losses[str(hz)] = losses["economic_loss"]*np.where(losses[str(hz)]>0,1,0)
-                    losses[[str(h) for h in haz_prob]] = losses["economic_loss"].to_numpy()[:,None]*np.where(losses[[str(h) for h in haz_prob]]>0,1,0)
-                    economic_loss_df = risks(losses,index_columns,haz_prob,
-                                            "EAEL")
-                    expected_damage_df = pd.merge(expected_damage_df,economic_loss_df,how='left',on=index_columns).fillna(0)
-                    del economic_loss_df
+                losses = damages.copy()
+                losses.columns = losses.columns.map(str)
+
                 if (asset_info.asset_gpkg == "roads") and (asset_info.asset_layer == "nodes") and (haz in ["coastal","fluvial","surface"]):
                     damages["protection_standard"] = bridge_flood_protection
-                    expected_damage_df["protection_standard"] = bridge_flood_protection
-                    protected_damage_df = risks(damages,index_columns + ["protection_standard"],haz_prob,
+                    expected_damage_df = risks(damages,index_columns + ["protection_standard"],haz_prob,
                                             'EAD',flood_protection_period=bridge_flood_protection,
-                                            flood_protection_name="designed_protection")
-                    expected_damage_df = pd.merge(expected_damage_df,protected_damage_df,
-                                                    how='left',on=index_columns + ["protection_standard"]).fillna(0)
-                    del protected_damage_df
+                                            flood_protection_name=flood_protection_name 
+                                            )
+                    expected_damage_df["protection_standard"] = bridge_flood_protection
                     if 'economic_loss' in damages.columns.values.tolist():
+                        losses[[str(h) for h in haz_prob]] = losses["economic_loss"].to_numpy()[:,None]*np.where(losses[[str(h) for h in haz_prob]]>0,1,0)
                         losses["protection_standard"] = bridge_flood_protection
                         protected_loss_df = risks(losses,index_columns + ["protection_standard"],haz_prob,
                                                 'EAEL',flood_protection_period=bridge_flood_protection,
-                                                flood_protection_name="designed_protection")
-                        expected_damage_df["protection_standard"] = bridge_flood_protection
+                                                flood_protection_name=flood_protection_name)
                         expected_damage_df = pd.merge(expected_damage_df,protected_loss_df,
                                                         how='left',on=index_columns + ["protection_standard"]).fillna(0)
                         del protected_loss_df
+                else:
+                    expected_damage_df = risks(damages,index_columns,haz_prob,
+                                            "EAD",flood_protection_name=flood_protection_name)
+                    if 'economic_loss' in damages.columns.values.tolist():
+                        losses[[str(h) for h in haz_prob]] = losses["economic_loss"].to_numpy()[:,None]*np.where(losses[[str(h) for h in haz_prob]]>0,1,0)
+                        economic_loss_df = risks(losses,index_columns,haz_prob,
+                                                "EAEL",flood_protection_name=flood_protection_name
+                                                )
+                        expected_damage_df = pd.merge(expected_damage_df,economic_loss_df,how='left',on=index_columns).fillna(0)
+                        del economic_loss_df
+
                 expected_damages.append(expected_damage_df)
                 del expected_damage_df
 
@@ -142,16 +140,25 @@ def main(config,set_count,cost_uncertainty_parameter,damage_uncertainty_paramete
         print (f"* Done with {asset_info.asset_gpkg} {asset_info.asset_layer}")
                 
 
-
-
 if __name__ == "__main__":
     CONFIG = load_config()
     try:
-        set_count = str(sys.argv[1])
-        cost_uncertainty_parameter = float(sys.argv[2])
-        damage_uncertainty_parameter = float(sys.argv[3])
+        results_folder = str(sys.argv[1])
+        network_csv = str(sys.argv[2])
+        hazard_csv = str(sys.argv[3])
+        flood_protection_name = str(sys.argv[4])
+        if flood_protection_name == "None":
+            flood_protection_name = None
+        set_count = str(sys.argv[5])
+        cost_uncertainty_parameter = float(sys.argv[6])
+        damage_uncertainty_parameter = float(sys.argv[7])
     except IndexError:
         print("Got arguments", sys.argv)
         exit()
-        
-    main(CONFIG,set_count,cost_uncertainty_parameter,damage_uncertainty_parameter)
+
+    main(CONFIG,results_folder,
+        network_csv,hazard_csv,
+        flood_protection_name,
+        set_count,
+        cost_uncertainty_parameter,
+        damage_uncertainty_parameter)
