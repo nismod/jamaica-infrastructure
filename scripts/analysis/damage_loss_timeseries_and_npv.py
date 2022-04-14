@@ -37,6 +37,7 @@ def estimate_time_series(summarised_damages,
                                     start_year=start_year,end_year=end_year,maintain_period=1)
     timeseries = np.arange(start_year,end_year+1,1)
     hazard_rcp = list(set(zip(summarised_damages.hazard.values.tolist(),summarised_damages.rcp.values.tolist())))
+    print (hazard_rcp)
     hazard_rcp = [hz_rcp for hz_rcp in hazard_rcp if hz_rcp[1] != "baseline"]
 
     defence_column = [c for c in summarised_damages.columns.values.tolist() if f"{risk_type}_" in c and f"_{val_type}" in c][0]

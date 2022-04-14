@@ -52,19 +52,8 @@ def main(config):
     epsg_jamaica = 3448
 
     baseline_year = 2019
+    projection_end_year = 2100
     discounting_rate = 10
-    # summary_results = os.path.join(output_data_path,"direct_damages_summary_with_mangroves")
-    summary_results = os.path.join(output_data_path,"direct_damages_summary")
-
-    # timeseries_results = os.path.join(output_data_path,"loss_damage_timeseries_with_mangroves")
-    timeseries_results = os.path.join(output_data_path,"loss_damage_timeseries")
-    if os.path.exists(timeseries_results) == False:
-        os.mkdir(timeseries_results)
-
-    # discounted_results = os.path.join(output_data_path,"loss_damage_npvs_with_mangroves")
-    discounted_results = os.path.join(output_data_path,"loss_damage_npvs")
-    if os.path.exists(discounted_results) == False:
-        os.mkdir(discounted_results)
     
     asset_data_details = pd.read_csv(os.path.join(processed_data_path,
                         "networks",
