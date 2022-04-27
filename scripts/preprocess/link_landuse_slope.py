@@ -49,11 +49,20 @@ def split_area_df(df, width, height, transform):
         # to polygons
         splits = list(shapely.ops.polygonize(splits))
         # add to collection
+        if area.geometry.interiors:
+            splits_without_holes = []
+            for s in splits:
+                s = s.intersection(area.geometry)
+                if not s.is_empty:
+                    splits_without_holes.append(s)
+            splits = splits_without_holes
+
         for s in splits:
             s_dict = area._asdict()
             del s_dict["Index"]
             s_dict["geometry"] = s
             core_splits.append(s_dict)
+
     logging.info(f"  Split {len(df)} areas into {len(core_splits)} pieces")
     sdf = geopandas.GeoDataFrame(core_splits)
     sdf.crs = df.crs
@@ -115,4 +124,3 @@ if __name__ == '__main__':
     print(f"Reading {attributes} attributes")
     print(f"Writing output to {output_fname}")
     main(slope_fname, landuse_fname, output_fname, attributes)
-
