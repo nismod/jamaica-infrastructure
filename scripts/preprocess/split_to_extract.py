@@ -12,8 +12,8 @@ def main(grid_fname, cell_number, data_fname, data_layer):
     subset = data.cx[cell.left:cell.right, cell.bottom:cell.top].copy()
     subset.geometry = subset.intersection(cell.geometry)
     base, ext = os.path.splitext(data_fname)
-    output_fname = f"{base}__{cell_number}.{ext}"
-    subset.to_file(output_fname, layer=data_layer)
+    output_fname = f"{base}__{cell_number}.gpkg"
+    subset.to_file(output_fname, layer=data_layer, driver="GPKG")
 
 
 if __name__ == '__main__':
