@@ -1,6 +1,7 @@
 #!/usr/bin/env python
 # coding: utf-8
 import sys
+import warnings
 
 import geopandas
 import numpy
@@ -11,6 +12,8 @@ from tqdm import tqdm
 # run from `nbs` data root /processed_data/nbs
 
 def main(cell_number):
+    # filter geopandas read_file warnings
+    warnings.filterwarnings("ignore", category=RuntimeWarning)
     grid = geopandas.read_file('../grid_10km.gpkg').set_index('link_id')
     cell = grid.loc[cell_number]
 
