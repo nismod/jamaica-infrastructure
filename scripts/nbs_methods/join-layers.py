@@ -116,11 +116,11 @@ def process(with_elevation, cell):
             f'Protected Sites/Protected Areas/protected_areas_{layer}.gpkg',
             with_protected, cell,
             {'NAME':f'protected_area_{layer}_name'})
-    with_protected['is_protected'] = ~(
-        with_protected.protected_area_GAME_RESERVES_name.isna() |
-        with_protected.protected_area_NATIONAL_PARK_name.isna() |
-        with_protected.protected_area_PROTECTED_AREA_name.isna() |
-        with_protected.protected_area_MARINE_PARK_name.isna()
+    with_protected['is_protected'] = (
+        ~with_protected.protected_area_GAME_RESERVES_name.isna() |
+        ~with_protected.protected_area_NATIONAL_PARK_name.isna() |
+        ~with_protected.protected_area_PROTECTED_AREA_name.isna() |
+        ~with_protected.protected_area_MARINE_PARK_name.isna()
     )
     with_protected['is_proposed_protected'] = ~with_protected.protected_area_PROPOSED_PROTECTED_AREA_name.isna()
 
