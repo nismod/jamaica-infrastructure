@@ -96,21 +96,21 @@ def process(with_elevation, cell):
     with_bauxite.within_bauxite_area = ~with_bauxite.within_bauxite_area.isna()
 
     with_primary_forest = associate_vector(
-        'Terrestrial\Forests\Forests buffered 100m\Primary forest buffered 100m.shp', with_bauxite, cell,
+        'Terrestrial/Forests/Forests buffered 100m/Primary forest buffered 100m.shp', with_bauxite, cell,
         {'LU_CODE': 'within_forest_100m'})
     with_primary_forest.within_forest_100m = (with_primary_forest.within_forest_100m == 'PF')
 
     with_forest_reserves = associate_vector(
-        'Protected Sites\Forest Reserves\Forest Reserves.shp', with_primary_forest, cell,
+        'Protected Sites/Forest Reserves/Forest Reserves.shp', with_primary_forest, cell,
         {'NAME':'forest_reserve_name'})
     with_forest_reserves['within_forest_reserve'] = ~with_forest_reserves.forest_reserve_name.isna()
 
-    protected_areas = geopandas.read_file('Protected Sites\Protected Areas\Protected areas.shp')
+    protected_areas = geopandas.read_file('Protected Sites/Protected Areas/Protected areas.shp')
 
     with_protected = with_forest_reserves
     for layer in protected_areas.LAYER.unique():
         with_protected = associate_vector(
-            f'Protected Sites\Protected Areas\protected_areas_{layer}.gpkg',
+            f'Protected Sites/Protected Areas/protected_areas_{layer}.gpkg',
             with_protected, cell,
             {'NAME':f'protected_area_{layer}_name'})
     with_protected['is_protected'] = ~(
