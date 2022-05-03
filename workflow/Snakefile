@@ -32,7 +32,10 @@ rule extract_vector_bbox:
     shell:
         """
         # clipsrc needs: xmin ymin xmax ymax
-        ogr2ogr -clipsrc {params.left} {params.bottom} {params.right} {params.top}  {output} {input}
+        ogr2ogr \
+            -clipsrc {params.left} {params.bottom} {params.right} {params.top} \
+            -f GPKG {output} \
+            {input}
         """
 
 
@@ -49,5 +52,8 @@ rule extract_raster_bbox:
     shell:
         """
         # target extent (-te) needs: xmin ymin xmax ymax
-        gdalwarp -te {params.left} {params.bottom} {params.right} {params.top} {input} {output}
+        gdalwarp \
+            -te {params.left} {params.bottom} {params.right} {params.top} \
+            {input} \
+            {output}
         """
