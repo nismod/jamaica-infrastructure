@@ -20,9 +20,9 @@ rule extract:
 
 rule extract_vector_bbox:
     input:
-        f"{config.paths.processed_data}/{{path}}.gpkg"
+        f"{config['paths']['processed_data']}/{{path}}.gpkg"
     output:
-        f"{config.paths.processed_data}/extract/{{path}}.gpkg"
+        f"{config['paths']['processed_data']}/extract/{{path}}.gpkg"
     shell:
         """
         # clipsrc needs: xmin ymin xmax ymax
@@ -32,9 +32,9 @@ rule extract_vector_bbox:
 
 rule extract_raster_bbox:
     input:
-        f"{config.paths.processed_data}/{{path}}.tif"
+        f"{config['paths']['processed_data']}/{{path}}.tif"
     output:
-        f"{config.paths.processed_data}/extract/{{path}}.tif"
+        f"{config['paths']['processed_data']}/extract/{{path}}.tif"
     shell:
         """
         # target extent (-te) needs: xmin ymin xmax ymax
