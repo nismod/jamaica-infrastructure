@@ -26,7 +26,7 @@ rule extract_vector_bbox:
     shell:
         """
         # clipsrc needs: xmin ymin xmax ymax
-        ogr2ogr -clipsrc {bbox['left']} {bbox['bottom']} {bbox['right']} {bbox['top']} {output} {input}
+        ogr2ogr -clipsrc {config['extract_bbox']['left']} {config['extract_bbox']['bottom']} {config['extract_bbox']['right']} {config['extract_bbox']['top']} {output} {input}
         """
 
 
@@ -38,5 +38,5 @@ rule extract_raster_bbox:
     shell:
         """
         # target extent (-te) needs: xmin ymin xmax ymax
-        gdalwarp -te {bbox['left']} {bbox['bottom']} {bbox['right']} {bbox['top']} {input} {output}
+        gdalwarp -te {config['extract_bbox']['left']} {config['extract_bbox']['bottom']} {config['extract_bbox']['right']} {config['extract_bbox']['top']} {input} {output}
         """
