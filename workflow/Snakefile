@@ -38,9 +38,9 @@ rule extract_vector_bbox:
 
 rule extract_raster_bbox:
     input:
-        f"{data_path]}/{{path}}.tif"
+        f"{data_path}/{{path}}.tif"
     output:
-        f"{data_path]}/extract/{{path}}.tif"
+        f"{data_path}/extract/{{path}}.tif"
     params:
         left=bbox['left'],
         right=bbox['right'],
