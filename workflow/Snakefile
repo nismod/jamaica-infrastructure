@@ -10,7 +10,7 @@ configfile: "config.yml"
 
 hazard_layers = pandas.read_csv(config["hazard_layers"])
 network_layers = pandas.read_csv(config["network_layers"])
-bbox = snakemake.config.extract_bbox
+bbox = config['extract_bbox']
 
 rule extract:
     input:
@@ -24,9 +24,9 @@ rule extract_vector_bbox:
     output:
         f"{config.paths.processed_data}/extract/{{path}}.gpkg"
     shell:
-        f"""
+        """
         # clipsrc needs: xmin ymin xmax ymax
-        ogr2ogr -clipsrc {bbox.left} {bbox.bottom} {bbox.right} {bbox.top} {output} {input}
+        ogr2ogr -clipsrc {bbox['left']} {bbox['bottom']} {bbox['right']} {bbox['top']} {output} {input}
         """
 
 
@@ -36,7 +36,7 @@ rule extract_raster_bbox:
     output:
         f"{config.paths.processed_data}/extract/{{path}}.tif"
     shell:
-        f"""
+        """
         # target extent (-te) needs: xmin ymin xmax ymax
-        gdalwarp -te {bbox.left} {bbox.bottom} {bbox.right} {bbox.top} {input} {output}
-        """"
+        gdalwarp -te {bbox['left']} {bbox['bottom']} {bbox['right']} {bbox['top']} {input} {output}
+        """
