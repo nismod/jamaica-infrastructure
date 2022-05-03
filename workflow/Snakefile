@@ -11,18 +11,19 @@ configfile: "config.yml"
 hazard_layers = pandas.read_csv(config["hazard_layers"])
 network_layers = pandas.read_csv(config["network_layers"])
 bbox = config['extract_bbox']
+data_path = config['paths']['processed_data']
 
 rule extract:
     input:
-        [f"networks/{path}" for path in network_layers.path.unique()],
-        list(hazard_layers.path)
+        [f"{data_path}/networks/{path}" for path in network_layers.path.unique()],
+        [f"{data_path}/{path}" for path in hazard_layers.path]
 
 
 rule extract_vector_bbox:
     input:
-        f"{config['paths']['processed_data']}/{{path}}.gpkg"
+        f"{data_path}/{{path}}.gpkg"
     output:
-        f"{config['paths']['processed_data']}/extract/{{path}}.gpkg"
+        f"{data_path}/extract/{{path}}.gpkg"
     params:
         left=bbox['left'],
         right=bbox['right'],
@@ -37,9 +38,9 @@ rule extract_vector_bbox:
 
 rule extract_raster_bbox:
     input:
-        f"{config['paths']['processed_data']}/{{path}}.tif"
+        f"{data_path]}/{{path}}.tif"
     output:
-        f"{config['paths']['processed_data']}/extract/{{path}}.tif"
+        f"{data_path]}/extract/{{path}}.tif"
     params:
         left=bbox['left'],
         right=bbox['right'],
