@@ -24,10 +24,10 @@ rule extract_vector_bbox:
     output:
         f"{config['paths']['processed_data']}/extract/{{path}}.gpkg"
     params:
-        left=bbox['left']
-        right=bbox['right']
-        top=bbox['top']
-        bottom=bbox['bottom']
+        left=bbox['left'],
+        right=bbox['right'],
+        top=bbox['top'],
+        bottom=bbox['bottom'],
     shell:
         """
         # clipsrc needs: xmin ymin xmax ymax
@@ -41,10 +41,10 @@ rule extract_raster_bbox:
     output:
         f"{config['paths']['processed_data']}/extract/{{path}}.tif"
     params:
-        left=bbox['left']
-        right=bbox['right']
-        top=bbox['top']
-        bottom=bbox['bottom']
+        left=bbox['left'],
+        right=bbox['right'],
+        top=bbox['top'],
+        bottom=bbox['bottom'],
     shell:
         """
         # target extent (-te) needs: xmin ymin xmax ymax
