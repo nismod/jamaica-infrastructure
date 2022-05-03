@@ -23,10 +23,15 @@ rule extract_vector_bbox:
         f"{config['paths']['processed_data']}/{{path}}.gpkg"
     output:
         f"{config['paths']['processed_data']}/extract/{{path}}.gpkg"
+    params:
+        left=bbox['left']
+        right=bbox['right']
+        top=bbox['top']
+        bottom=bbox['bottom']
     shell:
         """
         # clipsrc needs: xmin ymin xmax ymax
-        ogr2ogr -clipsrc {config['extract_bbox']['left']} {config['extract_bbox']['bottom']} {config['extract_bbox']['right']} {config['extract_bbox']['top']} {output} {input}
+        ogr2ogr -clipsrc {params.left} {params.bottom} {params.right} {params.top}  {output} {input}
         """
 
 
@@ -35,8 +40,13 @@ rule extract_raster_bbox:
         f"{config['paths']['processed_data']}/{{path}}.tif"
     output:
         f"{config['paths']['processed_data']}/extract/{{path}}.tif"
+    params:
+        left=bbox['left']
+        right=bbox['right']
+        top=bbox['top']
+        bottom=bbox['bottom']
     shell:
         """
         # target extent (-te) needs: xmin ymin xmax ymax
-        gdalwarp -te {config['extract_bbox']['left']} {config['extract_bbox']['bottom']} {config['extract_bbox']['right']} {config['extract_bbox']['top']} {input} {output}
+        gdalwarp -te {params.left} {params.bottom} {params.right} {params.top} {input} {output}
         """
