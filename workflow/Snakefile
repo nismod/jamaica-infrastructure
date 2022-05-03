@@ -15,8 +15,8 @@ data_path = config['paths']['processed_data']
 
 rule extract:
     input:
-        [f"{data_path}/networks/{path}" for path in network_layers.path.unique()],
-        [f"{data_path}/{path}" for path in hazard_layers.path]
+        [f"{data_path}/extract/networks/{path}" for path in network_layers.path.unique()],
+        [f"{data_path}/extract/{path}" for path in hazard_layers.path]
 
 
 rule extract_vector_bbox:
