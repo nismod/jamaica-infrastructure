@@ -1,0 +1,42 @@
+import pandas
+
+
+# Default config
+# - to override, either edit the file in place, or create a config_local.yml
+# with custom values and run:
+#    snakemake --cores=1 --configfile=config_local.yml all
+configfile: "config.yml"
+
+
+hazard_layers = pandas.read_csv(config["hazard_layers"])
+network_layers = pandas.read_csv(config["network_layers"])
+bbox = snakemake.config.extract_bbox
+
+rule extract:
+    input:
+        [f"networks/{path}" for path in network_layers.path.unique()],
+        list(hazard_layers.path)
+
+
+rule extract_vector_bbox:
+    input:
+        f"{config.paths.processed_data}/{{path}}.gpkg"
+    output:
+        f"{config.paths.processed_data}/extract/{{path}}.gpkg"
+    shell:
+        f"""
+        # clipsrc needs: xmin ymin xmax ymax
+        ogr2ogr -clipsrc {bbox.left} {bbox.bottom} {bbox.right} {bbox.top} {output} {input}
+        """
+
+
+rule extract_raster_bbox:
+    input:
+        f"{config.paths.processed_data}/{{path}}.tif"
+    output:
+        f"{config.paths.processed_data}/extract/{{path}}.tif"
+    shell:
+        f"""
+        # target extent (-te) needs: xmin ymin xmax ymax
+        gdalwarp -te {bbox.left} {bbox.bottom} {bbox.right} {bbox.top} {input} {output}
+        """"
