@@ -54,6 +54,7 @@ rule extract_raster_bbox:
         # target extent (-te) needs: xmin ymin xmax ymax
         gdalwarp \
             -te {params.left} {params.bottom} {params.right} {params.top} \
+            -te_srs "EPSG:3448"
             {input} \
             {output}
         """
