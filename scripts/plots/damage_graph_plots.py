@@ -7,7 +7,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 import matplotlib as mpl
 import matplotlib.patches as mpatches
-from matplotlib.ticker import (MaxNLocator,LinearLocator, MultipleLocator)
+# from matplotlib.ticker import (MaxNLocator,LineaelLocator, MultipleLocator)
 import matplotlib.pyplot as plt
 from matplotlib import cm
 from plot_utils import *
@@ -20,18 +20,6 @@ mpl.rcParams['font.family'] = 'tahoma'
 mpl.rcParams['axes.labelsize'] = 12.
 mpl.rcParams['xtick.labelsize'] = 15.
 mpl.rcParams['ytick.labelsize'] = 15.
-
-def convert_to_usd(x,loss_column):
-    if ("$J" in str(x.damage_cost_unit)) or ("J$" in str(x.damage_cost_unit)) or ("JD" in str(x.damage_cost_unit)):
-        return jamaica_currency_conversion()*x[loss_column]
-    else:
-        return x[loss_column]
-
-def convert_to_jd(x,loss_column):
-    if ("$US" in str(x.damage_cost_unit)) or ("US$" in str(x.damage_cost_unit)) or ("USD" in str(x.damage_cost_unit)):
-        return (1.0/jamaica_currency_conversion())*x[loss_column]
-    else:
-        return x[loss_column]
 
 
 def get_damage_columns(damage_dictionary,damage_dataframe):
@@ -68,15 +56,15 @@ def main(config):
     hazard_colors = ["#9ecae1","#9e9ac8","#02818a","#78c679"]
 
     damage_data_path = os.path.join(output_data_path,
-                        "direct_damages_summary")
+                        "damage_loss_sums")
 
-    # Jamaica GDP from 2020, Source: https://statinja.gov.jm/NationalAccounting/Quarterly/NewQuarterlyGDP.aspx
-    jamaica_gdp = 2121087*1e6 
+    # Jamaica GDP from 2019, Source: https://statinja.gov.jm/NationalAccounting/Quarterly/NewQuarterlyGDP.aspx
+    jamaica_gdp = 2110433*1e6 
     ead_results = pd.read_csv(os.path.join(damage_data_path,
-                        "hazard_rcp_epoch_EAD_without_confidence_value_JD.csv"))
+                        "hazard_rcp_epoch_EAD_EAEL_totals.csv"))
 
     ead_columns = [c for c in ead_results.columns.values.tolist() if "EAD_" in c]
-    ear_columns = [c for c in ead_results.columns.values.tolist() if "EAR_" in c]
+    eael_columns = [c for c in ead_results.columns.values.tolist() if "EAEL_" in c]
 
     total_baseline_eads = ead_results[ead_results["epoch"] == 2010][ead_columns].sum().reset_index()
     total_baseline_eads.columns = ["EAD","values"]
@@ -84,11 +72,11 @@ def main(config):
     total_baseline_eads["percentage_gdp"] = 100.0*total_baseline_eads["values"]/jamaica_gdp
     # print (total_baseline_eads)
 
-    total_baseline_ears = ead_results[ead_results["epoch"] == 2010][ear_columns].sum().reset_index()
-    total_baseline_ears.columns = ["EAR","values"]
-    total_baseline_ears["value_billions"] = 1.0e-9*total_baseline_ears["values"]
-    total_baseline_ears["percentage_gdp"] = 100.0*total_baseline_ears["values"]/jamaica_gdp
-    # print (total_baseline_ears)
+    total_baseline_eaels = ead_results[ead_results["epoch"] == 2010][eael_columns].sum().reset_index()
+    total_baseline_eaels.columns = ["eael","values"]
+    total_baseline_eaels["value_billions"] = 1.0e-9*total_baseline_eaels["values"]
+    total_baseline_eaels["percentage_gdp"] = 100.0*total_baseline_eaels["values"]/jamaica_gdp
+    # print (total_baseline_eaels)
     hazard_df = []
     for hazard in hazards:
         hazard_eads = ead_results[(ead_results["epoch"] == 2010) & (ead_results["hazard"] == hazard)][ead_columns].sum().reset_index()
@@ -100,8 +88,8 @@ def main(config):
 
     # print (hazard_df.head(3))
 
-    # hazard_ears = ead_results[ead_results["epoch"] == 2010].groupby("hazard")[ear_columns].sum().reset_index()
-    # print (hazard_ears)
+    # hazard_eaels = ead_results[ead_results["epoch"] == 2010].groupby("hazard")[eael_columns].sum().reset_index()
+    # print (hazard_eaels)
 
     fig, ax = plt.subplots(1,1,figsize=(8,8),dpi=500)
     boxp = ax.boxplot(1e-9*hazard_df[hazards].head(3),showfliers=False,patch_artist=True,labels=hazards)
@@ -116,7 +104,7 @@ def main(config):
                 'jamaica_hazard_EAD_totals.png'))
     plt.close() 
 
-    # print (total_baseline_ears)
+    # print (total_baseline_eaels)
     sectors = list(set(ead_results["sector"].values.tolist()))
     hazard_df = []
     # sector_labels = []
@@ -130,8 +118,8 @@ def main(config):
 
     # print (hazard_df.head(3))
 
-    # hazard_ears = ead_results[ead_results["epoch"] == 2010].groupby("hazard")[ear_columns].sum().reset_index()
-    # print (hazard_ears)
+    # hazard_eaels = ead_results[ead_results["epoch"] == 2010].groupby("hazard")[eael_columns].sum().reset_index()
+    # print (hazard_eaels)
 
     fig, ax = plt.subplots(1,1,figsize=(8,8),dpi=500)
     boxp = ax.boxplot(1e-9*hazard_df[sectors].head(3),showfliers=False,patch_artist=True,labels=sectors,vert=False)
@@ -146,7 +134,7 @@ def main(config):
                 'jamaica_hazard_sector_EAD_totals.png'))
     plt.close() 
 
-    # print (total_baseline_ears)
+    # print (total_baseline_eaels)
     for i, (hazard,hazard_color,hazard_label)  in enumerate(list(zip(hazards,hazard_colors,hazard_labels))):
         sectors = list(set(ead_results["sector"].values.tolist()))
         hazard_df = []
@@ -168,8 +156,8 @@ def main(config):
 
         # print (hazard_df.head(3))
 
-        # hazard_ears = ead_results[ead_results["epoch"] == 2010].groupby("hazard")[ear_columns].sum().reset_index()
-        # print (hazard_ears)
+        # hazard_eaels = ead_results[ead_results["epoch"] == 2010].groupby("hazard")[eael_columns].sum().reset_index()
+        # print (hazard_eaels)
 
         fig, ax = plt.subplots(1,1,figsize=(8,8),dpi=500)
         boxp = ax.boxplot(1e-9*hazard_df[sectors].head(3),showfliers=False,patch_artist=True,labels=sectors,vert=False)
@@ -215,8 +203,8 @@ def main(config):
 
     # print (hazard_df.head(3))
 
-    # hazard_ears = ead_results[ead_results["epoch"] == 2010].groupby("hazard")[ear_columns].sum().reset_index()
-    # print (hazard_ears)
+    # hazard_eaels = ead_results[ead_results["epoch"] == 2010].groupby("hazard")[eael_columns].sum().reset_index()
+    # print (hazard_eaels)
     rp = 100
     fig, ax = plt.subplots(1,1,figsize=(8,8),dpi=500)
     boxp = ax.boxplot(1e-9*hazard_df[hazards].head(3),showfliers=False,patch_artist=True,labels=hazards)
@@ -224,7 +212,7 @@ def main(config):
         patch.set_facecolor(color)
     plt.setp(boxp['medians'], color="#000000")
     
-    ax.set_ylabel(f'Total Damages for 1 in {rp}-year event (J$ Billion)',fontweight='bold',fontsize=15)
+    ax.set_ylabel(f'Total Damages for 1 in {rp}-yeael event (J$ Billion)',fontweight='bold',fontsize=15)
     ax.set_xticklabels(hazard_labels,fontsize=15, rotation=0,fontweight="bold")
     plt.tight_layout()
     save_fig(os.path.join(figures_data_path,
@@ -255,7 +243,7 @@ def main(config):
                         label='Uncertainty range')
 
         ax.legend(loc='upper left',fontsize=14)
-        ax.set_xlabel("Return period (years)",fontweight='bold',fontsize=12)
+        ax.set_xlabel("Return period (yeaels)",fontweight='bold',fontsize=12)
         ax.set_ylabel('Direct damages (J$ billion)',fontweight='bold',fontsize=12)
 
         plt.tight_layout()
@@ -308,7 +296,7 @@ def main(config):
     """
     currency_inflation = 0.05
     rcps = [2.6,4.5,8.5]
-    baseline_year = 2010
+    baseline_yeael = 2010
     rcp_colors = ["#006d2c","#08519c","#b30000"]
     ead_results.loc[ead_results["epoch"] == 2010,"rcp"] = "baseline"
     for i, (hazard,hazard_color,hazard_label)  in enumerate(list(zip(hazards,hazard_colors,hazard_labels))):
@@ -320,7 +308,7 @@ def main(config):
             for j, (rcp,rcp_color) in enumerate(list(zip(rcps,rcp_colors))):
                 hazard_rcp = hazard_df[hazard_df["rcp"] == str(rcp)]
                 if len(hazard_rcp.index) > 0:
-                    hazard_rcp["EAD_undefended_mean"] = hazard_rcp["EAD_undefended_mean"]*(1+currency_inflation)**(hazard_rcp["epoch"] - baseline_year)
+                    hazard_rcp["EAD_undefended_mean"] = hazard_rcp["EAD_undefended_mean"]*(1+currency_inflation)**(hazard_rcp["epoch"] - baseline_yeael)
                     hazard_rcp = pd.concat([hazard_baseline,hazard_rcp],axis=0,ignore_index=True)
                     ax.plot(hazard_rcp['epoch'],
                             1e-9*hazard_rcp["EAD_undefended_mean"],'-',
@@ -329,7 +317,7 @@ def main(config):
                             label=f'RCP {rcp}')    
 
             ax.legend(loc='upper left',fontsize=14)
-            ax.set_xlabel("Time epoch (years)",fontweight='bold',fontsize=12)
+            ax.set_xlabel("Time epoch (yeaels)",fontweight='bold',fontsize=12)
             ax.set_ylabel('Average Expected Annual Damages (J$ billion)',fontweight='bold',fontsize=12)
 
             plt.tight_layout()

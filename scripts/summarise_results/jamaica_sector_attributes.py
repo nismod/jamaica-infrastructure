@@ -7,7 +7,7 @@ from summarise_utils import *
 def jamaica_currency_conversion():
     """Conversion from J$ to US$
     """
-    return 0.0068
+    return 0.0067
     
 def jamaica_sector_attributes():    
     sector_attributes = [
@@ -80,29 +80,6 @@ def jamaica_sector_attributes():
                                 "node_categories":None,
                                 "area_categories":["transport"],
                             },
-                            # {
-                            #     "sector":"transport",
-                            #     "sector_gpkg":"", # We will call this separately
-                            #     "sector_label":"Ports and Airports",
-                            #     "edge_layer":None,
-                            #     "node_layer":None,
-                            #     "area_layer":None,
-                            #     "edge_id_column":None,
-                            #     "node_id_column":"node_id",
-                            #     "area_id_column":None,
-                            #     "edge_damage_filter_column":None,
-                            #     "node_damage_filter_column":None,
-                            #     "area_damage_filter_column":None,
-                            #     "edge_damage_categories":None,
-                            #     "node_damage_categories":None,
-                            #     "area_damage_categories":None,
-                            #     "edge_classify_column":None,
-                            #     "node_classify_column":"asset_type",
-                            #     "area_classify_column":None,
-                            #     "edge_categories":None,
-                            #     "node_categories":["port","airport"],
-                            #     "area_categories":None,
-                            # },
                             {
                                 "sector":"transport",
                                 "sector_gpkg":"roads.gpkg",
@@ -128,7 +105,7 @@ def jamaica_sector_attributes():
                             },
                             {
                                 "sector":"energy",
-                                "sector_gpkg":"electricity_network_v1.0.gpkg",
+                                "sector_gpkg":"electricity_network_v3.1.gpkg",
                                 "sector_label":"Energy",
                                 "edge_layer":"edges",
                                 "node_layer":"nodes",
@@ -136,7 +113,7 @@ def jamaica_sector_attributes():
                                 "edge_id_column":"id",
                                 "node_id_column":"id",
                                 "area_id_column":None,
-                                "edge_classify_column":"voltage",
+                                "edge_classify_column":"voltage_kV",
                                 "node_classify_column":"subtype",
                                 "area_classify_column":None,
                                 "edge_damage_filter_column":None,
@@ -145,9 +122,9 @@ def jamaica_sector_attributes():
                                 "edge_damage_categories":None,
                                 "node_damage_categories":None,
                                 "area_damage_categories":None,
-                                "edge_categories":["138kV","69 kV","24 kV","12 kV"],
+                                "edge_categories":[138,69,24,12],
                                 "node_categories":["diesel","gas","hydro",
-                                                "substation","pole"],
+                                                "substation","pole","demand"],
                                 "area_categories":None,
                             },
                             {
