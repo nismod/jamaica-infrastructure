@@ -1,0 +1,99 @@
+Category,Subcategory,Data description,Attributes
+Administrative boundaries,Country boundary,Country boundary,Polygons with official names and IDs
+Administrative boundaries,Parish boundaries,Parish boundaries,Polygons with official names and IDs
+Topography,Digital elevation map,Digital elevation map,Raster with elevation
+Population counts,Current population,Population counts at some spatial scale - gridded or admin level,Raster or polygon areas with population counts
+Population counts,Future population,Future projection scenarios linked to some spatial scale or admin levels,Raster or polygon areas with population counts
+Households,Household locations,Residential Building footprints,Polygon areas or polygon building footprints
+Households,Socio-economic indicators,"Building or area level survey information on gender, age, employment and industry of households",Polygon areas or polygon building footprints
+Macroeconomic indicators,Current GDP,GDP at some spatial scale - gridded or admin level,Raster or polygon areas with GDP
+Macroeconomic indicators,Future GDP,Future projection scenarios linked to some spatial scale or admin levels,Raster or polygon areas with GDP
+Commercial and Industrial activity,Businesses and firm locations,"Building footprints or land areas with industry type, number of firms, employees, revenue",Polygon areas or polygon building footprints with industry name and type IDs
+Flooding,River flooding,Return period maps with baseline predictions and future climate projection-based estimates,Raster with flood depths
+Flooding,Surface water flooding,Return period maps with baseline predictions and future climate projection-based estimates,Raster with flood depths
+Flooding,Coastal flooding,Return period maps with baseline predictions and future climate projection-based estimates,Raster with flood depths
+Storms,Cyclones,Return period maps with baseline predictions and future climate projection-based estimates,Raster with wind speeds
+Landslides,Landslide susceptibility,Maps with baseline predictions and future climate projection-based estimates,Raster with susceptibility scores
+Droughts,Severity-duration-frequency,Return period maps with baseline predictions and future climate projections,Raster with rainfall severity estimates
+Precipitation,Rainfall,Return period maps with baseline predictions and future climate projections,Raster with rainfall
+Precipitation,Rainfall time series,Daily rainfall time- series of precipitation at rainfall gauges over recorded history,Location of rain gauge and time-series values
+Stream flow,Stream flow time series,Daily time- series of stream flows at gauges over recorded history,Location of stream gauge and time-series values
+Water quality,Water quality time series,Daily water quality time-series at measurement gauges over recorded history (in particular suspended sediment and turbidity),Location of measurement gauge and time-series values
+Temperature,Temperature,Maps with baseline predictions and future climate projection-based estimates,Raster with temperature
+Energy supply,Generation,Power plants,"Point or polygon node locations with name and ID, fuel type, capacity (MW), baseload factor (% capacity), downtimes (days per year)"
+Energy supply,Generation,Solar farms,"Point or polygon node locations with name and ID, capacity (MW), area (m2), efficiency (%)"
+Energy supply,Generation,Wind turbines,"Point or polygon node locations with name and ID, capacity (MW), efficiency (%), power curve, brand/model of turbine"
+Energy supply,Transmission and distribution,Substations,"Point or polygon node locations with name and ID, conversion step (e.g. 100 to 200kV)"
+Energy supply,Transmission and distribution,Transformers,"Point or polygon node locations with name and ID, conversion step (e.g. 100 to 200kV)"
+Energy supply,Transmission and distribution,Power poles,Point or polygon node locations with name and ID
+Energy supply,Transmission and distribution,"High, Medium and Low voltage overhead lines","Line geometry with edge ID, connecting ends with node IDs, capacity (MW), voltage (kV), losses (%)"
+Energy demand,Industry demand,Firms or business types,Polygon areas or polygon building footprints with industry name and type
+Energy demand,Industry demand,Firms or business types,Demand curves (Mwh/h)
+Energy demand,Household demand,Households,Population areas or polygon residential footprints with number of residents
+Energy demand,Household demand,Households,Per capita demand (MW/person)
+Energy demand,Household demand,Households,Demand curves (Mwh/h)
+Transport assets,Road,Junctions,Point node locations with name and ID
+Transport assets,Road,Roads,"Line geometry with name and ID, connecting ends with junction node IDs, road class, material, condition, width, lanes, vertical alignment, speed"
+Transport assets,Road,Bridges,"Point or polygon node locations with name and ID, capacity (bridge tonnage)"
+Transport assets,Rail,Stations,"Point or polygon node locations with name and ID, function (Passenger/Cargo/Both)"
+Transport assets,Rail,Rail Tracks,"Line geometry with edge ID, connecting ends with rail station node IDs, speed, capacity"
+Transport assets,Maritime/Inland,Ports,"Point or polygon node locations with name and ID, capacity (tonnes/day, passengers/day, TEU/day), commodity specialism"
+Transport assets,Maritime/Inland,Waterways,"Line geometry with edge ID, connecting ends with port node IDs, speed"
+Transport assets,Airlines,Airports,"Point or polygon node locations with name and ID, capacity (tonnes/day, passengers/day)"
+Transport assets,Airlines,Air routes,"Line geometry with edge ID, connecting ends with airport node IDs"
+Transport demands,All transport,Travel patterns,Origin-destination matrix - High level OD data by zonal level and by transport mode (passenger and freight commodity specific
+Transport demands,All transport,Travel locations,"Locations of points of interest for known travel patterns – e.g. markets, agriculture sites, industries, etc."
+Transport demands,All transport,Travel statistics,"Vehicle traffic statistics – Vehicles, Passengers and cargo tons - annual or daily - at ports, airports, railways stations, road sections"
+Transport demands,All transport,Travel costs,"Transport travel costs - Vehicle operating costs (US$/vehicle type), Commodity tariffs (US$/ton or US$/tons-km), Waiting times and costs at intermodal transfer points (US$/hour))"
+Water supply,Water,"Sources (springs, wells, rivers)","Point or polygon node locations with name and ID, design/operational capacity - milion gallons/day (mg/d)"
+Water supply,Water,Dams and reservoir,"Point or polygon node locations with name and ID, design/operational capacity - milion gallons (mg)"
+Water supply,Water,Water treatment plants,"Point or polygon node locations with name and ID, design/operational capacity - milion gallons/day (mg/d)"
+Water supply,Water,Pumping stations,"Point or polygon node locations with name and ID, design/operational capacity - milion gallons/day (mg/d)"
+Water supply,Water,Potable storage tanks,"Point or polygon node locations with name and ID, design/operational capacity - milion gallons (mg)"
+Water supply,Water,Pipelines,"Line geometry with edge ID, connecting ends with water node IDs, capacity and losses (million gallons/day mg/d)"
+Water supply,Water,Rural schemes + rainwater harvesting,"Polygon areas, Rainwater harvesting capacity (mg)"
+Water supply,Wastewater,Wastewater treatment plants,"Point or polygon node locations with name and ID, Capacity (mg/d)"
+Water supply,Wastewater,Sewers,"Point or polygon node locations with name and ID, Capacity of storm drains (mg/d)"
+Water supply,Wastewater,Canals,"Line geometry with edge ID, connecting ends with water node IDs, Capacity and leakage rates (mg/d)"
+Water supply,Wastewater,Storage (dams/mini- dams),"Line geometry with edge ID, connecting ends with water node IDs, capacity and losses (million gallons/day mg/d)"
+Water supply,Irrigation,Irrigation schemes,"Polygon areas of land being irrigated, Monthly irrigation supply per irrigation scheme (mg/month), % water requirement for each scheme derived from irrigation versus rainfed"
+Water demand,Industry and Commercial demand,Firms or business types served by each water supply asset/system,Polygon areas or polygon building footprints with industry name and type
+Water demand,Industry and Commercial demand,Firms or business types served by each water supply asset/system,Demand in mg/d
+Water demand,Household demand,Households served by each water supply asset/system,Population areas or polygon residential footprints with number of residents
+Water demand,Household demand,Households served by each water supply asset/system,Demand in mg/d
+Water supply,Water service provider,Cost of tankering water to disrupted communities,"Cost of water supply disruption for water service provider in terms of cost of tankering ($/gallon transported and cost of tankering, $/distance transported)"
+Interdependency,All infrastructure,Connectivity,"Line geometries or rules for connections between all transport modes, electricity and water assets"
+Land Use/Cover,Land Use,Land Use,"Polygon or raster of land use by type (agriculture, forests, wetlands, barren, water ecosystems, savanna, shrub, etc.)"
+Land Use/Cover,Land Use,Land Use,"Polygon or raster of land-use by economic use (Settlements, Agriculture, Commercial, Conservation, Tourism & Recreation etc)"
+Land Use/Cover,Land Use,Land Use,Future land-use changes (planned/proposed): area change
+Land Use/Cover,Land Cover,Land Cover,"Vegetation cover (Developed, Natural Forests, Cropland, Grassland, Waterbodies, Wetlands, etc.)"
+Land Use/Cover,Land Cover,Land Cover,Historic land cover
+Land Use/Cover,Agricultural Land,Agricultural Land,"Location of agriculture, crop types, yield, type (Agroforestry, Conventional agriculture, Climate smart agriculture, etc.), Irrigation requirements"
+Land Use/Cover,Soil characteristics,Soil characteristics,Soil type and degradation by different land-uses
+Land Use/Cover,Habitats/Ecosystems,Habitats/Ecosystems,"Locations of Forests, Mountains/Barren lands, Savannahs, Beaches, Inland wetlands, Coastal and offshore ecosytems (mangroves, corals, seagrass)"
+Land Use/Cover,Habitats/Ecosystems,Habitats/Ecosystems,"Attribute service provision of habitats and ecosystems (water treatment provision in m^3/year; freshwater provision in m^3/year, etc)"
+Land Use/Cover,Habitats/Ecosystems,Habitats/Ecosystems,"Co-benefits (e.g. known social, environmental and economic benefits - qualitative or quantitative)"
+Land Use/Cover,Habitats/Ecosystems,Habitats/Ecosystems,"Location of protected areas, National parks, endangered ecosystems"
+Land Use/Cover,Habitats/Ecosystems,Habitats/Ecosystems,"Attribute service provision of protected areas/National parks (number of endangered species, tourist numbers/year)"
+Land Use/Cover,Habitats/Ecosystems,Habitats/Ecosystems,Biodiversity Hotspots; Wildlife
+Protection standards and damage curves,All infrastructure,Existing design standards,"Standards of hazard protection by asset type – E.g. flood protection design return periods, cyclone and landslide protection standards"
+Protection standards and damage curves,All infrastructure,Damage curves,Direct damage curves for each asset and hazard type
+Protection standards and damage curves,All infrastructure,Landslide protection,Slope stability data – mostly for road and rail assets
+Protection standards and damage curves,All infrastructure,Flood drainage,Drainage design standards – mostly for transport assets
+Damage costs,All infrastructure,Rehabilitation costs,Costs of point assets in US$ or US$/capacity
+Damage costs,All infrastructure,Rehabilitation costs,Costs of line assets in US$/length
+Damage costs,All infrastructure,Rehabilitation costs,Costs of areas assets in US$/area
+Historical Hazard impacts,All infrastructure,Damage and disruptions,Locations of affected assets
+Historical Hazard impacts,All infrastructure,Damage and disruptions,Date of event
+Historical Hazard impacts,All infrastructure,Damage and disruptions,Asset value damaged
+Historical Hazard impacts,All infrastructure,Damage and disruptions,Service disrupted
+Historical Hazard impacts,All infrastructure,Damage and disruptions,"Duration of disruption, repair and recovery"
+Historical Hazard impacts,"Firms, Households, Financial services",Damage and disruptions,"Locations of affected population, assets"
+Historical Hazard impacts,"Firms, Households, Financial services",Damage and disruptions,Date of event
+Historical Hazard impacts,"Firms, Households, Financial services",Damage and disruptions,Asset value damaged
+Historical Hazard impacts,"Firms, Households, Financial services",Damage and disruptions,Service disrupted
+Historical Hazard impacts,"Firms, Households, Financial services",Damage and disruptions,"Duration of disruption, repair and recovery"
+Options,All infrastructure,Initial investment,Asset type costs in US$ or US$/length or US$/capacity
+Options,All infrastructure,Routine Maintenance costs,Asset type costs in US$ or US$/length or US$/capacity
+Options,All infrastructure,Periodic Maintenance costs,Asset type costs in US$ or US$/length or US$/capacity
+Options,All infrastructure,Periodic Maintenance,Time in years
