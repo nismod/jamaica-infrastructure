@@ -36,6 +36,18 @@ Activate the environment each time you open a shell:
 
     conda activate jsrat
 
+## High-level analysis steps
+
+Run hazard-network intersections.
+
+```bash
+python scripts/exposure/split_networks.py \
+    workflow/network_layers.csv \
+    workflow/hazard_layers.csv \
+    ./extract/processed_data/
+```
+
+
 
 ## Related repositories
 
