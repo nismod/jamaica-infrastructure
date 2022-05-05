@@ -36,7 +36,7 @@ def get_damage_data(x,damage_data_path,
 
 def convert_cost_units(x,cost_value,cost_unit,conversion_rate):
     if ("US$" in x[cost_unit]) or ("USD" in x[cost_unit]):
-        return conversion_rate*x[cost_value] 
+        return conversion_rate*x[cost_value]
     else:
         return x[cost_value]
 
@@ -88,7 +88,7 @@ def estimate_direct_damage_costs_and_units(dataframe,damage_ratio_columns,
         dataframe[damage_ratio_columns] = dataframe[damage_ratio_columns].multiply(dataframe[damage_cost_column]*dataframe['exposure'],axis="index")
         cost_unit = dataframe[cost_unit_column].values.tolist()[0]
         dataframe['damage_cost_unit'] = "/".join(cost_unit.split('/')[:-1])
-    
+
     return dataframe
 
 def main(config,results_folder,
@@ -96,7 +96,6 @@ def main(config,results_folder,
         damage_curves_csv,
         hazard_damage_parameters_csv,
         set_count,cost_uncertainty_parameter,damage_uncertainty_parameter):
-    incoming_data_path = config['paths']['incoming_data']
     processed_data_path = config['paths']['data']
     output_data_path = config['paths']['output']
 
@@ -109,17 +108,17 @@ def main(config,results_folder,
                                 "hazard_asset_intersection")
     damage_curve_data_path = os.path.join(processed_data_path,
                                             "damage_curves")
-    
+
     asset_data_details = pd.read_csv(network_csv)
     hazard_data_details = pd.read_csv(hazard_csv,encoding="latin1")
     damage_curve_lookup = pd.read_csv(damage_curves_csv)[['sector',
                                                         'hazard_type',
                                                         'asset_name',
                                                         'asset_sheet']]
-    
+
     hazard_attributes = pd.read_csv(hazard_damage_parameters_csv)
     flood_hazards = hazard_attributes[hazard_attributes["hazard_type"] == "flooding"]["hazard"].values.tolist()
-    
+
     """Step 1: Get all the damage curves into a dataframe
     """
     damage_curves = []
@@ -141,18 +140,20 @@ def main(config,results_folder,
     for asset_info in asset_data_details.itertuples():
         asset_sector = asset_info.sector
         asset_id = asset_info.asset_id_column
-        asset_min_cost = asset_info.asset_min_cost_column 
+        asset_min_cost = asset_info.asset_min_cost_column
         asset_max_cost = asset_info.asset_max_cost_column
         asset_cost_unit = asset_info.asset_cost_unit_column
-        
+
         asset_df = gpd.read_file(os.path.join(processed_data_path,asset_info.path),layer=asset_info.asset_layer)
+        if asset_df.empty:
+            continue
         asset_df[asset_min_cost] = asset_df.apply(
                                 lambda x:convert_cost_units(x,asset_min_cost,asset_cost_unit,1.0/jd_to_usd),axis=1)
         asset_df[asset_max_cost] = asset_df.apply(
                                     lambda x:convert_cost_units(x,asset_max_cost,asset_cost_unit,1.0/jd_to_usd),axis=1)
         asset_df[asset_cost_unit] = asset_df[asset_cost_unit].replace(["USD","US$"],"J$",regex=True)
-        # We just need to modify and correct energy asset costs of nodes to J$ and costs of of edges to $J/m 
-        if asset_sector == "energy" and asset_info.asset_layer == "edges": 
+        # We just need to modify and correct energy asset costs of nodes to J$ and costs of of edges to $J/m
+        if asset_sector == "energy" and asset_info.asset_layer == "edges":
             asset_df[asset_min_cost] = asset_df[asset_min_cost]/asset_df["length"]
             asset_df[asset_max_cost] = asset_df[asset_max_cost]/asset_df["length"]
             asset_df[asset_cost_unit] = "J$/m"
@@ -164,7 +165,7 @@ def main(config,results_folder,
         hazard_damages = []
         hazard_intersection_file = os.path.join(hazard_asset_intersection_path,
                                 f"{asset_info.asset_gpkg}_splits__hazard_layers__{asset_info.asset_layer}.geoparquet")
-        if os.path.isfile(hazard_intersection_file) is True: 
+        if os.path.isfile(hazard_intersection_file) is True:
             hazard_df = gpd.read_parquet(hazard_intersection_file)
             hazard_df = hazard_df.to_crs(epsg=epsg_jamaica)
             hazard_df = add_exposure_dimensions(hazard_df,
@@ -202,7 +203,7 @@ def main(config,results_folder,
 
                     if len(hazard_effect_df.index) == 0:
                         print (f"* No {hazard_info.hazard} intersections with {asset_info.asset_gpkg} {asset_info.asset_layer}")
-                    else: 
+                    else:
                         hazard_effect_df = pd.merge(hazard_effect_df,affected_assets_df,how='left',on=[asset_id])
                         # print (hazard_info.key)
                         for damage_info in damages_df.itertuples():
@@ -213,7 +214,7 @@ def main(config,results_folder,
                                             bounds_error=False)(hazard_asset_effect_df[hazard_keys])
                                 hazard_asset_effect_df = estimate_direct_damage_costs_and_units(hazard_asset_effect_df,
                                                             hazard_keys,asset_cost_unit,dataframe_type=asset_info.asset_layer)
-                                
+
                                 sum_dict = dict([(hk,"sum") for hk in hazard_keys])
                                 hazard_asset_effect_df = hazard_asset_effect_df.groupby([asset_id,
                                                         'exposure_unit',

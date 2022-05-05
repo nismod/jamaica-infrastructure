@@ -23,8 +23,7 @@ def main(config,results_folder,
         set_count,
         cost_uncertainty_parameter,
         damage_uncertainty_parameter):
-    
-    incoming_data_path = config['paths']['incoming_data']
+
     processed_data_path = config['paths']['data']
     output_data_path = config['paths']['output']
 
@@ -65,7 +64,7 @@ def main(config,results_folder,
                 df["economic_loss_unit"] = "J$/day"
             else:
                 df["economic_loss_unit"] = "None"
-            
+
             hazard_data_details = pd.read_csv(hazard_csv,encoding="latin1").fillna(0)
             hazard_data_details = hazard_data_details[hazard_data_details.key.isin(hazard_columns)]
             haz_rcp_epoch_confidence = list(set(hazard_data_details.set_index(["hazard","rcp","epoch","confidence"]).index.values.tolist()))
@@ -83,15 +82,15 @@ def main(config,results_folder,
                                             list(zip(haz_df.key.values.tolist(),
                                             haz_df.rp.values.tolist()
                                             )),key=lambda x:x[-1],reverse=True))))
-                
+
                 haz_prob = [1.0/rp for rp in haz_rps]
                 damages = df[index_columns + loss_column + haz_cols]
                 damages["hazard"] = haz
                 damages["rcp"] = rcp
                 damages["epoch"] = epoch
                 damages["confidence"] = confidence
-                damages.columns = index_columns + loss_column + haz_prob + ["hazard","rcp","epoch","confidence"] 
-                index_columns += ["hazard","rcp","epoch","confidence"] 
+                damages.columns = index_columns + loss_column + haz_prob + ["hazard","rcp","epoch","confidence"]
+                index_columns += ["hazard","rcp","epoch","confidence"]
                 damages = damages[damages[haz_prob].sum(axis=1) > 0]
                 losses = damages.copy()
                 losses.columns = losses.columns.map(str)
@@ -100,7 +99,7 @@ def main(config,results_folder,
                     damages["protection_standard"] = bridge_flood_protection
                     expected_damage_df = risks(damages,index_columns + ["protection_standard"],haz_prob,
                                             'EAD',flood_protection_period=bridge_flood_protection,
-                                            flood_protection_name=flood_protection_name 
+                                            flood_protection_name=flood_protection_name
                                             )
                     expected_damage_df["protection_standard"] = bridge_flood_protection
                     if 'economic_loss' in damages.columns.values.tolist():
@@ -138,7 +137,7 @@ def main(config,results_folder,
                         f"{asset_info.asset_gpkg}_{asset_info.asset_layer}_EAD_EAEL_parameter_set_{set_count}.csv"),
                         index=False)
         print (f"* Done with {asset_info.asset_gpkg} {asset_info.asset_layer}")
-                
+
 
 if __name__ == "__main__":
     CONFIG = load_config()

@@ -2,10 +2,12 @@ fiona
 geopandas
 matplotlib
 numpy
+openpyxl
 pandas
 pathos
 rasterio
 rioxarray
+SALib
 scipy
 shapely
 snkit
