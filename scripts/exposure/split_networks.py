@@ -20,14 +20,6 @@ from snail.core.intersections import get_cell_indices, split_linestring, split_p
 from tqdm import tqdm
 
 
-def load_config():
-    """Read config.json"""
-    config_path = os.path.join(os.path.dirname(__file__), "..", "..", "config.json")
-    with open(config_path, "r") as config_fh:
-        config = json.load(config_fh)
-    return config
-
-
 def main(data_path, networks_csv, hazards_csv):
     # read transforms, record with hazards
     hazards = pandas.read_csv(hazards_csv)
@@ -64,7 +56,12 @@ def main(data_path, networks_csv, hazards_csv):
             else:
                 # look up nodes cell index
                 nodes = geopandas.read_file(fname, layer="nodes")
-                logging.info("Node CRS %s", nodes.crs)
+
+                if nodes.empty:
+                    logging.info("Skipping %s with no data.", os.path.basename(fname))
+                    continue
+
+                logging.info("Node CRS %s", nodes.crs, os.path.basename(fname))
                 nodes = process_nodes(nodes, transforms, hazard_transforms, data_path)
                 # nodes.to_file(out_fname, driver="GPKG", layer="nodes")
                 nodes.to_parquet(pq_fname_nodes)
@@ -76,6 +73,12 @@ def main(data_path, networks_csv, hazards_csv):
             else:
                 # split lines
                 edges = geopandas.read_file(fname, layer="edges")
+
+                if edges.empty:
+                    logging.info("Skipping %s with no data.", os.path.basename(fname))
+                    continue
+
+                logging.info("Node CRS %s", nodes.crs, os.path.basename(fname))
                 logging.info("Edge CRS %s", edges.crs)
                 edges = process_edges(edges, transforms, hazard_transforms, data_path)
                 # edges.to_file(out_fname, driver="GPKG", layer="edges")
@@ -88,6 +91,11 @@ def main(data_path, networks_csv, hazards_csv):
             else:
                 # split polygons
                 areas = geopandas.read_file(fname, layer="areas")
+
+                if areas.empty:
+                    logging.info("Skipping %s with no data.", os.path.basename(fname))
+                    continue
+
                 logging.info("Area CRS %s", areas.crs)
                 areas = explode_multi(areas)
                 areas = process_areas(areas, transforms, hazard_transforms, data_path)
@@ -326,17 +334,21 @@ def split_index_column(df, prefix):
 
 
 if __name__ == '__main__':
-    # Load config
-    CONFIG = load_config()
-    # Save splits, attribute data later
-    data_path = CONFIG["paths"]["data"]
     try:
-        networks_csv = sys.argv[1]
-        hazards_csv = sys.argv[2]
-    except IndexError:
-        logging.error(
-            "Error. Please provide networks and hazards as CSV.\n",
-            f"Usage: python {__file__} networks/network_files.csv hazards/hazard_layers.csv")
+        # running from snakemake
+        networks_csv = snakemake.config["network_layers"]
+        hazards_csv = snakemake.config["hazard_layers"]
+        data_path = snakemake.config['paths']['processed_data']
+    except NameError:
+        try:
+            # running from CLI
+            networks_csv = sys.argv[1]
+            hazards_csv = sys.argv[2]
+            data_path = sys.argv[3]
+        except IndexError:
+            logging.error(
+                "Error. Please provide networks and hazards as CSV.\n",
+                f"Usage: python {__file__} ./processed_data network_files.csv hazard_layers.csv")
 
     # Ignore writing-to-parquet warnings
     warnings.filterwarnings('ignore', message='.*initial implementation of Parquet.*')
