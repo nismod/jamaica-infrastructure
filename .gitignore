@@ -9,6 +9,7 @@ config_local.yml
 
 # Workflow
 .snakemake
+hazard_layers__with_transforms.csv
 
 # Text editor
 .vscode
