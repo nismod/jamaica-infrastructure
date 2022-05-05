@@ -1,8 +1,11 @@
 # Jamaica Infrastructure Risk and Resilience Assessment
 
-> WORK IN PROGRESS This repository will contain project-specific codes and
-> configuration to run climate-related risk and resilience analysis of
-> infrastructure networks in Jamaica.
+This repository contains project-specific codes and configuration to run
+climate-related risk and resilience analysis of infrastructure networks in
+Jamaica.
+
+For an initial overview of the style of analysis, a table of potential data
+requirements is presented in [data-categories.csv](./data-categories.csv).
 
 ## Setup and installation
 
@@ -11,38 +14,47 @@ Clone or download this repository from
 
     git clone git@github.com:nismod/jamaica-infrastructure.git
 
-Install required python packages:
+Install required python packages - several options are possible, depending on
+your system and preference.
+
+If you can install system libraries relatively easily (e.g. on a Linux system
+with admin rights), `pip` will install Python packages and warn if any system
+libraries are not available:
 
     pip install -r requirements.txt
 
-## Infrastructure
+Otherwise, consider using
+[`miniconda`](https://docs.conda.io/en/latest/miniconda.html) to install the
+packages and manage installing libraries into a conda environment, usually
+handling non-Python dependencies well.
+
+Create a conda environment once (per machine/user):
+
+    conda create --name jsrat --file requirements.txt
+
+Activate the environment each time you open a shell:
+
+    conda activate jsrat
+
+
+## Related repositories
 
 ### Energy
 
 The [Jamaica Energy Model (JEM)](https://github.com/nismod/jem) is a high-level
 power flow model of Jamaica's electricity network.
 
-### Water
+### Visualisation tool
 
-### Transport
+The J-SRAT web-based visualisation tool is implemented in
+[`infra-risk-vis`](https://github.com/nismod/infra-risk-vis)
 
-## Climate Hazards
+### snail
 
-### River Flooding
+[`snail`](https://github.com/nismod/snail) is a supporting library, used here
+for hazard-network intersections, under continuing development to support risk
+analysis.
 
-### Coastal Flooding
-
-### Tropical Cyclones
-
-## Risk analysis
-
-## Adaptation
-
-### Engineered options
-
-### Nature-based solutions
-
-## Visualisation tool
 
 ## Acknowledgments
 

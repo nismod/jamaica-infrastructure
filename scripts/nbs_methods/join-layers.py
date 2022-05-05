@@ -67,6 +67,12 @@ def associate_vector(fname, data_df, cell, select_cols):
             # probably had nothing to overlay
             for col in select_cols.values():
                 chunk[col] = None
+        except NotImplementedError:
+            # probably had mixed geom types
+            chunk = chunk.explode(index_parts=False)
+            chunk = chunk[chunk.geom_type == 'Polygon'].copy()
+            chunk = chunk.overlay(vector_df, how='identity', keep_geom_type=True)
+
         chunks.append(chunk)
 
     # Alternate idea about clipping by subcell
