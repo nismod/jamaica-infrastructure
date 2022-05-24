@@ -16,7 +16,9 @@ import math
 def roundup(x):
     return int(math.ceil(x / 50.0)) * 50
 
-wsz_census = pd.read_csv('potable/processed/wsz_census.csv')
+def main():
+    wsz_census = pd.read_csv('potable/processed/wsz_census.csv')
+    ...
 # wsz_census['PARISH'] = np.where(wsz_census['PARISH']=='ST.ANDREW', 'KSA',
                           # np.where(wsz_census['PARISH']=='KINGSTON', 'KSA', wsz_census['PARISH']) )
 wsz_census_gb = wsz_census.groupby(['WSZONEID'])['TOTAL_POP'].sum().to_frame().reset_index()
