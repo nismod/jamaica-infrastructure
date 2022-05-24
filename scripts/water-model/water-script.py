@@ -1,3 +1,7 @@
+"""Identify dependencies on elements of the water infrastructure system
+- link population (number of peopple) to potable supply systems
+- link agriculture (number of acres) to irrigation systems
+"""
 import pandas as pd
 import numpy as np
 import geopandas as gpd
