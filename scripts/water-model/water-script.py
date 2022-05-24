@@ -206,4 +206,5 @@ irrigation_assets_NIC_are_egdes = irrigation_assets_NIC.merge(edges_centroids[['
 # damaged_edges_df = pd.DataFrame([])
 # merged_edges = pd.merge(edges_centroids,damaged_edges_df,on='edge_id')
 # merged_edges_gb = merged_edges.groupby('DXF_TEXT')['acres_per_edge'].sum().reset_index().to_frame()
-    
+if __name__ == '__main__':
+        main()
