@@ -2,10 +2,12 @@
 - link population (number of peopple) to potable supply systems
 - link agriculture (number of acres) to irrigation systems
 """
+import math
+import os
+
 import pandas as pd
 import numpy as np
 import geopandas as gpd
-import math
 
 #########################################################################
 #########################################################################
@@ -19,6 +21,8 @@ def roundup(x):
 
 
 def main():
+    water_network_path = "/soge-home/projects/mistral/jamaica-ccri/processed_data/networks/water"
+
     wsz_census = pd.read_csv("potable/processed/wsz_census.csv")
     # wsz_census['PARISH'] = np.where(wsz_census['PARISH']=='ST.ANDREW', 'KSA',
     # np.where(wsz_census['PARISH']=='KINGSTON', 'KSA', wsz_census['PARISH']) )
@@ -176,7 +180,7 @@ def main():
     # print(oliv)
 
     potable_facilities_NWC = gpd.read_file(
-        "/soge-home/projects/mistral/jamaica-ccri/processed_data/networks/water/potable_facilities_NWC.gpkg"
+        os.path.join(water_network_path, "potable_facilities_NWC.gpkg")
     )
     potable_facilities_NWC = potable_facilities_NWC.drop(
         ["asset_pop_new_2010", "asset_pop_new_2020", "asset_pop_new_2030"], axis=1
@@ -222,7 +226,7 @@ def main():
         ] = asset_connected_pop_2030
 
     pipelines_NWC = gpd.read_file(
-        "/soge-home/projects/mistral/jamaica-ccri/processed_data/networks/water/pipelines_NWC.gpkg"
+        os.path.join(water_network_path, "pipelines_NWC.gpkg")
     )
     pipelines_NWC_pop = pipelines_NWC.merge(
         pipelines_centroid[
@@ -301,7 +305,7 @@ def main():
     # wells_merge_2['acres_per_node'] = wells_merge_2['acres_per_node'].apply(roundup)
 
     irrigation_assets_NIC = gpd.read_file(
-        "/soge-home/projects/mistral/jamaica-ccri/processed_data/networks/water/irrigation_assets_NIC.gpkg",
+        os.path.join(water_network_path, "irrigation_assets_NIC.gpkg"),
         layer="nodes",
     )
     irrigation_assets_NIC_are = irrigation_assets_NIC.merge(
@@ -402,7 +406,7 @@ def main():
     # edges_centroids['acres_per_edge'] = edges_centroids['acres_per_edge'].apply(roundup)
 
     irrigation_assets_NIC_edges = gpd.read_file(
-        "/soge-home/projects/mistral/jamaica-ccri/processed_data/networks/water/irrigation_assets_NIC.gpkg",
+        os.path.join(water_network_path, "irrigation_assets_NIC.gpkg"),
         layer="edges",
     )
     irrigation_assets_NIC_are_egdes = irrigation_assets_NIC.merge(
