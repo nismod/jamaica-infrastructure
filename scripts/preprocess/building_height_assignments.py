@@ -55,8 +55,13 @@ def main(config):
                                 layer="areas")
         for col in raster_columns:
             building_values = building_intersections[building_intersections[col] > 0]
-            building_values = building_values.groupby(building_id_column)[col].mean().reset_index()
-            all_buildings = pd.merge(all_buildings,building_values,how="left",on=[building_id_column]).fillna(0)
+            building_values["area_wt"] = building_values.geometry.area
+            building_values[col] = building_values[col]*building_values["area_wt"]
+            building_values = building_values.groupby(building_id_column)[col,"area_wt"].sum().reset_index()
+            building_values[col] = building_values[col]/building_values["area_wt"]
+            all_buildings = pd.merge(all_buildings,
+                                    building_values[[building_id_column,col]],
+                                    how="left",on=[building_id_column]).fillna(0)
             del building_values
     
         del building_intersections
