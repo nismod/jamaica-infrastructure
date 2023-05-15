@@ -61,10 +61,9 @@ def main(config):
     
         del building_intersections
 
-    all_buildings.to_file(
+    gpd.GeoDataFrame(all_buildings,geometry="geometry",crs="EPSG:3448").to_file(
                         os.path.join(
-                                processed_data_path,
-                                "buildings",
+                                output_path,
                                 "buildings_heights.gpkg"
                             ),
                         layer="areas",driver="GPKG")
