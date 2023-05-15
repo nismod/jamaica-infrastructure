@@ -88,7 +88,7 @@ def main(config):
         'F20_24_FMLE', 'F25_29_FMLE', 'F30_34_FMLE', 'F35_39_FMLE',
         'F40_44_FMLE', 'F45_49_FMLE', 'F50_54_FMLE', 'F55_59_FMLE',
         'F60_64_FMLE', 'F65_69_FMLE','F70_74_FMLE', 'F75_79_FMLE']
-    female_nonworking_columns = [c for c in female_age_wise_columns if c not in male_working_columns]
+    female_nonworking_columns = [c for c in female_age_wise_columns if c not in female_working_columns]
 
     female_total_column = "TOTAL_FMLE"
     male_total_column = "TOTAL_MLE"
