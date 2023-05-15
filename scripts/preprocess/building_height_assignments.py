@@ -34,18 +34,18 @@ def main(config):
                 f"{raster_details_csv}",
                 f"{output_path}"
                 ]
-        print ("* Start the processing of Roads voronoi and population raster intersections")
+        print ("* Start the processing of buildings vector-raster intersections")
         print (args)
         subprocess.run(args)
 
-    print ("* Done with the processing of Roads voronoi and population raster intersections")
+    print ("* Done with the processing of buildings vector-raster intersections")
 
     """Post-processing the buildings-raster intersection results
     """
     building_id_column = "osm_id" # Building ID column
     raster_columns = pd.read_csv(raster_details_csv)["key"].values.tolist()
     # Read in intersection geoparquet
-    intersections_file = [file for file in os.listdir(output_path) if file.endswith(".geoparquet")][0]
+    intersections_file = [os.path.join(output_path,file) for file in os.listdir(output_path) if file.endswith(".geoparquet")][0]
     if intersections_file:
         building_intersections = gpd.read_parquet(intersections_file)
         all_buildings = gpd.read_file(os.path.join(
