@@ -26,7 +26,7 @@ def main(config):
     raster_details_csv = os.path.join(processed_data_path,"buildings","building_rasters.csv")
 
     run_intersections = True  # Set to True is you want to run this process
-    if run_rintersections is True:
+    if run_intersections is True:
         args = [
                 "python",
                 "vector_raster_intersections.py",
