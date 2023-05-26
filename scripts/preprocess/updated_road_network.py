@@ -223,8 +223,17 @@ def main(config):
     
     nwa_roads = gpd.read_file(os.path.join(road_network_path,'NWA','main_road_NWA.shp'))
     nwa_roads = nwa_roads.to_crs(epsg=epsg_jamaica)
-    nwa_roads['nwa_length'] = nwa_roads.progress_apply(lambda x: x['geometry'].length,axis=1)
-    nwa_roads = nwa_roads[nwa_roads['nwa_length']>0]
+    # Deal with empty edges (drop)
+    empty_idx = nwa_roads.geometry.apply(lambda e: e is None or e.is_empty)
+    if empty_idx.sum():
+        empty_edges = nwa_roads[empty_idx]
+        print(f"Found {len(empty_edges)} empty edges.")
+        print(empty_edges)
+        nwa_roads = nwa_roads[~empty_idx]
+        del empty_edges, empty_idx
+        
+    nwa_roads = nwa_roads[nwa_roads['geometry']>0]
+    nwa_roads['nwa_length'] = nwa_roads.geometry.length
     nwa_roads.rename(columns={'OBJECTID':'nwa_edge_id'},inplace=True)
     
     # Most of the geometries between the two networks are within a 20-meter buffer of each other
