@@ -231,8 +231,7 @@ def main(config):
         print(empty_edges)
         nwa_roads = nwa_roads[~empty_idx]
         del empty_edges, empty_idx
-        
-    nwa_roads = nwa_roads[nwa_roads['geometry']>0]
+
     nwa_roads['nwa_length'] = nwa_roads.geometry.length
     nwa_roads.rename(columns={'OBJECTID':'nwa_edge_id'},inplace=True)
     
