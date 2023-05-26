@@ -243,7 +243,7 @@ def main(config):
     store_intersections = os.path.join(road_network_path,'road_intersections.gpkg')
     
     nwa_edges = nwa_roads.copy()
-    road_select = match_roads(nwa_edges,edges,geom_buffer=20)
+    road_select = match_roads(nwa_edges,edges,geom_buffer=10)
     if save_intermediary_results is True:
         road_select.to_file(store_intersections,layer='selected_roads',driver='GPKG')
 
@@ -309,7 +309,7 @@ def main(config):
 
     nwa_edges = nwa_edges[nwa_edges['fraction_buffer'] <= 0.5]
     match_edges = edges[~edges['id'].isin(all_matches)]
-    match_edges = match_edges[~match_edges['_7'].isin(['OTHER','TRACK'])] # There are a lot of unwanted edges if we do not filter out this case
+    # match_edges = match_edges[~match_edges['_7'].isin(['OTHER','TRACK'])] # There are a lot of unwanted edges if we do not filter out this case
     road_select = match_roads(nwa_edges,
                         match_edges,
                         geom_buffer=120,
