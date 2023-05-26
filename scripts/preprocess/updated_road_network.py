@@ -339,8 +339,9 @@ def main(config):
     print (all_matched_pairs)
 
     if save_intermediary_results is True:
-        edges[edges['id'].isin(list(set(all_matched_pairs['id'].values.tolist())))].to_file(store_intersections,
-                                                        layer='final_matches',driver='GPKG')
+        df = gpd.GeoDataFrame(pd.merge(edges,all_matched_pairs,how='left',on=['id']),
+                        geometry="geometry",crs=f"EPSG:{epsg_jamaica}")
+        df.to_file(store_intersections,layer='final_matches',driver='GPKG')
         nwa_roads[~nwa_roads['nwa_edge_id'].isin(
                     list(set(all_matched_pairs['nwa_edge_id'].values.tolist()))
                     )].to_file(store_intersections,layer='unmatched',driver='GPKG')
