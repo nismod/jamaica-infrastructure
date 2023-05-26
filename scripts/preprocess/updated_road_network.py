@@ -312,7 +312,7 @@ def main(config):
     # match_edges = match_edges[~match_edges['_7'].isin(['OTHER','TRACK'])] # There are a lot of unwanted edges if we do not filter out this case
     road_select = match_roads(nwa_edges,
                         match_edges,
-                        geom_buffer=120,
+                        geom_buffer=30,
                         fraction_intersection=0.9,
                         length_intersected=120,
                         save_buffer_file=store_intersections)
@@ -321,7 +321,7 @@ def main(config):
 
     remaining_matches = road_length_matches_filtering(road_select,
                         nwa_roads,edges,
-                        40,1.01,save_buffer_file=False)
+                        30,1.01,save_buffer_file=False)
     if save_intermediary_results is True:
         remaining_matches.to_file(store_intersections,
                                 layer='length_matches_filter_wider_buffer',driver='GPKG')
