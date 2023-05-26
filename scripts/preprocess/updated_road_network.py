@@ -221,7 +221,7 @@ def main(config):
     edges.rename(columns={'osm_id':'id'},inplace=True)
     print (edges)
     
-    nwa_roads = gpd.read_file(os.path.join(road_network_path,'NWA','main_roads_NWA.shp'),layer='Roads')
+    nwa_roads = gpd.read_file(os.path.join(road_network_path,'NWA','main_road_NWA.shp'),layer='Roads')
     nwa_roads = nwa_roads.to_crs(epsg=epsg_jamaica)
     nwa_roads['nwa_length'] = nwa_roads.progress_apply(lambda x: x['geometry'].length,axis=1)
     nwa_roads = nwa_roads[nwa_roads['nwa_length']>0]
