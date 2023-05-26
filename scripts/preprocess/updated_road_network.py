@@ -321,7 +321,7 @@ def main(config):
 
     remaining_matches = road_length_matches_filtering(road_select,
                         nwa_roads,edges,
-                        120,1.01,save_buffer_file=False)
+                        40,1.01,save_buffer_file=False)
     if save_intermediary_results is True:
         remaining_matches.to_file(store_intersections,
                                 layer='length_matches_filter_wider_buffer',driver='GPKG')
@@ -336,24 +336,26 @@ def main(config):
 
     print ('* Total matches:',len(all_matched_pairs.index))
     print ('* Total ID matches',len(list(set(all_matched_pairs['id'].values.tolist()))))
+    print (all_matched_pairs)
 
-    # """Step 4: Now match the attributes between the two networks
-    # """
-    # # Select the NWA attributes we want to retain
-    # nwa_columns = ['nwa_edge_id',
-    #                 'first_clas',
-    #                 'str_name',
-    #                 'constructi', 
-    #                 'averagewid', 
-    #                 'section',
-    #                 'vertalignm', 
-    #                 'aadt',
-    #                 'section_1',
-    #                 'average_wi', 
-    #                 'construc_1',
-    #                 'aadt_1']
-    # all_matched_pairs = pd.merge(all_matched_pairs,nwa_roads[nwa_columns],how='left',on=['nwa_edge_id'])
-    # # Modify the edges columns first
+    if save_intermediary_results is True:
+        edges[edges['id'].isin(list(set(all_matched_pairs['id'].values.tolist())))].to_file(store_intersections,
+                                                        layer='final_matches',driver='GPKG')
+    """Step 4: Now match the attributes between the two networks
+    """
+    # Select the NWA attributes we want to retain
+    nwa_columns = ['nwa_edge_id',
+                    'SECTION_',
+                    'STREET_NAM',
+                    'ROAD_CLASS', 
+                    'AVERAGEWID',
+                    'DIVISION' 
+                    ]
+    all_matched_pairs = pd.merge(all_matched_pairs,nwa_roads[nwa_columns],how='left',on=['nwa_edge_id'])
+    edges = pd.merge(edges,all_matched_pairs,how='left',on=['id'])
+    print (all_matched_pairs.columns)
+    print (edges.columns)
+    # Modify the edges columns first
     # edges = edges.rename(
     #     columns={
     #         "_7": "road_class",
@@ -374,10 +376,7 @@ def main(config):
     #     ]
     # )
     # edges = pd.merge(edges,all_matched_pairs,how='left',on=['id'])
-    # print (all_matched_pairs.columns)
     # print (edges.columns)
-    # # edges = pd.merge(edges,all_matched_pairs,how='left',on=['id'])
-    # # print (edges.columns)
 
     # string_columns = ['road_class','first_clas',
     #                 'street_name','str_name',
