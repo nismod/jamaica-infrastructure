@@ -216,7 +216,7 @@ def main(config):
     edges = gpd.read_file(os.path.join(road_network_path,
                                 'hotosm_jam_roads_gpkg',
                                 'hotosm_jam_roads.gpkg'))
-    edges.set_crs(epsg=epsg_jamaica)
+    edges = edges.to_crs(epsg=epsg_jamaica)
     edges = edges[edges.geom_type == 'LineString']
     edges.rename(columns={'osm_id':'id'},inplace=True)
     print (edges)
