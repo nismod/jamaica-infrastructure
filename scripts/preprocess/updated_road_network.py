@@ -223,7 +223,7 @@ def main(config):
     
     edges_network = create_network_from_nodes_and_edges(None,edges,
                                     'road')
-    edges = network.edges
+    edges = edges_network.edges
     edges = edges.to_crs(epsg=epsg_jamaica)
     # nodes = network.nodes
 
