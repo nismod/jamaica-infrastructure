@@ -62,7 +62,7 @@ def get_nearest_node(x, sindex_input_nodes, input_nodes, id_column):
     """
     return input_nodes.loc[list(sindex_input_nodes.nearest(x.bounds[:2]))][id_column].values[0]
 
-def create_network_from_nodes_and_edges(nodes,edges,node_edge_prefix,by=None):
+def create_network_from_nodes_and_edges(nodes,edges,node_edge_prefix,snap_distance=None,by=None):
     edges.columns = map(str.lower, edges.columns)
     if "id" in edges.columns.values.tolist():
         edges.rename(columns={"id": "e_id"}, inplace=True)
@@ -82,21 +82,27 @@ def create_network_from_nodes_and_edges(nodes,edges,node_edge_prefix,by=None):
     print("* Done with splitting multilines")
 
     if nodes is not None:
-        network = snkit.network.snap_nodes(network)
-        print ('* Done with snapping nodes to edges')
+        if snap_distance is not None:
+            network = snkit.network.link_nodes_to_edges_within(network, snap_distance, tolerance=1e-09)
+            print ('* Done with joining nodes to edges')
+        else:
+            network = snkit.network.snap_nodes(network)
+            print ('* Done with snapping nodes to edges')
+        # network.nodes = snkit.network.drop_duplicate_geometries(network.nodes)
+        # print ('* Done with dropping same geometries')
 
-        network.nodes = snkit.network.drop_duplicate_geometries(network.nodes)
-        print ('* Done with dropping same geometries')
-
-        network = snkit.network.split_edges_at_nodes(network)
-        print ('* Done with splitting edges at nodes')
+        # network = snkit.network.split_edges_at_nodes(network,tolerance=9e-10)
+        # print ('* Done with splitting edges at nodes')
 
     network = snkit.network.add_endpoints(network)   
     print ('* Done with adding endpoints')
 
-    network = snkit.network.split_edges_at_nodes(network,tolerance=1.0e-3)
-    print ('* Done with splitting edges at nodes')
+    network.nodes = snkit.network.drop_duplicate_geometries(network.nodes)
+    print ('* Done with dropping same geometries')
 
+    network = snkit.network.split_edges_at_nodes(network,tolerance=9e-10)
+    print ('* Done with splitting edges at nodes')
+    
     network = snkit.network.add_ids(network, 
                             edge_prefix=f"{node_edge_prefix}e", 
                             node_prefix=f"{node_edge_prefix}n")
@@ -104,7 +110,7 @@ def create_network_from_nodes_and_edges(nodes,edges,node_edge_prefix,by=None):
     print ('* Done with network topology')
 
     if by is not None:
-        network = snkit.merge_edges(network,by=by)
+        network = snkit.network.merge_edges(network,by=by)
         print ('* Done with merging network')
 
     network.edges.rename(columns={'from_id':'from_node',
@@ -113,9 +119,6 @@ def create_network_from_nodes_and_edges(nodes,edges,node_edge_prefix,by=None):
                                 inplace=True)
     network.nodes.rename(columns={'id':'node_id'},inplace=True)
     
-    # network.edges.to_file(out_fname, layer='edges', driver='GPKG')
-    # network.nodes.to_file(out_fname, layer='nodes', driver='GPKG')
-
     return network
 
 def voronoi_finite_polygons_2d(vor, radius=None):
