@@ -341,7 +341,9 @@ def main(config):
     if save_intermediary_results is True:
         edges[edges['id'].isin(list(set(all_matched_pairs['id'].values.tolist())))].to_file(store_intersections,
                                                         layer='final_matches',driver='GPKG')
-    print (nwa_roads[~nwa_roads['nwa_edge_id'].isin(list(set(all_matched_pairs['nwa_edge_id'].values.tolist())))])
+        nwa_roads[~nwa_roads['nwa_edge_id'].isin(
+                    list(set(all_matched_pairs['nwa_edge_id'].values.tolist()))
+                    )].to_file(store_intersections,layer='unmatched',driver='GPKG')
     """Step 4: Now match the attributes between the two networks
     """
     # Select the NWA attributes we want to retain
