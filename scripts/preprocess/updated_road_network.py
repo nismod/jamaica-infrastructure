@@ -225,12 +225,12 @@ def main(config):
                                 'hotosm_jam_roads_gpkg',
                                 'hotosm_jam_roads.gpkg'))
     edges = edges.to_crs(epsg=epsg_jamaica)
+    edges = edges[~edges.highway.isin(["bridleway","cycleway","footway","path","pedestrian","steps"])]
     edges = edges[edges.geom_type == 'LineString']
     # edges.rename(columns={'osm_id':'edge_id'},inplace=True)
     edges_network = create_network_from_nodes_and_edges(None,edges,
                                     'road')
     edges = edges_network.edges
-    print (edges)
     edges = edges.set_crs(epsg=epsg_jamaica)
     # nodes = network.nodes
     edges.to_file(store_intersections,layer='edges',driver='GPKG')
@@ -249,8 +249,9 @@ def main(config):
 
     nwa_roads['nwa_length'] = nwa_roads.geometry.length
     nwa_roads.rename(columns={'OBJECTID':'nwa_edge_id'},inplace=True)
-    
-    # Most of the geometries between the two networks are within a 20-meter buffer of each other
+    # remove same roads, which might be creating issues
+    nwa_roads = nwa_roads[~nwa_roads["nwa_edge_id"].isin([145,147,112,149])]
+    # Most of the geometries between the two networks are within a 5-meter buffer of each other
     # Match the two networks by creating a 20-meter buffer around the NWA roads and intersecting with the roads networks
     # We also select a road if it intersects more than 100-meters of the NWA buffer
     
@@ -325,7 +326,7 @@ def main(config):
     road_select = match_roads(nwa_edges,
                         match_edges,
                         geom_buffer=30,
-                        fraction_intersection=0.9,
+                        fraction_intersection=0.7,
                         length_intersected=120,
                         save_buffer_file=store_intersections)
     if save_intermediary_results is True:
