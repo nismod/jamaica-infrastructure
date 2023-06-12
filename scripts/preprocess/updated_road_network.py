@@ -209,23 +209,31 @@ def main(config):
     epsg_jamaica = 3448
 
     road_network_path = os.path.join(incoming_data_path,'roads')
+    save_intermediary_results = True # If you want to store the intermediary results for sense checking
+    store_intersections = os.path.join(road_network_path,'road_intersections.gpkg')
     """
     Step 1: Take the NWA layer and match it to the OSM layer
     Step 2: Match the OSM road network to the NWA roads to get properties of roads
     """
+    nwa_edges = gpd.read_file(os.path.join(incoming_data_path,'nsdmb','GWP_Jamaica_NSP_Master_Geodatabase_v01.gdb'),
+                        layer='roads_main_NWA')
+    nwa_edges.to_crs(epsg=epsg_jamaica)
+    nwa_edges.to_file(os.path.join(road_network_path,'NWA','NWA_roads_old.gpkg'),layer="edges",driver="GPKG")
+    del nwa_edges
+
     edges = gpd.read_file(os.path.join(road_network_path,
                                 'hotosm_jam_roads_gpkg',
                                 'hotosm_jam_roads.gpkg'))
     edges = edges.to_crs(epsg=epsg_jamaica)
     edges = edges[edges.geom_type == 'LineString']
     # edges.rename(columns={'osm_id':'edge_id'},inplace=True)
-    print (edges)
-    
     edges_network = create_network_from_nodes_and_edges(None,edges,
                                     'road')
     edges = edges_network.edges
-    edges = edges.to_crs(epsg=epsg_jamaica)
+    print (edges)
+    edges = edges.set_crs(epsg=epsg_jamaica)
     # nodes = network.nodes
+    edges.to_file(store_intersections,layer='edges',driver='GPKG')
 
 
     nwa_roads = gpd.read_file(os.path.join(road_network_path,'NWA','main_road_NWA.shp'))
@@ -246,11 +254,8 @@ def main(config):
     # Match the two networks by creating a 20-meter buffer around the NWA roads and intersecting with the roads networks
     # We also select a road if it intersects more than 100-meters of the NWA buffer
     
-    save_intermediary_results = True # If you want to store the intermediary results for sense checking
-    store_intersections = os.path.join(road_network_path,'road_intersections.gpkg')
-    
     nwa_edges = nwa_roads.copy()
-    road_select = match_roads(nwa_edges,edges,geom_buffer=10)
+    road_select = match_roads(nwa_edges,edges,geom_buffer=5)
     if save_intermediary_results is True:
         road_select.to_file(store_intersections,layer='selected_roads',driver='GPKG')
 

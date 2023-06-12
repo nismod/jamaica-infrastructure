@@ -62,6 +62,28 @@ def get_nearest_node(x, sindex_input_nodes, input_nodes, id_column):
     """
     return input_nodes.loc[list(sindex_input_nodes.nearest(x.bounds[:2]))][id_column].values[0]
 
+# def add_topology(network, id_col="id"):
+#     """Add or replace from_id, to_id to edges"""
+#     from_ids = []
+#     to_ids = []
+
+#     for edge in tqdm(
+#         network.edges.itertuples(), desc="topology", total=len(network.edges)
+#     ):
+#         start, end = snkit.network.line_endpoints(edge.geometry)
+
+#         start_node = nearest(start, network.nodes)
+#         from_ids.append(start_node[id_col])
+
+#         end_node = nearest(end, network.nodes)
+#         to_ids.append(end_node[id_col])
+
+#     edges = network.edges.copy()
+#     edges["from_id"] = from_ids
+#     edges["to_id"] = to_ids
+
+#     return snkit.network.Network(nodes=network.nodes, edges=edges)
+
 def create_network_from_nodes_and_edges(nodes,edges,node_edge_prefix,snap_distance=None,by=None):
     edges.columns = map(str.lower, edges.columns)
     if "id" in edges.columns.values.tolist():
@@ -100,7 +122,7 @@ def create_network_from_nodes_and_edges(nodes,edges,node_edge_prefix,snap_distan
     network.nodes = snkit.network.drop_duplicate_geometries(network.nodes)
     print ('* Done with dropping same geometries')
 
-    network = snkit.network.split_edges_at_nodes(network,tolerance=9e-10)
+    network = snkit.network.split_edges_at_nodes(network,tolerance=1e-3)
     print ('* Done with splitting edges at nodes')
     
     network = snkit.network.add_ids(network, 
