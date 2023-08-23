@@ -272,8 +272,8 @@ def main(config):
     network = add_network_topology(nodes,edges,"road")
     edges = network.edges
     nodes = network.nodes
-    edges = edges.set_crs(epsg=epsg_jamaica)
-    nodes = nodes.set_crs(epsg=epsg_jamaica)
+    edges = edges.to_crs(epsg=epsg_jamaica)
+    nodes = nodes.to_crs(epsg=epsg_jamaica)
     edges.to_file(store_intersections,layer='edges',driver='GPKG')
     edges.to_file(store_intersections,layer='nodes',driver='GPKG')
 
