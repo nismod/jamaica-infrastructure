@@ -217,25 +217,25 @@ def main(config):
     Step 0: Get a processed and clean OSM dervied network layer
     """
 
-    edges = gpd.read_parquet(os.path.join(road_network_path,
-                                "different_roads",
-                                "edges.geoparquet"))    
-    nodes = gpd.read_parquet(os.path.join(road_network_path,
-                                "different_roads",
-                                "nodes.geoparquet"))
-    network = add_network_topology(nodes,edges,"road")
-    edges = network.edges
-    nodes = network.nodes
-    edges = edges.to_crs(epsg=epsg_jamaica)
-    nodes = nodes.to_crs(epsg=epsg_jamaica)
+    # edges = gpd.read_parquet(os.path.join(road_network_path,
+    #                             "different_roads",
+    #                             "edges.geoparquet"))    
+    # nodes = gpd.read_parquet(os.path.join(road_network_path,
+    #                             "different_roads",
+    #                             "nodes.geoparquet"))
+    # network = add_network_topology(nodes,edges,"road")
+    # edges = network.edges
+    # nodes = network.nodes
+    # edges = edges.to_crs(epsg=epsg_jamaica)
+    # nodes = nodes.to_crs(epsg=epsg_jamaica)
 
-    largest_component = edges['component_id'].value_counts().idxmax()
-    nodes = nodes[nodes.component_id == largest_component]
-    edges = edges[edges.component_id == largest_component]
+    # largest_component = edges['component_id'].value_counts().idxmax()
+    # nodes = nodes[nodes.component_id == largest_component]
+    # edges = edges[edges.component_id == largest_component]
 
-    if save_intermediary_results is True:
-        edges.to_file(store_intersections,layer='edges',driver='GPKG')
-        nodes.to_file(store_intersections,layer='nodes',driver='GPKG')
+    # if save_intermediary_results is True:
+    #     edges.to_file(store_intersections,layer='edges',driver='GPKG')
+    #     nodes.to_file(store_intersections,layer='nodes',driver='GPKG')
     
     """
     Step 1: Match two NWA layers and merge their properties to finalise an NWA layer
@@ -293,7 +293,7 @@ def main(config):
     """Alternative solution
     """
     edges = gpd.read_file(store_intersections,layer='edges')
-    nodes = gpd.read_file(store_intersections,layer='edges')
+    nodes = gpd.read_file(store_intersections,layer='nodes')
 
     nwa_roads_sample = nwa_roads[["nwa_edge_id","start","end"]]
     for i in ["start","end"]:
