@@ -263,9 +263,7 @@ def main(config):
 
     edges = gpd.read_parquet(os.path.join(road_network_path,
                                 "different_roads",
-                                "edges.geoparquet"))
-    edges = edges.to_crs(epsg=epsg_jamaica)
-    
+                                "edges.geoparquet"))    
     nodes = gpd.read_parquet(os.path.join(road_network_path,
                                 "different_roads",
                                 "nodes.geoparquet"))
@@ -275,7 +273,7 @@ def main(config):
     edges = edges.to_crs(epsg=epsg_jamaica)
     nodes = nodes.to_crs(epsg=epsg_jamaica)
     edges.to_file(store_intersections,layer='edges',driver='GPKG')
-    edges.to_file(store_intersections,layer='nodes',driver='GPKG')
+    nodes.to_file(store_intersections,layer='nodes',driver='GPKG')
 
     # Most of the geometries between the two networks are within a 5-meter buffer of each other
     # Match the two networks by creating a 20-meter buffer around the NWA roads and intersecting with the roads networks

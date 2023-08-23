@@ -144,7 +144,7 @@ def create_network_from_nodes_and_edges(nodes,edges,node_edge_prefix,snap_distan
     return network
 
 def add_network_topology(nodes,edges,node_edge_prefix):
-    network = snkit.Network(nodes, edges)
+    network = snkit.Network(nodes=nodes,edges=edges)
     network = snkit.network.add_ids(network, 
                             edge_prefix=f"{node_edge_prefix}e", 
                             node_prefix=f"{node_edge_prefix}n")
