@@ -387,7 +387,7 @@ def main(config):
                         geom_buffer=30,
                         fraction_intersection=0.7,
                         length_intersected=120,
-                        save_buffer_file=store_intersections)
+                        save_buffer_file=False)
     if save_intermediary_results is True:
         road_select.to_file(store_intersections,layer='wider_buffer_match',driver='GPKG')
 
