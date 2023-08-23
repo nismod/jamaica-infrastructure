@@ -210,10 +210,35 @@ def main(config):
     epsg_jamaica = 3448
 
     road_network_path = os.path.join(incoming_data_path,'roads')
-    save_intermediary_results = False # If you want to store the intermediary results for sense checking
+    save_intermediary_results = True # If you want to store the intermediary results for sense checking
     store_intersections = os.path.join(road_network_path,'road_intersections.gpkg')
+
     """
-    Step 0: Match two NWA layers and merge their properties
+    Step 0: Get a processed and clean OSM dervied network layer
+    """
+
+    edges = gpd.read_parquet(os.path.join(road_network_path,
+                                "different_roads",
+                                "edges.geoparquet"))    
+    nodes = gpd.read_parquet(os.path.join(road_network_path,
+                                "different_roads",
+                                "nodes.geoparquet"))
+    network = add_network_topology(nodes,edges,"road")
+    edges = network.edges
+    nodes = network.nodes
+    edges = edges.to_crs(epsg=epsg_jamaica)
+    nodes = nodes.to_crs(epsg=epsg_jamaica)
+
+    largest_component = edges['component_id'].value_counts().idxmax()
+    nodes = nodes[nodes.component_id == largest_component]
+    edges = edges[edges.component_id == largest_component]
+
+    if save_intermediary_results is True:
+        edges.to_file(store_intersections,layer='edges',driver='GPKG')
+        nodes.to_file(store_intersections,layer='nodes',driver='GPKG')
+    
+    """
+    Step 1: Match two NWA layers and merge their properties to finalise an NWA layer
     """
     nwa_edges = gpd.read_file(os.path.join(road_network_path,'different_roads','roads_main_NWA_NSDMD.gpkg'))
     nwa_edges.columns = map(str.lower, nwa_edges.columns)
@@ -256,47 +281,22 @@ def main(config):
     # nwa_roads.rename(columns={'objectid':'nwa_edge_id'},inplace=True)
     # remove same roads, which might be creating issues
     nwa_roads = nwa_roads[~nwa_roads["objectid"].isin([145,147,112,149])]
-    print (nwa_roads)
     nwa_roads = nwa_roads.explode()
-    print (nwa_roads)
     nwa_roads["start"] = nwa_roads.progress_apply(lambda x: Point(x.geometry.coords[0]),axis=1)
     nwa_roads["end"] = nwa_roads.progress_apply(lambda x: Point(x.geometry.coords[-1]),axis=1)
     nwa_roads = nwa_roads.reset_index()
     nwa_roads["nwa_edge_id"] = nwa_roads.index.values.tolist()
-    print (nwa_roads)
-
-    """
-    Step 1: Take the NWA layer and match it to the OSM layer
-    Step 2: Match the OSM road network to the NWA roads to get properties of roads
-    """
-
-    edges = gpd.read_parquet(os.path.join(road_network_path,
-                                "different_roads",
-                                "edges.geoparquet"))    
-    nodes = gpd.read_parquet(os.path.join(road_network_path,
-                                "different_roads",
-                                "nodes.geoparquet"))
-    network = add_network_topology(nodes,edges,"road")
-    edges = network.edges
-    nodes = network.nodes
-    edges = edges.to_crs(epsg=epsg_jamaica)
-    nodes = nodes.to_crs(epsg=epsg_jamaica)
-
-    largest_component = edges['component_id'].value_counts().idxmax()
-    nodes = nodes[nodes.component_id == largest_component]
-    edges = edges[edges.component_id == largest_component]
-
-    if save_intermediary_results is True:
-        edges.to_file(store_intersections,layer='edges',driver='GPKG')
-        nodes.to_file(store_intersections,layer='nodes',driver='GPKG')
 
     # Most of the geometries between the two networks are within a 5-meter buffer of each other
     # Match the two networks by creating a 20-meter buffer around the NWA roads and intersecting with the roads networks
     # We also select a road if it intersects more than 100-meters of the NWA buffer
     """Alternative solution
     """
+    edges = gpd.read_file(store_intersections,layer='edges')
+    nodes = gpd.read_file(store_intersections,layer='edges')
+
+    nwa_roads_sample = nwa_roads[["nwa_edge_id","start","end"]]
     for i in ["start","end"]:
-        nwa_roads_sample = nwa_roads[["nwa_edge_id",i]]
         nwa_roads_sample.rename(columns={i:"geometry"},inplace=True)
         nwa_roads_sample = ckdnearest(nwa_roads_sample,nodes)
         nwa_roads_sample.rename(columns={"node_id":f"{i}_node_id","dist":f"{i}_dist"},inplace=True)
@@ -304,7 +304,7 @@ def main(config):
     print (nwa_roads_sample)
     nwa_roads_sample = nwa_roads_sample[(nwa_roads_sample["start_dist"] <= 50) & (nwa_roads_sample["end_dist"] <= 50)]
     print (nwa_roads_sample)
-    
+
     # nwa_edges = nwa_roads.copy()
     # road_select = match_roads(nwa_edges,edges,geom_buffer=30)
     # if save_intermediary_results is True:
