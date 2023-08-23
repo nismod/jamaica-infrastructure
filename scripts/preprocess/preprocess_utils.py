@@ -155,6 +155,7 @@ def add_network_topology(nodes,edges,node_edge_prefix):
                                 'id':'edge_id'},
                                 inplace=True)
     network.nodes.rename(columns={'id':'node_id'},inplace=True)
+    network = snkit.network.add_component_ids(network)
     
     return network
 
