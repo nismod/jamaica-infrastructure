@@ -286,7 +286,7 @@ def main(config):
     # We also select a road if it intersects more than 100-meters of the NWA buffer
     
     nwa_edges = nwa_roads.copy()
-    road_select = match_roads(nwa_edges,edges,geom_buffer=5)
+    road_select = match_roads(nwa_edges,edges,geom_buffer=30)
     if save_intermediary_results is True:
         road_select.to_file(store_intersections,layer='selected_roads',driver='GPKG')
 
