@@ -269,7 +269,7 @@ def main(config):
     nodes = gpd.read_parquet(os.path.join(road_network_path,
                                 "different_roads",
                                 "nodes.geoparquet"))
-    network = add_network_topology(nodes,edges)
+    network = add_network_topology(nodes,edges,"road")
     edges = network.edges
     nodes = network.nodes
     edges = edges.set_crs(epsg=epsg_jamaica)
