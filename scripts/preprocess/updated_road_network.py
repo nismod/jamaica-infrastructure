@@ -215,7 +215,7 @@ def main(config):
     """
     Step 0: Match two NWA layers and merge their properties
     """
-    nwa_edges = gpd.read_file(os.path.join(incoming_data_path,'roads','different_roads','roads_main_NWA_NSDMD.gpkg'))
+    nwa_edges = gpd.read_file(os.path.join(road_network_path,'different_roads','roads_main_NWA_NSDMD.gpkg'))
     nwa_edges.columns = map(str.lower, nwa_edges.columns)
     nwa_edges["averagewid"] = nwa_edges["averagewid"].fillna(0)
     nwa_edges["average_wi"] = nwa_edges["average_wi"].replace(' ','0')
@@ -261,19 +261,19 @@ def main(config):
     Step 2: Match the OSM road network to the NWA roads to get properties of roads
     """
 
-    edges = gpd.read_file(os.path.join(road_network_path,
-                                'hotosm_jam_roads_gpkg',
-                                'hotosm_jam_roads.gpkg'))
+    edges = gpd.read_parquet(os.path.join(road_network_path,
+                                "edges.geoparquet"))
     edges = edges.to_crs(epsg=epsg_jamaica)
-    edges = edges[~edges.highway.isin(["bridleway","cycleway","footway","path","pedestrian","steps"])]
-    edges = edges[edges.geom_type == 'LineString']
-    # edges.rename(columns={'osm_id':'edge_id'},inplace=True)
-    edges_network = create_network_from_nodes_and_edges(None,edges,
-                                    'road')
-    edges = edges_network.edges
+    
+    nodes = gpd.read_parquet(os.path.join(road_network_path,
+                                "nodes.geoparquet"))
+    network = add_network_topology(nodes,edges)
+    edges = network.edges
+    nodes = network.nodes
     edges = edges.set_crs(epsg=epsg_jamaica)
-    # nodes = network.nodes
+    nodes = nodes.set_crs(epsg=epsg_jamaica)
     edges.to_file(store_intersections,layer='edges',driver='GPKG')
+    edges.to_file(store_intersections,layer='nodes',driver='GPKG')
 
     # Most of the geometries between the two networks are within a 5-meter buffer of each other
     # Match the two networks by creating a 20-meter buffer around the NWA roads and intersecting with the roads networks

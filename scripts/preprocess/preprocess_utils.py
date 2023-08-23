@@ -143,6 +143,21 @@ def create_network_from_nodes_and_edges(nodes,edges,node_edge_prefix,snap_distan
     
     return network
 
+def add_network_topology(nodes,edges):
+    network = snkit.Network(nodes, edges)
+    network = snkit.network.add_ids(network, 
+                            edge_prefix=f"{node_edge_prefix}e", 
+                            node_prefix=f"{node_edge_prefix}n")
+    network = snkit.network.add_topology(network, id_col='id')
+    print ('* Done with network topology')
+    network.edges.rename(columns={'from_id':'from_node',
+                                'to_id':'to_node',
+                                'id':'edge_id'},
+                                inplace=True)
+    network.nodes.rename(columns={'id':'node_id'},inplace=True)
+    
+    return network
+
 def voronoi_finite_polygons_2d(vor, radius=None):
     """Reconstruct infinite voronoi regions in a 2D diagram to finite regions.
 
