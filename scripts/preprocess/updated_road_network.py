@@ -286,6 +286,7 @@ def main(config):
     nwa_roads["end"] = nwa_roads.progress_apply(lambda x: Point(x.geometry.coords[-1]),axis=1)
     nwa_roads = nwa_roads.reset_index()
     nwa_roads["nwa_edge_id"] = nwa_roads.index.values.tolist()
+    nwa_roads["nwa_length"] = nwa_roads.geometry.length
 
     # Most of the geometries between the two networks are within a 5-meter buffer of each other
     # Match the two networks by creating a 20-meter buffer around the NWA roads and intersecting with the roads networks
