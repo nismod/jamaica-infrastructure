@@ -299,7 +299,7 @@ def main(config):
     for i in ["start","end"]:
         nwa_roads_sample.rename(columns={i:"geometry"},inplace=True)
         nwa_roads_sample = ckdnearest(nwa_roads_sample,nodes)
-        nwa_roads_sample.rename(columns={"node_id":f"{i}_node_id","dist":f"{i}_dist"},inplace=True)
+        nwa_roads_sample.rename(columns={"node_id":f"{i}_node_id","dist":f"{i}_dist","geometry":i},inplace=True)
 
     print (nwa_roads_sample)
     nwa_roads_sample = nwa_roads_sample[(nwa_roads_sample["start_dist"] <= 50) & (nwa_roads_sample["end_dist"] <= 50)]
