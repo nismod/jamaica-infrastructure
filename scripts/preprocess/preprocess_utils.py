@@ -150,12 +150,15 @@ def add_network_topology(nodes,edges,node_edge_prefix):
                             node_prefix=f"{node_edge_prefix}n")
     network = snkit.network.add_topology(network, id_col='id')
     print ('* Done with network topology')
+
+    network = snkit.network.add_component_ids(network)
+    print ('* Done with add network components')
+
     network.edges.rename(columns={'from_id':'from_node',
                                 'to_id':'to_node',
                                 'id':'edge_id'},
                                 inplace=True)
     network.nodes.rename(columns={'id':'node_id'},inplace=True)
-    network = snkit.network.add_component_ids(network)
     
     return network
 
