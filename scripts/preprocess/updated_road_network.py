@@ -381,7 +381,7 @@ def main(config):
     print ('* Total ID matches',len(list(set(all_matched_pairs['edge_id'].values.tolist()))))
     print (all_matched_pairs)
 
-    save_intermediary_results = False
+    save_intermediary_results = True
     if save_intermediary_results is True:
         df = gpd.GeoDataFrame(pd.merge(edges,all_matched_pairs,how='left',on=['edge_id']),
                         geometry="geometry",crs=f"EPSG:{epsg_jamaica}")
