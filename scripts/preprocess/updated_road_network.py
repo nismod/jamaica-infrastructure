@@ -232,6 +232,13 @@ def add_road_lanes(x):
     else:
         return lanes + 1
 
+def remodify_road_lanes(x,standard_width=3.05):
+    lanes = round(x["road_width"]/standard_width,0)
+    if lanes % 2 == 0:
+        return lanes
+    else:
+        return lanes + 1
+
 def main(config):
     incoming_data_path = config['paths']['incoming_data']
     processed_data_path = config['paths']['data']
@@ -490,8 +497,10 @@ def main(config):
     edges['road_class'] = edges.progress_apply(lambda x:remodify_road_class(x),axis=1)
     edges['road_surface'] = edges.progress_apply(lambda x:remodify_road_surface(x),axis=1)
     edges['section_name'] = edges.progress_apply(lambda x:remodify_road_section(x),axis=1)
+    edges["lanes"] = np.where(edges["lanes"] == 1,2,edges["lanes"])
     # edges['street_name'] = edges.progress_apply(lambda x:modify_street_name(x),axis=1)
     edges['road_width'] = edges.progress_apply(lambda x:remodify_road_width(x),axis=1)
+    edges["lanes"] = edges.progress_apply(lambda x:remodify_road_lanes(x),axis=1)
     # edges['traffic_count'] = edges.progress_apply(lambda x:modify_traffic_count(x),axis=1)
 
     # # print (edges.columns)
