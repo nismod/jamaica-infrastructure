@@ -31,6 +31,14 @@ def modify_road_class(x):
     else:
         return 'METRO'
 
+def remodify_road_class(x):
+    if x["road_class"] not in [None,np.nan,' ','']:
+        return x["road_class"]
+    elif x["tag_highway"] == "trunk":
+        return "CLASS A"
+    else:
+    	return str(x["tag_highway"]).upper()
+
 def modify_road_surface(x):
     if x['constructi'] in [None,np.nan,' ']:
         x['constructi'] = ''
@@ -49,6 +57,14 @@ def modify_road_surface(x):
             return x['construc_1']
         else:
             return x['constructi']
+    else:
+        return 'Surface Dressed'
+
+def remodify_road_surface(x):
+    if x['road_surface'] not in [None,np.nan,' ']:
+        return x['road_surface']
+    elif x["material"] != "gravel":
+        return x["material"]
     else:
         return 'Surface Dressed'    
 
@@ -72,6 +88,12 @@ def modify_road_width(x,standard_width=6.1):
     else:
         return standard_width
 
+def remodify_road_width(x,standard_width=3.05):
+    if float(x['road_width']) > 0:
+        return float(x['road_width'])
+    else:
+        return x["lanes"]*standard_width
+
 def modify_traffic_count(x):
     if float(x['aadt_1']) > 0:
         return float(x['aadt_1'])
@@ -89,6 +111,12 @@ def modify_road_section(x):
         return x['section_1']
     elif str(x['section']):
         return x['section']
+    else:
+        return 'unknown'
+
+def remodify_road_section(x):
+    if x['section_name'] in [None,np.nan,' ']:
+    	return x['section_name']
     else:
         return 'unknown'
 
@@ -216,222 +244,209 @@ def main(config):
     """
     Step 0: Get a processed and clean OSM dervied network layer
     """
+    implement_step = False
+    if implement_step is True:
+	    edges = gpd.read_parquet(os.path.join(road_network_path,
+	                                "different_roads",
+	                                "edges.geoparquet"))    
+	    nodes = gpd.read_parquet(os.path.join(road_network_path,
+	                                "different_roads",
+	                                "nodes.geoparquet"))
+	    network = add_network_topology(nodes,edges,"road")
+	    edges = network.edges
+	    nodes = network.nodes
+	    edges = edges.to_crs(epsg=epsg_jamaica)
+	    nodes = nodes.to_crs(epsg=epsg_jamaica)
 
-    edges = gpd.read_parquet(os.path.join(road_network_path,
-                                "different_roads",
-                                "edges.geoparquet"))    
-    nodes = gpd.read_parquet(os.path.join(road_network_path,
-                                "different_roads",
-                                "nodes.geoparquet"))
-    network = add_network_topology(nodes,edges,"road")
-    edges = network.edges
-    nodes = network.nodes
-    edges = edges.to_crs(epsg=epsg_jamaica)
-    nodes = nodes.to_crs(epsg=epsg_jamaica)
+	    largest_component = edges['component_id'].value_counts().idxmax()
+	    nodes = nodes[nodes.component_id == largest_component]
+	    edges = edges[edges.component_id == largest_component]
 
-    largest_component = edges['component_id'].value_counts().idxmax()
-    nodes = nodes[nodes.component_id == largest_component]
-    edges = edges[edges.component_id == largest_component]
-
-    if save_intermediary_results is True:
-        edges.to_file(os.path.join(road_network_path,"osm_roads.gpkg"),layer='edges',driver='GPKG')
-        nodes.to_file(os.path.join(road_network_path,"osm_roads.gpkg"),layer='nodes',driver='GPKG')
+	    if save_intermediary_results is True:
+	        edges.to_file(os.path.join(road_network_path,"osm_roads.gpkg"),layer='edges',driver='GPKG')
+	        nodes.to_file(os.path.join(road_network_path,"osm_roads.gpkg"),layer='nodes',driver='GPKG')
     
     """
     Step 1: Match two NWA layers and merge their properties to finalise an NWA layer
     """
-    nwa_edges = gpd.read_file(os.path.join(road_network_path,'different_roads','roads_main_NWA_NSDMD.gpkg'))
-    nwa_edges.columns = map(str.lower, nwa_edges.columns)
-    nwa_edges["averagewid"] = nwa_edges["averagewid"].fillna(0)
-    nwa_edges["average_wi"] = nwa_edges["average_wi"].replace(' ','0')
-    nwa_edges["road_surface"] = nwa_edges.progress_apply(lambda x:modify_road_surface(x),axis=1)
-    nwa_edges['section_name'] = nwa_edges.progress_apply(lambda x:modify_road_section(x),axis=1)
-    nwa_edges['traffic_count'] = nwa_edges.progress_apply(lambda x:modify_traffic_count(x),axis=1)
-    nwa_edges["average_wi"] = nwa_edges.progress_apply(lambda x:modify_road_width(x),axis=1)
+    implement_step = True
+    if implement_step is True:
+	    nwa_edges = gpd.read_file(os.path.join(road_network_path,'different_roads','roads_main_NWA_NSDMD.gpkg'))
+	    nwa_edges.columns = map(str.lower, nwa_edges.columns)
+	    nwa_edges["averagewid"] = nwa_edges["averagewid"].fillna(0)
+	    nwa_edges["average_wi"] = nwa_edges["average_wi"].replace(' ','0')
+	    nwa_edges["road_surface"] = nwa_edges.progress_apply(lambda x:modify_road_surface(x),axis=1)
+	    nwa_edges['section_name'] = nwa_edges.progress_apply(lambda x:modify_road_section(x),axis=1)
+	    nwa_edges['traffic_count'] = nwa_edges.progress_apply(lambda x:modify_traffic_count(x),axis=1)
+	    nwa_edges["average_wi"] = nwa_edges.progress_apply(lambda x:modify_road_width(x),axis=1)
 
-    nwa_edges = nwa_edges.drop_duplicates(subset=["section_name"],keep="first")
-    nwa_roads = gpd.read_file(os.path.join(road_network_path,'NWA','main_road_NWA.shp'))
-    nwa_roads = nwa_roads.to_crs(epsg=epsg_jamaica)
+	    nwa_edges = nwa_edges.drop_duplicates(subset=["section_name"],keep="first")
+	    nwa_roads = gpd.read_file(os.path.join(road_network_path,'NWA','main_road_NWA.shp'))
+	    nwa_roads = nwa_roads.to_crs(epsg=epsg_jamaica)
 
-    # Deal with empty edges (drop)
-    empty_idx = nwa_roads.geometry.apply(lambda e: e is None or e.is_empty)
-    if empty_idx.sum():
-        empty_edges = nwa_roads[empty_idx]
-        print(f"Found {len(empty_edges)} empty edges.")
-        print(empty_edges)
-        nwa_roads = nwa_roads[~empty_idx]
-        del empty_edges, empty_idx
+	    # Deal with empty edges (drop)
+	    empty_idx = nwa_roads.geometry.apply(lambda e: e is None or e.is_empty)
+	    if empty_idx.sum():
+	        empty_edges = nwa_roads[empty_idx]
+	        print(f"Found {len(empty_edges)} empty edges.")
+	        print(empty_edges)
+	        nwa_roads = nwa_roads[~empty_idx]
+	        del empty_edges, empty_idx
 
-    nwa_roads.columns = map(str.lower, nwa_roads.columns)
-    nwa_roads.rename(columns={"section_":"section_name","street_nam":"street_name"},inplace=True)
-    nwa_roads = pd.merge(nwa_roads,
-                    nwa_edges[["section_name","str_name",
-                                "road_surface","average_wi",
-                                "traffic_count"]],how="left",on=["section_name"])
-    nwa_roads["street_name"] = nwa_roads.progress_apply(lambda x:modify_street_name(x),axis=1)
-    nwa_roads["road_width"] = nwa_roads.progress_apply(lambda x:modify_road_width(x),axis=1)
-    nwa_roads["road_surface"] = nwa_roads.progress_apply(lambda x:modify_road_surface_again(x),axis=1)
-    nwa_roads["traffic_count"] = nwa_roads["traffic_count"].fillna(0)
+	    nwa_roads.columns = map(str.lower, nwa_roads.columns)
+	    nwa_roads.rename(columns={"section_":"section_name","street_nam":"street_name"},inplace=True)
+	    nwa_roads = pd.merge(nwa_roads,
+	                    nwa_edges[["section_name","str_name",
+	                                "road_surface","average_wi",
+	                                "traffic_count"]],how="left",on=["section_name"])
+	    nwa_roads["street_name"] = nwa_roads.progress_apply(lambda x:modify_street_name(x),axis=1)
+	    nwa_roads["road_width"] = nwa_roads.progress_apply(lambda x:modify_road_width(x),axis=1)
+	    nwa_roads["road_surface"] = nwa_roads.progress_apply(lambda x:modify_road_surface_again(x),axis=1)
+	    nwa_roads["traffic_count"] = nwa_roads["traffic_count"].fillna(0)
 
-    del nwa_edges
-    nwa_roads = nwa_roads[["objectid","section_name",
-                        "road_class","street_name",
-                        "road_surface","road_width","traffic_count","geometry"]]
-    # nwa_roads['nwa_length'] = nwa_roads.geometry.length
-    # nwa_roads.rename(columns={'objectid':'nwa_edge_id'},inplace=True)
-    # remove same roads, which might be creating issues
-    nwa_roads = nwa_roads[~nwa_roads["objectid"].isin([145,147,112,149])]
-    nwa_roads = nwa_roads.explode()
-    nwa_roads["start"] = nwa_roads.progress_apply(lambda x: Point(x.geometry.coords[0]),axis=1)
-    nwa_roads["end"] = nwa_roads.progress_apply(lambda x: Point(x.geometry.coords[-1]),axis=1)
-    nwa_roads = nwa_roads.reset_index()
-    nwa_roads["nwa_edge_id"] = nwa_roads.index.values.tolist()
-    nwa_roads["nwa_length"] = nwa_roads.geometry.length
+	    del nwa_edges
+	    nwa_roads = nwa_roads[["objectid","section_name",
+	                        "road_class","street_name",
+	                        "road_surface","road_width","traffic_count","geometry"]]
+	    # nwa_roads['nwa_length'] = nwa_roads.geometry.length
+	    # nwa_roads.rename(columns={'objectid':'nwa_edge_id'},inplace=True)
+	    # remove same roads, which might be creating issues
+	    nwa_roads = nwa_roads[~nwa_roads["objectid"].isin([145,147,112,149])]
+	    nwa_roads = nwa_roads.explode()
+	    # nwa_roads["start"] = nwa_roads.progress_apply(lambda x: Point(x.geometry.coords[0]),axis=1)
+	    # nwa_roads["end"] = nwa_roads.progress_apply(lambda x: Point(x.geometry.coords[-1]),axis=1)
+	    nwa_roads = nwa_roads.reset_index()
+	    nwa_roads["nwa_edge_id"] = nwa_roads.index.values.tolist()
+	    nwa_roads["nwa_length"] = nwa_roads.geometry.length
 
     # Most of the geometries between the two networks are within a 5-meter buffer of each other
     # Match the two networks by creating a 20-meter buffer around the NWA roads and intersecting with the roads networks
     # We also select a road if it intersects more than 100-meters of the NWA buffer
     """Alternative solution
     """
-    edges = gpd.read_file(os.path.join(road_network_path,"osm_roads.gpkg"),layer='edges')
-    nodes = gpd.read_file(os.path.join(road_network_path,"osm_roads.gpkg"),layer='nodes')
+    implement_step = False
+    if implement_step is True:
+	    edges = gpd.read_file(os.path.join(road_network_path,"osm_roads.gpkg"),layer='edges')
+	    nodes = gpd.read_file(os.path.join(road_network_path,"osm_roads.gpkg"),layer='nodes')
 
-    # nwa_roads_sample = nwa_roads[["nwa_edge_id","start","end"]]
-    # for i in ["start","end"]:
-    #     nwa_roads_sample.rename(columns={i:"geometry"},inplace=True)
-    #     nwa_roads_sample = ckdnearest(nwa_roads_sample,nodes)
-    #     nwa_roads_sample.rename(columns={"node_id":f"{i}_node_id","dist":f"{i}_dist","geometry":i},inplace=True)
+	    nwa_edges = nwa_roads.copy()
+	    road_select = match_roads(nwa_edges,edges,geom_buffer=5)
+	    save_intermediary_results = False
+	    if save_intermediary_results is True:
+	        road_select.to_file(store_intersections,layer='selected_roads',driver='GPKG')
 
-    # nwa_roads = pd.merge(nwa_roads,nwa_roads_sample["nwa_edge_id","start_node_id","end_node_id"],how="left",on=["nwa_edge_id"])
-    # nwa_roads["nwa_length"] = nwa_roads.geometry.length
+	    # Get the road network id's and the NWA road ID's that uniquely match    
+	    df1, unique_matches = get_unique_matches(road_select)
+	    if save_intermediary_results is True:
+	        unique_matches.to_file(store_intersections,layer='unique_matches',driver='GPKG')
 
-    # nwa_roads["route_distance"] = nwa_roads.progress_apply(lambda x:map_route(x,edges),axis=1)
-    # nwa_roads[["edges","distance"]] = nwa_roads["route_distance"].apply(pd.Series)
-    # nwa_roads.drop("route_distance",axis=1,inplace=True)
+	    print ('* Total unique matches - first pass:',len(unique_matches.index))
+	    print ('* Total unique ID matches - first pass:',len(list(set(unique_matches['edge_id'].values.tolist()))))
+	    multiple_matches = road_select[road_select['edge_id'].isin(df1[df1['count'] > 1]['edge_id'].values.tolist())]
+	    multiple_matches['length_difference'] = multiple_matches.progress_apply(lambda x:abs(x['fraction_intersection'] - x['fraction_buffer']),axis=1)
+	    closest_matches = multiple_matches.groupby('edge_id')['length_difference'].min().reset_index()
+	    closest_matches = closest_matches[closest_matches['length_difference'] <= 1e-2]
+	    closest_matches['closeness'] = 1
+	    multiple_matches = pd.merge(multiple_matches,closest_matches,how='left',on=['edge_id','length_difference']).fillna(0)
+	    filter_multiple_matches = multiple_matches[multiple_matches['closeness'] == 1]
+	    if save_intermediary_results is True:
+	        filter_multiple_matches.to_file(store_intersections,layer='multiple_matches_filter',driver='GPKG')
 
-    # nwa_roads["length_ratio"] = nwa_roads["nwa_length"]/nwa_roads["distance"]
-    # if save_intermediary_results is True:
-    #     nwa_roads.to_file(store_intersections,layer='mapped_roads',driver='GPKG')
+	    print ('* Total equal length matches - first pass:',len(filter_multiple_matches.index))
+	    print ('* Total equal length ID matches - first pass:',len(list(set(filter_multiple_matches['edge_id'].values.tolist()))))
 
-    nwa_edges = nwa_roads.copy()
-    road_select = match_roads(nwa_edges,edges,geom_buffer=5)
-    save_intermediary_results = False
-    if save_intermediary_results is True:
-        road_select.to_file(store_intersections,layer='selected_roads',driver='GPKG')
+	    finished_matches = list(set(unique_matches['edge_id'].values.tolist() + filter_multiple_matches['edge_id'].values.tolist()))
+	    remaining_matches = road_select[~road_select['edge_id'].isin(finished_matches)]
+	    remaining_matches = road_length_matches_filtering(remaining_matches,
+	                        nwa_roads,edges,
+	                        10,1.5,save_buffer_file=False)
 
-    # Get the road network id's and the NWA road ID's that uniquely match    
-    df1, unique_matches = get_unique_matches(road_select)
-    if save_intermediary_results is True:
-        unique_matches.to_file(store_intersections,layer='unique_matches',driver='GPKG')
+	    if save_intermediary_results is True:
+	        remaining_matches.to_file(store_intersections,
+	                                                    layer='length_matches_filter',driver='GPKG')
 
-    print ('* Total unique matches - first pass:',len(unique_matches.index))
-    print ('* Total unique ID matches - first pass:',len(list(set(unique_matches['edge_id'].values.tolist()))))
-    multiple_matches = road_select[road_select['edge_id'].isin(df1[df1['count'] > 1]['edge_id'].values.tolist())]
-    multiple_matches['length_difference'] = multiple_matches.progress_apply(lambda x:abs(x['fraction_intersection'] - x['fraction_buffer']),axis=1)
-    closest_matches = multiple_matches.groupby('edge_id')['length_difference'].min().reset_index()
-    closest_matches = closest_matches[closest_matches['length_difference'] <= 1e-2]
-    closest_matches['closeness'] = 1
-    multiple_matches = pd.merge(multiple_matches,closest_matches,how='left',on=['edge_id','length_difference']).fillna(0)
-    filter_multiple_matches = multiple_matches[multiple_matches['closeness'] == 1]
-    if save_intermediary_results is True:
-        filter_multiple_matches.to_file(store_intersections,layer='multiple_matches_filter',driver='GPKG')
+	    print ('* Total longest length of intersection matches - first pass:',len(remaining_matches.index))
+	    print ('* Total longest length of intersection matches ID matches - first pass:',
+	                    len(list(set(remaining_matches['edge_id'].values.tolist()))))
 
-    print ('* Total equal length matches - first pass:',len(filter_multiple_matches.index))
-    print ('* Total equal length ID matches - first pass:',len(list(set(filter_multiple_matches['edge_id'].values.tolist()))))
+	    all_matched_pairs = [unique_matches[['edge_id','nwa_edge_id']],
+	                            filter_multiple_matches[['edge_id','nwa_edge_id']],
+	                            remaining_matches[['edge_id','nwa_edge_id']]]
+	    all_matches = list(set(unique_matches['edge_id'].values.tolist() \
+	                    + filter_multiple_matches['edge_id'].values.tolist() \
+	                    + remaining_matches['edge_id'].values.tolist()))
+	    if len(road_select[~road_select['edge_id'].isin(all_matches)]) > 0:
+	        print ('* Some roads still not matched')
+	        print (road_select[~road_select['edge_id'].isin(all_matches)])
+	    else:
+	        print ('* First pass of matching done')
 
-    finished_matches = list(set(unique_matches['edge_id'].values.tolist() + filter_multiple_matches['edge_id'].values.tolist()))
-    remaining_matches = road_select[~road_select['edge_id'].isin(finished_matches)]
-    remaining_matches = road_length_matches_filtering(remaining_matches,
-                        nwa_roads,edges,
-                        10,1.5,save_buffer_file=False)
+	    """Step 3: Check for the remaining unmatched NWA roads
+	        Match them based on intersections with wider buffers 
+	        And find the longest lengths of intersections
+	    """
+	    nwa_column_check = ['nwa_edge_id','fraction_buffer']
+	    nwa_matches = pd.concat([unique_matches[nwa_column_check],
+	                            filter_multiple_matches[nwa_column_check],
+	                            remaining_matches[nwa_column_check]],
+	                            axis=0,ignore_index=True)
+	    nwa_matches = nwa_matches.groupby('nwa_edge_id')['fraction_buffer'].sum().reset_index()
+	    nwa_edges = pd.merge(nwa_roads,nwa_matches,how='left',on=['nwa_edge_id']).fillna(0)
+	    if save_intermediary_results is True:
+	        nwa_edges[nwa_edges['fraction_buffer'] <= 0.5].to_file(store_intersections,layer='nwa_remaining_matches',driver='GPKG')
 
-    if save_intermediary_results is True:
-        remaining_matches.to_file(store_intersections,
-                                                    layer='length_matches_filter',driver='GPKG')
+	    nwa_edges = nwa_edges[nwa_edges['fraction_buffer'] <= 0.5]
+	    match_edges = edges[~edges['edge_id'].isin(all_matches)]
+	    # match_edges = match_edges[~match_edges['_7'].isin(['OTHER','TRACK'])] # There are a lot of unwanted edges if we do not filter out this case
+	    road_select = match_roads(nwa_edges,
+	                        match_edges,
+	                        geom_buffer=30,
+	                        fraction_intersection=0.7,
+	                        length_intersected=120,
+	                        save_buffer_file=False)
+	    if save_intermediary_results is True:
+	        road_select.to_file(store_intersections,layer='wider_buffer_match',driver='GPKG')
 
-    print ('* Total longest length of intersection matches - first pass:',len(remaining_matches.index))
-    print ('* Total longest length of intersection matches ID matches - first pass:',
-                    len(list(set(remaining_matches['edge_id'].values.tolist()))))
+	    remaining_matches = road_length_matches_filtering(road_select,
+	                        nwa_roads,edges,
+	                        30,1.01,save_buffer_file=False)
+	    if save_intermediary_results is True:
+	        remaining_matches.to_file(store_intersections,
+	                                layer='length_matches_filter_wider_buffer',driver='GPKG')
 
-    all_matched_pairs = [unique_matches[['edge_id','nwa_edge_id']],
-                            filter_multiple_matches[['edge_id','nwa_edge_id']],
-                            remaining_matches[['edge_id','nwa_edge_id']]]
-    all_matches = list(set(unique_matches['edge_id'].values.tolist() \
-                    + filter_multiple_matches['edge_id'].values.tolist() \
-                    + remaining_matches['edge_id'].values.tolist()))
-    if len(road_select[~road_select['edge_id'].isin(all_matches)]) > 0:
-        print ('* Some roads still not matched')
-        print (road_select[~road_select['edge_id'].isin(all_matches)])
-    else:
-        print ('* First pass of matching done')
+	    print ('* Total longest length of intersection matches - second pass:',len(remaining_matches.index))
+	    print ('* Total longest length of intersection matches ID matches - second pass:',
+	                    len(list(set(remaining_matches['edge_id'].values.tolist()))))
 
-    """Step 3: Check for the remaining unmatched NWA roads
-        Match them based on intersections with wider buffers 
-        And find the longest lengths of intersections
+	    all_matched_pairs += [remaining_matches[['edge_id','nwa_edge_id']]]
+
+	    all_matched_pairs = pd.concat(all_matched_pairs,axis=0,ignore_index=True)
+
+	    print ('* Total matches:',len(all_matched_pairs.index))
+	    print ('* Total ID matches',len(list(set(all_matched_pairs['edge_id'].values.tolist()))))
+	    print (all_matched_pairs)
+
+	    save_intermediary_results = True
+	    if save_intermediary_results is True:
+	        df = gpd.GeoDataFrame(pd.merge(edges,all_matched_pairs,how='left',on=['edge_id']),
+	                        geometry="geometry",crs=f"EPSG:{epsg_jamaica}")
+	        df.to_file(store_intersections,layer='final_matches',driver='GPKG')
+	        # nwa_roads[~nwa_roads['nwa_edge_id'].isin(
+	        #             list(set(all_matched_pairs['nwa_edge_id'].values.tolist()))
+	        #             )].to_file(store_intersections,layer='unmatched',driver='GPKG')
+    
+    """Step 4: Now match the attributes between the two networks
     """
-    nwa_column_check = ['nwa_edge_id','fraction_buffer']
-    nwa_matches = pd.concat([unique_matches[nwa_column_check],
-                            filter_multiple_matches[nwa_column_check],
-                            remaining_matches[nwa_column_check]],
-                            axis=0,ignore_index=True)
-    nwa_matches = nwa_matches.groupby('nwa_edge_id')['fraction_buffer'].sum().reset_index()
-    nwa_edges = pd.merge(nwa_roads,nwa_matches,how='left',on=['nwa_edge_id']).fillna(0)
-    if save_intermediary_results is True:
-        nwa_edges[nwa_edges['fraction_buffer'] <= 0.5].to_file(store_intersections,layer='nwa_remaining_matches',driver='GPKG')
-
-    nwa_edges = nwa_edges[nwa_edges['fraction_buffer'] <= 0.5]
-    match_edges = edges[~edges['edge_id'].isin(all_matches)]
-    # match_edges = match_edges[~match_edges['_7'].isin(['OTHER','TRACK'])] # There are a lot of unwanted edges if we do not filter out this case
-    road_select = match_roads(nwa_edges,
-                        match_edges,
-                        geom_buffer=30,
-                        fraction_intersection=0.7,
-                        length_intersected=120,
-                        save_buffer_file=False)
-    if save_intermediary_results is True:
-        road_select.to_file(store_intersections,layer='wider_buffer_match',driver='GPKG')
-
-    remaining_matches = road_length_matches_filtering(road_select,
-                        nwa_roads,edges,
-                        30,1.01,save_buffer_file=False)
-    if save_intermediary_results is True:
-        remaining_matches.to_file(store_intersections,
-                                layer='length_matches_filter_wider_buffer',driver='GPKG')
-
-    print ('* Total longest length of intersection matches - second pass:',len(remaining_matches.index))
-    print ('* Total longest length of intersection matches ID matches - second pass:',
-                    len(list(set(remaining_matches['edge_id'].values.tolist()))))
-
-    all_matched_pairs += [remaining_matches[['edge_id','nwa_edge_id']]]
-
-    all_matched_pairs = pd.concat(all_matched_pairs,axis=0,ignore_index=True)
-
-    print ('* Total matches:',len(all_matched_pairs.index))
-    print ('* Total ID matches',len(list(set(all_matched_pairs['edge_id'].values.tolist()))))
-    print (all_matched_pairs)
-
-    save_intermediary_results = True
-    if save_intermediary_results is True:
-        df = gpd.GeoDataFrame(pd.merge(edges,all_matched_pairs,how='left',on=['edge_id']),
-                        geometry="geometry",crs=f"EPSG:{epsg_jamaica}")
-        df.to_file(store_intersections,layer='final_matches',driver='GPKG')
-        # nwa_roads[~nwa_roads['nwa_edge_id'].isin(
-        #             list(set(all_matched_pairs['nwa_edge_id'].values.tolist()))
-        #             )].to_file(store_intersections,layer='unmatched',driver='GPKG')
-    # """Step 4: Now match the attributes between the two networks
-    # """
-    # # Select the NWA attributes we want to retain
-    # nwa_columns = ['nwa_edge_id',
-    #                 'SECTION_',
-    #                 'STREET_NAM',
-    #                 'ROAD_CLASS', 
-    #                 'AVERAGEWID',
-    #                 'DIVISION' 
-    #                 ]
+    # Select the NWA attributes we want to retain
+    nwa_columns = ["nwa_edge_id",
+                    "section_name",
+                    "road_class","street_name",
+                    "road_surface","road_width",
+                    "traffic_count" 
+                    ]
     # all_matched_pairs = pd.merge(all_matched_pairs,nwa_roads[nwa_columns],how='left',on=['nwa_edge_id'])
-    # edges = pd.merge(edges,all_matched_pairs,how='left',on=['edge_id'])
-    # print (all_matched_pairs.columns)
-    # print (edges.columns)
+    edges = gpd.read_file(store_intersections,layer='final_matches')
+    edges = pd.merge(edges,nwa_roads[nwa_columns],how='left',on=['nwa_edge_id'])
     # Modify the edges columns first
     # edges = edges.rename(
     #     columns={
@@ -472,11 +487,11 @@ def main(config):
 
     # # edges = gpd.read_file(os.path.join(road_network_path,'roads.gpkg'),layer='edges_modified_intermediate')
 
-    # edges['road_class'] = edges.progress_apply(lambda x:modify_road_class(x),axis=1)
-    # edges['road_construction'] = edges.progress_apply(lambda x:modify_road_surface(x),axis=1)
-    # edges['section_name'] = edges.progress_apply(lambda x:modify_road_section(x),axis=1)
+    edges['road_class'] = edges.progress_apply(lambda x:remodify_road_class(x),axis=1)
+    edges['road_surface'] = edges.progress_apply(lambda x:remodify_road_surface(x),axis=1)
+    edges['section_name'] = edges.progress_apply(lambda x:remodify_road_section(x),axis=1)
     # edges['street_name'] = edges.progress_apply(lambda x:modify_street_name(x),axis=1)
-    # edges['road_width'] = edges.progress_apply(lambda x:modify_road_width(x),axis=1)
+    edges['road_width'] = edges.progress_apply(lambda x:remodify_road_width(x),axis=1)
     # edges['traffic_count'] = edges.progress_apply(lambda x:modify_traffic_count(x),axis=1)
 
     # # print (edges.columns)
@@ -501,7 +516,7 @@ def main(config):
     #         'aadt_1'
     #     ]
     # )
-    # edges.to_file(os.path.join(road_network_path,'roads.gpkg'),layer='edges_modified',driver="GPKG")
+    edges.to_file(os.path.join(road_network_path,'roads.gpkg'),layer='edges_attributes',driver="GPKG")
 
     # """Step 5: Modify the road traffic counts with the NWA points data
     # """
