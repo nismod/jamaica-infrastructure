@@ -527,6 +527,7 @@ def main(config):
     #         'aadt_1'
     #     ]
     # )
+    edges = gpd.GeoDataFrame(edges,geometry="geometry",crs=f"EPSG:{epsg_jamaica}")
     edges.to_file(os.path.join(road_network_path,'roads.gpkg'),layer='edges_attributes',driver="GPKG")
 
     # """Step 5: Modify the road traffic counts with the NWA points data
