@@ -61,9 +61,11 @@ def modify_road_surface(x):
         return 'Surface Dressed'
 
 def remodify_road_surface(x):
-    if x['road_surface'] not in [None,np.nan,' ']:
-        return x['road_surface']
-    elif x["material"] != "gravel":
+    if x['road_surface'] in ['SD & AC','AC & SD']:
+        return 'SD & AC'
+    elif x['road_surface'] in ['asphalt','as1']:
+        return "Asphalt" 
+    elif x["material"] == "Asphalt Concrete":
         return x["material"]
     else:
         return 'Surface Dressed'    
