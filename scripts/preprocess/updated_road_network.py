@@ -229,12 +229,14 @@ def assign_node_asset_type(x):
     else:
         return 'junction'
 def add_edge_speeds(x):
-    if x.road_class in ("METRO","TRACK","OTHER"):
-        return 50
-    elif x.road_class == "CLASS C":
+    if x.tag_maxspeed not in [None,np.nan,'']:
+    	return (float(x.tag_maxspeed))
+    elif x.road_class in ("CLASS A","CLASS B","MOTORWAY","PRIMARY","SECONDARY"):
+        return 110
+    elif x.road_class in ("CLASS C","TERTIARY"):
         return 80
     else:
-        return 110
+        return 50
 
 def add_road_lanes(x):
     if x["road_class"] in ["CLASS A","CLASS B","CLASS C"]:
@@ -605,7 +607,7 @@ def main(config):
 
     # print (edges)
     edges = edges.drop(columns=['NWA Section No.','NWA Road Class','Total_IN'])
-    # edges["speed"] = edges.progress_apply(lambda x:add_edge_speeds(x),axis=1)
+    edges["speed"] = edges.progress_apply(lambda x:add_edge_speeds(x),axis=1)
     # edges.to_file(os.path.join(processed_data_path,'networks','transport','roads.gpkg'),layer='edges',driver="GPKG")
     # edges.to_file(store_intersections,layer='edges_final_attributes',driver="GPKG")
 
