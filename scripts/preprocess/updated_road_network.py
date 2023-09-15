@@ -134,11 +134,23 @@ def modify_road_section_with_points(x):
     else:
         return x['section_name']
 
+def modify_road_class_with_points(x):
+    if x['NWA Road Class'] not in [None,np.nan,'']:
+        return x['NWA Road Class']
+    else:
+        return x['road class']
+
 def modify_merged_sections(x):
     if x['NWA Section No.'] in [None,np.nan]:
         return ''
     else:
         return x['NWA Section No.']
+
+def modify_merged_class(x):
+    if x['NWA Road Class'] in [None,np.nan,'']:
+        return ''
+    else:
+        return x['NWA Road Class']
 
 def match_roads(buffer_dataframe,edge_dataframe,
                 geom_buffer=10,fraction_intersection=0.95,length_intersected=100,save_buffer_file=False):
@@ -537,7 +549,7 @@ def main(config):
     traffic_points = pd.read_csv(os.path.join(incoming_data_path,
                                     'roads','nwa_traffic_counts',
                                     'Updated NWA Traffic Count_July 27 2021.csv'))
-    traffic_points = traffic_points[['NWA Section No.','Total_IN','X Coordinate', 'Y Coordinate']]
+    traffic_points = traffic_points[['NWA Section No.','NWA Road Class','Total_IN','X Coordinate', 'Y Coordinate']]
     traffic_points['point_id'] = traffic_points.index.values.tolist()
     geometry = [Point(xy) for xy in zip(traffic_points['X Coordinate'], traffic_points['Y Coordinate'])]
     traffic_points = gpd.GeoDataFrame(traffic_points, crs={'init': 'epsg:4326'}, geometry=geometry)
@@ -558,7 +570,7 @@ def main(config):
     same_matches = point_matches[point_matches['NWA Section No.'] == point_matches['section_name']]
     nearest_points = same_matches.groupby('point_id')['distance'].min().reset_index()
     nearest_points = pd.merge(nearest_points,
-                same_matches[['point_id','edge_id','NWA Section No.','section_name','Total_IN','distance']],
+                same_matches[['point_id','edge_id','NWA Section No.','NWA Road Class','section_name','Total_IN','distance']],
                 how='left',
                 on=['point_id','distance'])
     all_matches.append(nearest_points)
@@ -566,7 +578,7 @@ def main(config):
     remaining_matches = point_matches[~point_matches['point_id'].isin(list(set(nearest_points['point_id'].values.tolist())))]
     nearest_points = remaining_matches.groupby('point_id')['distance'].min().reset_index()
     nearest_points = pd.merge(nearest_points,
-                remaining_matches[['point_id','edge_id','NWA Section No.','section_name','Total_IN','distance']],
+                remaining_matches[['point_id','edge_id','NWA Section No.','NWA Road Class','section_name','Total_IN','distance']],
                 how='left',
                 on=['point_id','distance'])
     all_matches.append(nearest_points)
@@ -576,18 +588,23 @@ def main(config):
     all_matches = pd.merge(all_matches,df,how='left',on=['edge_id'])
     # all_matches.to_csv(os.path.join(incoming_data_path,'roads','nwa_traffic_counts','nearest_roads_final.csv'),index=False) 
     all_matches['NWA Section No.'] = all_matches.apply(lambda x:modify_merged_sections(x),axis=1)
+    all_matches['NWA Road Class'] = all_matches.apply(lambda x:modify_merged_class(x),axis=1)
 
     all_matches_totals = all_matches.groupby('edge_id')['Total_IN'].mean().reset_index()
     all_matches_sections = all_matches.groupby('edge_id')['NWA Section No.'].apply(list).reset_index()
     all_matches_sections['NWA Section No.'] = all_matches_sections.apply(lambda x: ','.join(list(set(x['NWA Section No.']))),axis=1)
+    all_matches_class = all_matches.groupby('edge_id')['NWA Road Class'].apply(list).reset_index()
+    all_matches_class['NWA Road Class'] = all_matches_sections.apply(lambda x: ','.join(list(set(x['NWA Road Class']))),axis=1)
 
     all_matches = pd.merge(all_matches_sections,all_matches_totals,how='left',on=['edge_id'])
+    all_matches = pd.merge(all_matches,all_matches_class,how='left',on=['edge_id'])
     edges = pd.merge(edges,all_matches,how='left',on=['edge_id'])
     edges['section_name'] = edges.progress_apply(lambda x:modify_road_section_with_points(x),axis=1)
     edges['traffic_count'] = edges.progress_apply(lambda x:modify_traffic_count_with_points(x),axis=1)
+    edges['road_class'] = edges.progress_apply(lambda x:modify_road_class_with_points(x),axis=1)
 
     # print (edges)
-    edges = edges.drop(columns=['NWA Section No.','Total_IN'])
+    edges = edges.drop(columns=['NWA Section No.','NWA Road Class','Total_IN'])
     # edges["speed"] = edges.progress_apply(lambda x:add_edge_speeds(x),axis=1)
     # edges.to_file(os.path.join(processed_data_path,'networks','transport','roads.gpkg'),layer='edges',driver="GPKG")
     # edges.to_file(store_intersections,layer='edges_final_attributes',driver="GPKG")
