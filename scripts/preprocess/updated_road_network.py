@@ -229,11 +229,11 @@ def assign_node_asset_type(x):
     else:
         return 'junction'
 def add_edge_speeds(x):
-    if x.tag_maxspeed not in [None,np.nan,'']:
+    if x.tag_maxspeed not in [None,np.nan,'',' ']:
     	return (float(x.tag_maxspeed))
-    elif x.road_class in ("CLASS A","CLASS B","MOTORWAY","PRIMARY","SECONDARY"):
+    elif x.road_class in ["CLASS A","CLASS B","MOTORWAY","PRIMARY","SECONDARY"]:
         return 110
-    elif x.road_class in ("CLASS C","TERTIARY"):
+    elif x.road_class in ["CLASS C","TERTIARY"]:
         return 80
     else:
         return 50
