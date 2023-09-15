@@ -594,7 +594,7 @@ def main(config):
     all_matches_sections = all_matches.groupby('edge_id')['NWA Section No.'].apply(list).reset_index()
     all_matches_sections['NWA Section No.'] = all_matches_sections.apply(lambda x: ','.join(list(set(x['NWA Section No.']))),axis=1)
     all_matches_class = all_matches.groupby('edge_id')['NWA Road Class'].apply(list).reset_index()
-    all_matches_class['NWA Road Class'] = all_matches_sections.apply(lambda x: ','.join(list(set(x['NWA Road Class']))),axis=1)
+    all_matches_class['NWA Road Class'] = all_matches_class.apply(lambda x: ','.join(list(set(x['NWA Road Class']))),axis=1)
 
     all_matches = pd.merge(all_matches_sections,all_matches_totals,how='left',on=['edge_id'])
     all_matches = pd.merge(all_matches,all_matches_class,how='left',on=['edge_id'])
