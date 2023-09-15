@@ -138,7 +138,7 @@ def modify_road_class_with_points(x):
     if x['NWA Road Class'] not in [None,np.nan,'']:
         return x['NWA Road Class']
     else:
-        return x['road class']
+        return x['road_class']
 
 def modify_merged_sections(x):
     if x['NWA Section No.'] in [None,np.nan]:
