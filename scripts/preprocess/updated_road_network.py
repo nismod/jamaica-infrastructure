@@ -230,7 +230,7 @@ def assign_node_asset_type(x):
         return 'junction'
 
 def add_edge_speeds(x):
-    if x.tag_maxspeed not in [None,np.nan,'',' ']:
+    if x.tag_maxspeed > 0:
     	return (float(x.tag_maxspeed))
     elif x.road_class in ["CLASS A","CLASS B","MOTORWAY","PRIMARY","SECONDARY"]:
         return 110
@@ -608,6 +608,7 @@ def main(config):
 
     # print (edges)
     edges = edges.drop(columns=['NWA Section No.','NWA Road Class','Total_IN'])
+    edges["tag_maxspeed"]  = edges["tag_maxspeed"].fillna(0.0)
     print (edges["tag_maxspeed"].values.tolist())
     edges["speed"] = edges.progress_apply(lambda x:add_edge_speeds(x),axis=1)
     # edges.to_file(os.path.join(processed_data_path,'networks','transport','roads.gpkg'),layer='edges',driver="GPKG")
@@ -650,10 +651,10 @@ def main(config):
     # bridges["reopen_cost"] = 152000.0 # Estimate from NWA
     # bridges["reopen_cost_unit"] = "J$/day" 
     
-    # costs = 1.5*1.0e6/0.0067
-    # bridges["mean_damage_cost"] = costs
-    # bridges["min_damage_cost"] = 0.8*costs
-    # bridges["max_damage_cost"] = 1.2*costs
+    costs = 1.5*1.0e6/0.0067
+    bridges["mean_damage_cost"] = costs
+    bridges["min_damage_cost"] = 0.8*costs
+    bridges["max_damage_cost"] = 1.2*costs
 
     # nodes = gpd.GeoDataFrame(pd.concat([bridges,non_bridges],axis=0,ignore_index=True),
     #             geometry="geometry",crs=f"EPSG:{epsg_jamaica}")
