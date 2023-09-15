@@ -228,6 +228,7 @@ def assign_node_asset_type(x):
         return 'bridge'
     else:
         return 'junction'
+
 def add_edge_speeds(x):
     if x.tag_maxspeed not in [None,np.nan,'',' ']:
     	return (float(x.tag_maxspeed))
@@ -607,6 +608,7 @@ def main(config):
 
     # print (edges)
     edges = edges.drop(columns=['NWA Section No.','NWA Road Class','Total_IN'])
+    print (edges["tag_maxspeed"].values.tolist())
     edges["speed"] = edges.progress_apply(lambda x:add_edge_speeds(x),axis=1)
     # edges.to_file(os.path.join(processed_data_path,'networks','transport','roads.gpkg'),layer='edges',driver="GPKG")
     # edges.to_file(store_intersections,layer='edges_final_attributes',driver="GPKG")
