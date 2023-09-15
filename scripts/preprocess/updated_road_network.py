@@ -620,11 +620,13 @@ def main(config):
     # nodes.to_file(os.path.join(processed_data_path,'networks','transport','roads.gpkg'),layer='nodes',driver="GPKG")
     # From NWA - Cost of 2 lane road reconstruction is US$ 1.5 million/km
     # We convert it into US$ 0.75 million/km/lane and to J$ by assuming exchange rate is 1 J$ = 0.0068 US$
-    costs = 0.5*1.5*1.0e6/1.0e3/0.0067
+    road_costs = 0.5*1.5*1.0e6/1.0e3/0.0067
+    bridge_costs = 1.5*1.0e6/0.0067
     # print (costs)
-    edges["mean_damage_cost"] = costs*edges["lanes"]
-    edges["min_damage_cost"] = 0.8*costs*edges["lanes"]
-    edges["max_damage_cost"] = 1.2*costs*edges["lanes"]
+
+    edges["mean_damage_cost"] = np.where(edges["asset_type"] == "road_bridge",bridge_costs,road_costs*edges["lanes"])
+    edges["min_damage_cost"] = 0.8*edges["mean_damage_cost"]
+    edges["max_damage_cost"] = 1.2*edges["mean_damage_cost"]
     edges = gpd.GeoDataFrame(edges,geometry="geometry",crs=f"EPSG:{epsg_jamaica}")
     edges.to_file(store_intersections,layer='edges_final_attributes',driver="GPKG")
     # edges["reopen_cost"] = 152000.0 # Estimate from NWA
@@ -651,10 +653,10 @@ def main(config):
     # bridges["reopen_cost"] = 152000.0 # Estimate from NWA
     # bridges["reopen_cost_unit"] = "J$/day" 
     
-    costs = 1.5*1.0e6/0.0067
-    bridges["mean_damage_cost"] = costs
-    bridges["min_damage_cost"] = 0.8*costs
-    bridges["max_damage_cost"] = 1.2*costs
+    # costs = 1.5*1.0e6/0.0067
+    # bridges["mean_damage_cost"] = costs
+    # bridges["min_damage_cost"] = 0.8*costs
+    # bridges["max_damage_cost"] = 1.2*costs
 
     # nodes = gpd.GeoDataFrame(pd.concat([bridges,non_bridges],axis=0,ignore_index=True),
     #             geometry="geometry",crs=f"EPSG:{epsg_jamaica}")
