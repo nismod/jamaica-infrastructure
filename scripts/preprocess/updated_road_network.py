@@ -258,7 +258,7 @@ def add_road_lanes(x):
         return lanes + 1
 
 def remodify_road_lanes(x,standard_width=3.05):
-    lanes = round(x["road_width"]/standard_width,0)
+    lanes = round(x["width_m"]/standard_width,0)
     if lanes % 2 == 0:
         return lanes
     else:
@@ -524,7 +524,7 @@ def main(config):
     edges['section_name'] = edges.progress_apply(lambda x:remodify_road_section(x),axis=1)
     edges["lanes"] = np.where(edges["lanes"] == 1,2,edges["lanes"])
     # edges['street_name'] = edges.progress_apply(lambda x:modify_street_name(x),axis=1)
-    edges['road_width'] = edges.progress_apply(lambda x:remodify_road_width(x),axis=1)
+    edges['width_m'] = edges.progress_apply(lambda x:remodify_road_width(x),axis=1)
     edges["lanes"] = edges.progress_apply(lambda x:remodify_road_lanes(x),axis=1)
     # edges['traffic_count'] = edges.progress_apply(lambda x:modify_traffic_count(x),axis=1)
 
@@ -618,7 +618,7 @@ def main(config):
     # print (edges)
     edges = edges.drop(columns=['NWA Section No.','NWA Road Class','Total_IN'])
     edges["tag_maxspeed"]  = edges["tag_maxspeed"].fillna(0.0)
-    edges["speed"] = edges.progress_apply(lambda x:add_edge_speeds(x),axis=1)
+    edges["speed_kph"] = edges.progress_apply(lambda x:add_edge_speeds(x),axis=1)
     edges["asset_type"] = edges.progress_apply(lambda x:create_road_asset_type(x),axis=1)
     # edges.to_file(os.path.join(processed_data_path,'networks','transport','roads.gpkg'),layer='edges',driver="GPKG")
     # edges.to_file(store_intersections,layer='edges_final_attributes',driver="GPKG")
@@ -648,6 +648,16 @@ def main(config):
     # edges.drop(['min_reopen_cost',
     #         'mean_reopen_cost',
     #         'max_reopen_cost'],axis=1,inplace=True)
+    edges.rename(columns={"road"})
+    edges = edges[["edge_id","from_node","to_node",
+    			"road_class","street_name",
+    			"section_name","asset_type",
+    			"road_surface","lanes",
+    			"width_m","length_m","speed_kph",
+    			"cost_unit","min_damage_cost",
+    			"mean_damage_cost","max_damage_cost",
+    			"component_id",
+    			"geometry"]]
     edges.to_file(os.path.join(processed_data_path,
                                     'networks',
                                     'transport',
