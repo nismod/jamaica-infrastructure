@@ -63,10 +63,10 @@ def modify_road_surface(x):
 def remodify_road_surface(x):
     if x['road_surface'] in ['SD & AC','AC & SD']:
         return 'SD & AC'
-    elif x['road_surface'] in ['asphalt','as1']:
-        return "Asphalt" 
-    elif x["material"] == "Asphalt Concrete":
-        return x["material"]
+    elif x['road_surface'] not in [None,np.nan,'',' ']:
+    	return x["road_surface"]
+    elif x["material"] in ['asphalt','as1']:
+        return "Asphalt Concrete" 
     else:
         return 'Surface Dressed'    
 
@@ -634,11 +634,11 @@ def main(config):
     # edges.drop(['min_reopen_cost',
     #         'mean_reopen_cost',
     #         'max_reopen_cost'],axis=1,inplace=True)
-    # edges.to_file(os.path.join(processed_data_path,
-    #                                 'networks',
-    #                                 'transport',
-    #                                 'roads.gpkg'),
-    #                         layer='edges')
+    edges.to_file(os.path.join(processed_data_path,
+                                    'networks',
+                                    'transport',
+                                    'roads.gpkg'),
+                            layer='edges')
     # nodes = gpd.read_file(os.path.join(processed_data_path,
     #                                 'networks',
     #                                 'transport',
