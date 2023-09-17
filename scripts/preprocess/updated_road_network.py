@@ -66,7 +66,7 @@ def remodify_road_surface(x):
     elif x['road_surface'] not in [None,np.nan,'',' ']:
     	return x["road_surface"]
     elif x["material"] in ['asphalt','as1']:
-        return "Asphalt Concrete" 
+        return "Asphaltic Concrete" 
     else:
         return 'Surface Dressed'    
 
@@ -151,6 +151,14 @@ def modify_merged_class(x):
         return ''
     else:
         return x['NWA Road Class']
+
+def create_road_asset_type(x):
+    if x["asset_type"] == "road_bridge":
+    	return x["asset_type"]
+    elif x["road_surface"] in ['Asphaltic Concrete', 'SD & AC', 'Surface Dressed']:
+        return 'road_paved'
+    else:
+        return 'road_unpaved'
 
 def match_roads(buffer_dataframe,edge_dataframe,
                 geom_buffer=10,fraction_intersection=0.95,length_intersected=100,save_buffer_file=False):
@@ -604,13 +612,14 @@ def main(config):
     edges = pd.merge(edges,all_matches,how='left',on=['edge_id'])
     edges['section_name'] = edges.progress_apply(lambda x:modify_road_section_with_points(x),axis=1)
     edges['traffic_count'] = edges.progress_apply(lambda x:modify_traffic_count_with_points(x),axis=1)
+    edges['traffic_count'] = edges['traffic_count'].fillna(0)
     edges['road_class'] = edges.progress_apply(lambda x:modify_road_class_with_points(x),axis=1)
 
     # print (edges)
     edges = edges.drop(columns=['NWA Section No.','NWA Road Class','Total_IN'])
     edges["tag_maxspeed"]  = edges["tag_maxspeed"].fillna(0.0)
-    print (edges["tag_maxspeed"].values.tolist())
     edges["speed"] = edges.progress_apply(lambda x:add_edge_speeds(x),axis=1)
+    edges["asset_type"] = edges.progress_apply(lambda x:create_road_asset_type(x),axis=1)
     # edges.to_file(os.path.join(processed_data_path,'networks','transport','roads.gpkg'),layer='edges',driver="GPKG")
     # edges.to_file(store_intersections,layer='edges_final_attributes',driver="GPKG")
 
@@ -620,11 +629,16 @@ def main(config):
     # nodes.to_file(os.path.join(processed_data_path,'networks','transport','roads.gpkg'),layer='nodes',driver="GPKG")
     # From NWA - Cost of 2 lane road reconstruction is US$ 1.5 million/km
     # We convert it into US$ 0.75 million/km/lane and to J$ by assuming exchange rate is 1 J$ = 0.0068 US$
-    road_costs = 0.5*1.5*1.0e6/1.0e3/0.0067
-    bridge_costs = 1.5*1.0e6/0.0067
+    road_costs = 0.5*1.5*1.0e6/1.0e3/0.0068
+    bridge_costs = 1.5*1.0e6/0.0068
     # print (costs)
 
-    edges["mean_damage_cost"] = np.where(edges["asset_type"] == "road_bridge",bridge_costs,road_costs*edges["lanes"])
+    edges = gpd.GeoDataFrame(edges,geometry="geometry",crs=f"EPSG:{epsg_jamaica}")
+    edges["length_m"] = edges.geometry.length
+    edges["cost_unit"] = "J$/m"
+    edges["mean_damage_cost"] = np.where(edges["asset_type"] == "road_bridge",
+    										bridge_costs/edges["length_m"],
+    										road_costs*edges["lanes"])
     edges["min_damage_cost"] = 0.8*edges["mean_damage_cost"]
     edges["max_damage_cost"] = 1.2*edges["mean_damage_cost"]
     edges = gpd.GeoDataFrame(edges,geometry="geometry",crs=f"EPSG:{epsg_jamaica}")
@@ -639,6 +653,7 @@ def main(config):
                                     'transport',
                                     'roads.gpkg'),
                             layer='edges')
+    nodes = gpd.read_file(os.path.join(road_network_path,"osm_roads.gpkg"),layer='nodes')
     # nodes = gpd.read_file(os.path.join(processed_data_path,
     #                                 'networks',
     #                                 'transport',
@@ -662,11 +677,11 @@ def main(config):
     #             geometry="geometry",crs=f"EPSG:{epsg_jamaica}")
     # print (nodes)
 
-    # nodes.to_file(os.path.join(processed_data_path,
-    #                                 'networks',
-    #                                 'transport',
-    #                                 'roads.gpkg'),
-    #                         layer='nodes')
+    nodes.to_file(os.path.join(processed_data_path,
+                                    'networks',
+                                    'transport',
+                                    'roads.gpkg'),
+                            layer='nodes')
 if __name__ == '__main__':
     CONFIG = load_config()
     main(CONFIG)
