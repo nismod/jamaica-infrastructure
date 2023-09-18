@@ -648,7 +648,6 @@ def main(config):
     # edges.drop(['min_reopen_cost',
     #         'mean_reopen_cost',
     #         'max_reopen_cost'],axis=1,inplace=True)
-    edges.rename(columns={"road"})
     edges = edges[["edge_id","from_node","to_node",
     			"road_class","street_name",
     			"section_name","asset_type",
