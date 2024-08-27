@@ -1,11 +1,12 @@
 """Helper to convert parquet to geopackage outputs
 """
+
 import sys
 
 import geopandas
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     try:
         _, in_file, out_file, layername = sys.argv
     except IndexError:

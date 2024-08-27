@@ -34,8 +34,9 @@ for _, layer, id_col, path in files.itertuples():
 def find_dups(df, id_col):
     return df[df.duplicated(subset=[id_col], keep=False)]
 
+
 # Drop irrigation edges
-# NOTE drops columns with relation to nodes - should be in separate one- or 
+# NOTE drops columns with relation to nodes - should be in separate one- or
 # many-to-many mapping
 water_irrigation_edges = (
     geopandas.read_file("water/irrigation_assets_NIC.gpkg", layer="edges")

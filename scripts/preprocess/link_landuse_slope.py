@@ -70,9 +70,7 @@ def split_area_df(df, width, height, transform):
 
 
 def get_index(geom, width, height, transform):
-    x, y = snail.core.intersections.get_cell_indices(
-        geom, width, height, transform
-    )
+    x, y = snail.core.intersections.get_cell_indices(geom, width, height, transform)
     # wrap around to handle edge cases
     x = x % width
     y = y % height
@@ -85,15 +83,13 @@ def main(slope_fname, landuse_fname, output_fname, attributes):
 
     # read polygons
     land_use = (
-        geopandas.read_file(
-            landuse_fname
-        )[attributes + ["geometry"]]
+        geopandas.read_file(landuse_fname)[attributes + ["geometry"]]
         .explode()
         .reset_index(drop=True)
     )
 
     # subset for testing
-    #land_use = land_use[:100]
+    # land_use = land_use[:100]
 
     # split
     land_use_split = split_area_df(land_use, slope.width, slope.height, slope.transform)
@@ -108,13 +104,16 @@ def main(slope_fname, landuse_fname, output_fname, attributes):
 
     land_use_slope.to_file(output_fname, driver="GPKG")
 
-if __name__ == '__main__':
+
+if __name__ == "__main__":
     try:
         slope_fname, landuse_fname, output_fname, attributes = sys.argv[1:]
     except:
         print(sys.argv[1:])
         print("Expected usage:")
-        print(f"    python {__file__} slope.tif landuse.gpkg output.gpkg column1,attribute2,etc")
+        print(
+            f"    python {__file__} slope.tif landuse.gpkg output.gpkg column1,attribute2,etc"
+        )
         exit()
 
     attributes = attributes.split(",")

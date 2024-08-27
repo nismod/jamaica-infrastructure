@@ -2,6 +2,7 @@
 - link population (number of peopple) to potable supply systems
 - link agriculture (number of acres) to irrigation systems
 """
+
 import math
 import os
 
@@ -21,7 +22,9 @@ def roundup(x):
 
 
 def main():
-    water_network_path = "/soge-home/projects/mistral/jamaica-ccri/processed_data/networks/water"
+    water_network_path = (
+        "/soge-home/projects/mistral/jamaica-ccri/processed_data/networks/water"
+    )
 
     wsz_census = pd.read_csv("potable/processed/wsz_census.csv")
     # wsz_census['PARISH'] = np.where(wsz_census['PARISH']=='ST.ANDREW', 'KSA',
@@ -218,12 +221,12 @@ def main():
             potable_assets["sqrt"] == potable_assets["sqrt"].min()
         ]["asset_connected_pop_2030"].values[0]
         pipelines_centroid.loc[it, "WSZONEID"] = closest_wrz
-        pipelines_centroid.loc[
-            it, "asset_connected_pop_2010"
-        ] = asset_connected_pop_2010
-        pipelines_centroid.loc[
-            it, "asset_connected_pop_2030"
-        ] = asset_connected_pop_2030
+        pipelines_centroid.loc[it, "asset_connected_pop_2010"] = (
+            asset_connected_pop_2010
+        )
+        pipelines_centroid.loc[it, "asset_connected_pop_2030"] = (
+            asset_connected_pop_2030
+        )
 
     pipelines_NWC = gpd.read_file(
         os.path.join(water_network_path, "pipelines_NWC.gpkg")

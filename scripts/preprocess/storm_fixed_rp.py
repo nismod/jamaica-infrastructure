@@ -3,6 +3,7 @@
 - fix metadata to comply with CF conventions
 - write TIFFs for relative convenience - matches other hazard layers
 """
+
 import os
 from glob import glob
 
@@ -23,7 +24,6 @@ def main(config):
                 for rp in list(ds["mean"].rp.data):
                     out_fname = fname.replace(".nc", f"_rp{int(rp)}_{var}.tif")
                     ds[var].sel(rp=rp).rio.to_raster(out_fname)
-
 
 
 def get_fnames(storm_path):
