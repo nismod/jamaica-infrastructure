@@ -3,8 +3,8 @@ paths:
   processed_data: "./processed_data"
   results: "./results"
 
-network_layers: "network_layers.csv"
-hazard_layers: "hazard_layers.csv"
+network_layers: "workflow/direct_damages/network_layers.csv"
+hazard_layers: "workflow/direct_damages/hazard_layers.csv"
 
 extract_bbox:
   left: 760000

@@ -1,0 +1,54 @@
+import pandas
+
+
+hazard_layers = pandas.read_csv(config["hazard_layers"])
+network_layers = pandas.read_csv(config["network_layers"])
+bbox = config['extract_bbox']
+data_path = config['paths']['processed_data']
+
+
+rule extract:
+    input:
+        [f"{data_path}/extract/networks/{path}" for path in network_layers.path.unique()],
+        [f"{data_path}/extract/{path}" for path in hazard_layers.path]
+
+
+rule extract_vector_bbox:
+    input:
+        f"{data_path}/{{path}}.gpkg"
+    output:
+        f"{data_path}/extract/{{path}}.gpkg"
+    params:
+        left=bbox['left'],
+        right=bbox['right'],
+        top=bbox['top'],
+        bottom=bbox['bottom'],
+    shell:
+        """
+        # clipsrc needs: xmin ymin xmax ymax
+        ogr2ogr \
+            -clipsrc {params.left} {params.bottom} {params.right} {params.top} \
+            -f GPKG {output} \
+            {input}
+        """
+
+
+rule extract_raster_bbox:
+    input:
+        f"{data_path}/{{path}}.tif"
+    output:
+        f"{data_path}/extract/{{path}}.tif"
+    params:
+        left=bbox['left'],
+        right=bbox['right'],
+        top=bbox['top'],
+        bottom=bbox['bottom'],
+    shell:
+        """
+        # target extent (-te) needs: xmin ymin xmax ymax
+        gdalwarp \
+            -te {params.left} {params.bottom} {params.right} {params.top} \
+            -te_srs "EPSG:3448" \
+            {input} \
+            {output}
+        """
