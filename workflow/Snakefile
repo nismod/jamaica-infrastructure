@@ -8,3 +8,4 @@ wildcard_constraints:
     OUTPUT_DIR="^.*processed_data",
 
 include: "direct_damages/direct_damages.smk"
+include: "transport_model/multi_modal_network_creation.smk"
