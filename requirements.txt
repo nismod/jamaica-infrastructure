@@ -1,6 +1,8 @@
+black
 fiona
 geopandas
 matplotlib
+networkx
 numpy
 openpyxl
 pandas
