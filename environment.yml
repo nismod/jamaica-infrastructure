@@ -1,0 +1,11 @@
+# to install this environment:
+# micromamba create -f environment.yml -y
+name: jamaica-infrastructure
+channels:
+  - conda-forge  # majority of dependencies
+  - defaults
+dependencies:
+  - python=3.10
+  - pip:
+    - -r requirements.txt
+  - bioconda::snakemake
