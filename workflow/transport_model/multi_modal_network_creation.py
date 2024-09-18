@@ -8,8 +8,9 @@ import pandas as pd
 import geopandas as gpd
 import numpy as np
 from shapely.geometry import LineString
-from utils import *
 from tqdm import tqdm
+
+from jamaica_infrastructure.utils import *
 
 tqdm.pandas()
 epsg_jamaica = 3448
