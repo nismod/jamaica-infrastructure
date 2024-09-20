@@ -11,7 +11,7 @@ rule labour_to_work_flow_mapping:
     output:
         economic_activity = "{PROCESSED_DATA}/flow_mapping/road_nodes_labour_economic_activity_aggregations.gpkg",
         labour_to_sector_activity = "{PROCESSED_DATA}/flow_mapping/labour_to_sectors_trips_and_activity.csv",
-        od = "{PROCESSED_DATA}/flow_mapping/origins_destinations_labour_economic_activity.csv",
+        node_activity = "{PROCESSED_DATA}/flow_mapping/origins_destinations_labour_economic_activity.csv",
         labour_flows = "{PROCESSED_DATA}/flow_mapping/labour_to_sectors_flow_paths.csv",
     script:
         "./labour_to_work_flow_mapping.py"
