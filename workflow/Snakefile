@@ -10,3 +10,4 @@ wildcard_constraints:
 include: "direct_damages/direct_damages.smk"
 include: "transport_model/multi_modal_network_creation.smk"
 include: "transport_model/mines_flow_mapping.smk"
+include: "transport_model/labour_to_work_flow_mapping.smk"
