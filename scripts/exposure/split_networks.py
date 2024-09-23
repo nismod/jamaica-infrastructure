@@ -43,6 +43,9 @@ def main(data_path, networks_csv, hazards_csv):
                 ".gpkg", f"_splits__{hazard_slug}.gpkg"
             ),
         )
+        out_dir = "/".join(out_fname.split("/")[:-1])
+        if not os.path.exists(out_dir):
+            os.makedirs(out_dir)
         pq_fname_nodes = out_fname.replace(".gpkg", "__nodes.geoparquet")
         pq_fname_edges = out_fname.replace(".gpkg", "__edges.geoparquet")
         pq_fname_areas = out_fname.replace(".gpkg", "__areas.geoparquet")
