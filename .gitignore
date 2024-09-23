@@ -1,5 +1,6 @@
 #
 processed_data/
+results/
 
 # local module build files
 *.egg-info
