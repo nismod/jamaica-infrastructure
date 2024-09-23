@@ -8,7 +8,12 @@ import pandas as pd
 import geopandas as gpd
 import numpy as np
 import igraph as ig
-from utils import *
+from jamaica_infrastructure.utils import (
+    get_flow_on_edges,
+    load_config,
+    map_nearest_locations_and_create_lines,
+    network_od_paths_assembly,
+)
 from tqdm import tqdm
 
 tqdm.pandas()
@@ -99,7 +104,6 @@ def route_mines_to_nearest_ports(areas, nodes, edges, ports, connection_type="mi
 
 
 def main(config):
-    incoming_data_path = config["paths"]["incoming_data"]
     processed_data_path = config["paths"]["data"]
     results_path = config["paths"]["output"]
     """Get the mining areas
@@ -309,13 +313,11 @@ def main(config):
     print("* Estimated GDP", tot_gpd)
     print("* Estimated Areas", tot_area)
 
-    write_results = False
-    if write_results is True:
-        mining_areas.to_file(
-            os.path.join(processed_data_path, "mining_data", "mining_gdp.gpkg"),
-            layer="areas",
-            driver="GPKG",
-        )
+    mining_areas.to_file(
+        os.path.join(processed_data_path, "mining_data", "mining_gdp.gpkg"),
+        layer="areas",
+        driver="GPKG",
+    )
     flow_paths = pd.concat(
         [quarry_to_ports, bauxite_to_ports], axis=0, ignore_index=True
     )

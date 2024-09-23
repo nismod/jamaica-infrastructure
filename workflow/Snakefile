@@ -1,14 +1,7 @@
-configfile: "workflow/config.yml"
+configfile: "config.json"
 
-wildcard_constraints:
-    # the output dir must end in 'processed_data'
-    # e.g. '/data/jamaica-infrastructure/processed_data', './processed_data', '/my-processed_data', etc.
-    # this prevents us matching past it into other folders for an incorrect PROCESSED_DATA,
-    # but is more flexible than reading a value from, for example, config.yaml
-    PROCESSED_DATA="^.*processed_data",
+# assign globals to these paths, they're used frequently
+PROCESSED = config["paths"]["data"]
+RESULTS = config["paths"]["output"]
 
-include: "direct_damages/direct_damages.smk"
-include: "transport_model/multi_modal_network_creation.smk"
-include: "transport_model/mines_flow_mapping.smk"
-include: "transport_model/labour_to_work_flow_mapping.smk"
-include: "transport_model/trade_activity_flow_mapping.smk"
+include: "transport_model.smk"

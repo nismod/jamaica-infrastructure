@@ -1,16 +1,19 @@
 """Map labour to work trips as a proxy to map GDP onto roads
 """
 
-import sys
 import os
 
 import pandas as pd
 import geopandas as gpd
 import numpy as np
 import igraph as ig
-import ast
-from utils import *
-import transport_flow_and_failure_functions as tf
+from jamaica_infrastructure.utils import (
+    ckdnearest,
+    load_config,
+    map_nearest_locations_and_create_lines,
+    network_od_paths_assembly,
+)
+import jamaica_infrastructure.transport_flow as tf
 from tqdm import tqdm
 
 tqdm.pandas()
@@ -178,9 +181,8 @@ def filter_sector_from_buildings(buildings_dataframe, sector_code, subsector_cod
 
 
 def main(config):
-    incoming_data_path = config["paths"]["incoming_data"]
     processed_data_path = config["paths"]["data"]
-    results_path = config["paths"]["output"]
+    results_path = config["paths"]["results"]
 
     """Get the ports and multimodal network
     """
@@ -218,126 +220,183 @@ def main(config):
     # they have to be rerouted with an hour, the cost would be: 0.4 * 200 * 1/24 * 100 = 333 USD
     # So corrected for inflation in 2019 values, this would be 1.2-2.9 USD per hour of value of time for business related trips
 
-    # G = ig.Graph.TupleList(network.itertuples(index=False), edge_attrs=list(network.columns)[2:])
-    # """Get the buildings with populations and commercial activites assigned to them
-    # """
-    # buildings = gpd.read_file(os.path.join(
-    #                                 processed_data_path,
-    #                                 "buildings",
-    #                                 'buildings_assigned_economic_activity.gpkg'),
-    #                               layer="areas")
-    # id_column = "osm_id"
-    # buildings["osm_id"] = buildings.progress_apply(lambda x:f"building_{x.osm_id}",axis=1)
-    # buildings["geometry"] = buildings.progress_apply(lambda x:x.geometry.centroid,axis=1)
-    # buildings = buildings.to_crs(epsg=epsg_jamaica)
+    G = ig.Graph.TupleList(
+        network.itertuples(index=False), edge_attrs=list(network.columns)[2:]
+    )
+    """Get the buildings with populations and commercial activites assigned to them
+    """
+    buildings = gpd.read_file(
+        os.path.join(
+            processed_data_path,
+            "buildings",
+            "buildings_assigned_economic_activity.gpkg",
+        ),
+        layer="areas",
+    )
+    buildings["osm_id"] = buildings.progress_apply(
+        lambda x: f"building_{x.osm_id}", axis=1
+    )
+    buildings["geometry"] = buildings.progress_apply(
+        lambda x: x.geometry.centroid, axis=1
+    )
+    buildings = buildings.to_crs(epsg=epsg_jamaica)
 
-    # print (buildings)
+    print(buildings)
 
-    # population_year = 2019
-    # population = gpd.read_file(os.path.join(
-    #                                 processed_data_path,
-    #                                 "population",
-    #                                 'population_projections.gpkg'),
-    #                               layer="mean")
-    # population.columns = population.columns.map(str)
-    # population["working_frac"] = population[f"working_{population_year}"]/population[f"{population_year}"]
-    # buildings = pd.merge(buildings,population[["ED_ID","ED","working_frac"]],how="left",on=["ED_ID","ED"])
-    # buildings["working_population"] = buildings["residential_population"]*buildings["working_frac"]
-    # del population
-    # """Assign the closest roads to buildings
-    # """
-    # buildings_to_roads = ckdnearest(buildings,nodes[["node_id","geometry"]])
-    # print (buildings_to_roads)
+    population_year = 2019
+    population = gpd.read_file(
+        os.path.join(processed_data_path, "population", "population_projections.gpkg"),
+        layer="mean",
+    )
+    population.columns = population.columns.map(str)
+    population["working_frac"] = (
+        population[f"working_{population_year}"] / population[f"{population_year}"]
+    )
+    buildings = pd.merge(
+        buildings,
+        population[["ED_ID", "ED", "working_frac"]],
+        how="left",
+        on=["ED_ID", "ED"],
+    )
+    buildings["working_population"] = (
+        buildings["residential_population"] * buildings["working_frac"]
+    )
+    del population
+    """Assign the closest roads to buildings
+    """
+    buildings_to_roads = ckdnearest(buildings, nodes[["node_id", "geometry"]])
+    print(buildings_to_roads)
 
-    # population_threshold = 50
-    # gdp_threshold = 50000
-    # nodes_population = buildings_to_roads.groupby(["node_id"])["working_population"].sum().reset_index()
+    population_threshold = 50
+    gdp_threshold = 50000
+    nodes_population = (
+        buildings_to_roads.groupby(["node_id"])["working_population"]
+        .sum()
+        .reset_index()
+    )
+    nodes_population = pd.merge(
+        nodes_population, nodes[["node_id", "geometry"]], how="left", on=["node_id"]
+    )
+    nodes_population = gpd.GeoDataFrame(
+        nodes_population, geometry="geometry", crs=f"EPSG:{epsg_jamaica}"
+    )
+    nodes_population.to_file(
+        os.path.join(
+            results_path,
+            "flow_mapping",
+            "road_nodes_labour_economic_activity_aggregations.gpkg",
+        ),
+        layer="working_population",
+        driver="GPKG",
+    )
+
+    nodes_economic_activity = (
+        buildings_to_roads.groupby(["node_id"])["total_GDP"].sum().reset_index()
+    )
+    nodes_economic_activity = gpd.GeoDataFrame(
+        pd.merge(
+            nodes_economic_activity,
+            nodes[["node_id", "geometry"]],
+            how="left",
+            on=["node_id"],
+        ),
+        geometry="geometry",
+        crs=f"EPSG:{epsg_jamaica}",
+    )
+    nodes_economic_activity.to_file(
+        os.path.join(
+            results_path,
+            "flow_mapping",
+            "road_nodes_labour_economic_activity_aggregations.gpkg",
+        ),
+        layer="economic_activity",
+        driver="GPKG",
+    )
+
+    """Build the radiation model
+    """
+    nodes_population = nodes_population[
+        nodes_population["working_population"] >= population_threshold
+    ]
+    nodes_economic_activity = nodes_economic_activity[
+        nodes_economic_activity["total_GDP"] >= gdp_threshold
+    ]
+    print(nodes_population)
+    print(nodes_economic_activity)
+    buffer_distance = 10000  # 10 km distance buffer
     # nodes_population = pd.merge(nodes_population,nodes[["node_id","geometry"]],how="left",on=["node_id"])
+    nodes_population["geometry"] = nodes_population.apply(
+        lambda x: x.geometry.buffer(buffer_distance), axis=1
+    )
+    nodes_population.rename(columns={"node_id": "origin_id"}, inplace=True)
     # nodes_population = gpd.GeoDataFrame(nodes_population,
     #                                     geometry="geometry",
     #                                     crs=f"EPSG:{epsg_jamaica}")
-    # nodes_population.to_file(os.path.join(results_path,
-    #                                 'flow_mapping',
-    #                                 'road_nodes_labour_economic_activity_aggregations.gpkg'),
-    #                         layer='working_population',driver="GPKG")
 
-    # nodes_economic_activity = buildings_to_roads.groupby(["node_id"])["total_GDP"].sum().reset_index()
     # nodes_economic_activity = gpd.GeoDataFrame(pd.merge(nodes_economic_activity,nodes[["node_id","geometry"]],
     #                                     how="left",on=["node_id"]),
     #                                     geometry="geometry",
     #                                     crs=f"EPSG:{epsg_jamaica}")
-    # nodes_economic_activity.to_file(os.path.join(results_path,
-    #                                 'flow_mapping',
-    #                                 'road_nodes_labour_economic_activity_aggregations.gpkg'),
-    #                         layer='economic_activity',driver="GPKG")
+    nodes_economic_activity.rename(columns={"node_id": "destination_id"}, inplace=True)
+    od_pairs = gpd.sjoin(
+        nodes_economic_activity, nodes_population, how="inner", predicate="within"
+    ).reset_index()
 
-    # """Build the radiation model
-    # """
-    # nodes_population = nodes_population[nodes_population["working_population"] >= population_threshold]
-    # nodes_economic_activity = nodes_economic_activity[nodes_economic_activity["total_GDP"] >= gdp_threshold]
-    # print (nodes_population)
-    # print (nodes_economic_activity)
-    # buffer_distance = 10000 # 10 km distance buffer
-    # # nodes_population = pd.merge(nodes_population,nodes[["node_id","geometry"]],how="left",on=["node_id"])
-    # nodes_population["geometry"] = nodes_population.apply(lambda x:x.geometry.buffer(buffer_distance),axis=1)
-    # nodes_population.rename(columns={"node_id":"origin_id"},inplace=True)
-    # # nodes_population = gpd.GeoDataFrame(nodes_population,
-    # #                                     geometry="geometry",
-    # #                                     crs=f"EPSG:{epsg_jamaica}")
+    flow_paths = network_od_paths_assembly(
+        od_pairs[["origin_id", "destination_id", "total_GDP"]], G, "time", "total_GDP"
+    )
+    print(flow_paths)
+    flow_paths = flow_paths[flow_paths["gcost"] <= 1.0]
+    print(flow_paths)
+    flow_paths = pd.merge(
+        flow_paths,
+        nodes_population[["origin_id", "working_population"]],
+        how="left",
+        on=["origin_id"],
+    )
+    flow_paths.to_csv(
+        os.path.join(results_path, "flow_mapping", "labour_to_sectors_flow_paths.csv"),
+        index=False,
+    )
+    flow_radius = flow_paths.groupby(["origin_id"])["total_GDP"].sum().reset_index()
+    flow_radius.rename(columns={"total_GDP": "radius_GDP"}, inplace=True)
 
-    # # nodes_economic_activity = gpd.GeoDataFrame(pd.merge(nodes_economic_activity,nodes[["node_id","geometry"]],
-    # #                                     how="left",on=["node_id"]),
-    # #                                     geometry="geometry",
-    # #                                     crs=f"EPSG:{epsg_jamaica}")
-    # nodes_economic_activity.rename(columns={"node_id":"destination_id"},inplace=True)
-    # od_pairs = gpd.sjoin(nodes_economic_activity,nodes_population,how="inner", predicate='within').reset_index()
+    flow_paths = pd.merge(flow_paths, flow_radius, how="left", on=["origin_id"])
 
-    # flow_paths = network_od_paths_assembly(od_pairs[["origin_id","destination_id","total_GDP"]],
-    #                             G,
-    #                             "time","total_GDP")
-    # print (flow_paths)
-    # flow_paths = flow_paths[flow_paths["gcost"] <= 1.0]
-    # print (flow_paths)
-    # flow_paths = pd.merge(flow_paths,nodes_population[["origin_id","working_population"]],how="left",on=["origin_id"])
-    # # flow_paths.to_csv(os.path.join(results_path,
-    # #                                     'flow_mapping',
-    # #                                     'labour_to_sectors_flow_paths.csv'),
-    # #                             index=False)
-    # flow_radius = flow_paths.groupby(["origin_id"])["total_GDP"].sum().reset_index()
-    # flow_radius.rename(columns={"total_GDP":"radius_GDP"},inplace=True)
-
-    # flow_paths = pd.merge(flow_paths,flow_radius,how="left",on=["origin_id"])
-
-    # flow_paths["t_ij_ext"] = flow_paths.progress_apply(
-    #                         lambda x:
-    #                                 x["total_GDP"]/(
-    #                                     x["radius_GDP"]-x["total_GDP"]
-    #                                 ),
-    #                         axis=1)
-    # flow_paths_sums = flow_paths.groupby(["origin_id"])['t_ij_ext'].sum().reset_index()
-    # flow_paths_sums.rename(columns={"t_ij_ext":"t_ij_ext_sums"},inplace=True)
-    # flow_paths = pd.merge(flow_paths, flow_paths_sums,
-    #                      how='left', on=["origin_id"]).fillna(0)
-    # del flow_paths_sums
-    # flow_paths["working_trips"] = flow_paths.progress_apply(
-    #                         lambda x:
-    #                                 x["working_population"]*(x["t_ij_ext"]/x["t_ij_ext_sums"]),
-    #                         axis=1)
-    # # flow_paths.drop("t_ij_ext_sums",axis=1,inplace=True)
-    # flow_paths_sums = flow_paths.groupby(["destination_id"])['working_trips'].sum().reset_index()
-    # flow_paths_sums.rename(columns={"working_trips":"working_trips_sums"},inplace=True)
-    # flow_paths = pd.merge(flow_paths, flow_paths_sums,
-    #                      how='left', on=["destination_id"]).fillna(0)
-    # del flow_paths_sums
-    # flow_paths["GDP_to_trips"] = flow_paths.progress_apply(
-    #                         lambda x:
-    #                                 x["total_GDP"]*(x["working_trips"]/x["working_trips_sums"]),
-    #                         axis=1)
-    # flow_paths.drop(["t_ij_ext_sums","working_trips_sums"],axis=1,inplace=True)
-    # flow_paths.to_csv(os.path.join(results_path,
-    #                                     'flow_mapping',
-    #                                     'labour_to_sectors_trips_and_activity.csv'),
-    #                             index=False)
+    flow_paths["t_ij_ext"] = flow_paths.progress_apply(
+        lambda x: x["total_GDP"] / (x["radius_GDP"] - x["total_GDP"]), axis=1
+    )
+    flow_paths_sums = flow_paths.groupby(["origin_id"])["t_ij_ext"].sum().reset_index()
+    flow_paths_sums.rename(columns={"t_ij_ext": "t_ij_ext_sums"}, inplace=True)
+    flow_paths = pd.merge(
+        flow_paths, flow_paths_sums, how="left", on=["origin_id"]
+    ).fillna(0)
+    del flow_paths_sums
+    flow_paths["working_trips"] = flow_paths.progress_apply(
+        lambda x: x["working_population"] * (x["t_ij_ext"] / x["t_ij_ext_sums"]), axis=1
+    )
+    # flow_paths.drop("t_ij_ext_sums",axis=1,inplace=True)
+    flow_paths_sums = (
+        flow_paths.groupby(["destination_id"])["working_trips"].sum().reset_index()
+    )
+    flow_paths_sums.rename(
+        columns={"working_trips": "working_trips_sums"}, inplace=True
+    )
+    flow_paths = pd.merge(
+        flow_paths, flow_paths_sums, how="left", on=["destination_id"]
+    ).fillna(0)
+    del flow_paths_sums
+    flow_paths["GDP_to_trips"] = flow_paths.progress_apply(
+        lambda x: x["total_GDP"] * (x["working_trips"] / x["working_trips_sums"]),
+        axis=1,
+    )
+    flow_paths.drop(["t_ij_ext_sums", "working_trips_sums"], axis=1, inplace=True)
+    flow_paths.to_csv(
+        os.path.join(
+            results_path, "flow_mapping", "labour_to_sectors_trips_and_activity.csv"
+        ),
+        index=False,
+    )
 
     flow_paths = pd.read_csv(
         os.path.join(
@@ -420,42 +479,6 @@ def main(config):
         ),
         index=False,
     )
-
-    # print (flow_paths)
-    # print (flow_paths[flow_paths["working_trips"]>=1])
-    # flow_paths = flow_paths[flow_paths["working_trips"]>=1]
-
-    # flow_paths.to_csv(os.path.join(results_path,
-    #                                     'flow_mapping',
-    #                                     'labour_to_sectors_trips_and_activity_reduced_sample.csv'),index=False)
-    # flow_paths["edge_path"] = flow_paths.progress_apply(lambda x:ast.literal_eval(x.edge_path),axis=1)
-    # edge_flows_trips = get_flow_on_edges(flow_paths,"edge_id","edge_path",
-    #                                                     "working_trips")
-    # edge_flows_gdp = get_flow_on_edges(flow_paths,"edge_id","edge_path",
-    #                                                     "GDP_to_trips")
-    # network = pd.merge(network,edge_flows_trips,how="left",on=["edge_id"]).fillna(0)
-    # network = pd.merge(network,edge_flows_gdp,how="left",on=["edge_id"]).fillna(0)
-    # edge_flows = gpd.GeoDataFrame(network,
-    #                 geometry="geometry",
-    #                 crs=f"EPSG:{epsg_jamaica}")
-    # edge_flows.to_file(os.path.join(results_path,
-    #                                 'flow_mapping',
-    #                                 'labour_trips_and_activity_reduced_sample.gpkg'),
-    #                         layer='edges',driver="GPKG")
-
-    # edge_flows = gpd.read_file(os.path.join(results_path,
-    #                                 'flow_mapping',
-    #                                 'labour_trips_and_activity_reduced_sample.gpkg'),
-    #                         layer='edges',driver="GPKG")
-    # edges = gpd.read_file(os.path.join(processed_data_path,
-    #                                 'networks',
-    #                                 'transport',
-    #                                 'roads.gpkg'),
-    #                         layer='edges',driver="GPKG")
-    # pd.merge(edges[["edge_id","traffic_count"]],
-    #     edge_flows[["edge_id","working_trips","GDP_to_trips"]]).to_csv(os.path.join(results_path,
-    #                                     'flow_mapping',
-    #                                     'roads_traffic_counts_working_trips_and_activity_reduced_sample.csv'),index=False)
 
 
 if __name__ == "__main__":

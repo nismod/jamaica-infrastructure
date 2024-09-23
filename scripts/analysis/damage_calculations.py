@@ -13,8 +13,9 @@ pd.options.mode.chained_assignment = None  # default='warn'
 warnings.simplefilter(action="ignore", category=pd.errors.PerformanceWarning)
 import geopandas as gpd
 import numpy as np
-from analysis_utils import *
 from tqdm import tqdm
+
+from jamaica_infrastructure.direct_damages import interp1d, load_config
 
 tqdm.pandas()
 

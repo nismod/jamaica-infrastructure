@@ -8,15 +8,16 @@ import pandas as pd
 import geopandas as gpd
 import numpy as np
 from shapely.geometry import LineString
-from utils import *
 from tqdm import tqdm
+
+from jamaica_infrastructure.utils import (load_config, map_nearest_locations_and_create_lines,
+                                          polygon_to_points)
 
 tqdm.pandas()
 epsg_jamaica = 3448
 
 
 def main(config):
-    incoming_data_path = config["paths"]["incoming_data"]
     processed_data_path = config["paths"]["data"]
 
     airports = gpd.read_file(
@@ -52,7 +53,7 @@ def main(config):
         os.path.join(processed_data_path, "networks", "transport", "roads.gpkg"),
         layer="nodes",
     )
-    road_nodes = road_nodes[road_nodes["component"] == 0]
+    road_nodes = road_nodes[road_nodes["component_id"] == 1]
     road_nodes = road_nodes.to_crs(epsg=epsg_jamaica)
     road_nodes["mode"] = "road"
 
@@ -112,31 +113,14 @@ def main(config):
     road_edges_max_id = max(
         [int(c.split("_")[1]) for c in road_edges["edge_id"].values.tolist()]
     )
-    road_edges = road_edges[road_edges["component"] == 0]
+    road_edges = road_edges[road_edges["component_id"] == 1]
     road_edges["from_mode"] = "road"
     road_edges["to_mode"] = "road"
     """Add road to fix lack of connectivity
     """
-    new_road = pd.DataFrame()
-    new_road["from_node"] = ["roadsn_84980"]
-    new_road["to_node"] = ["roadsn_83546"]
-    new_road["edge_id"] = [f"roadse_{road_edges_max_id + 1}"]
-    new_road["from_mode"] = ["road"]
-    new_road["to_mode"] = ["road"]
-    new_road["speed"] = [110]
-    new_road["geometry"] = [
-        LineString(
-            [
-                road_nodes[road_nodes["node_id"] == "roadsn_84980"].geometry.values[0],
-                road_nodes[road_nodes["node_id"] == "roadsn_83546"].geometry.values[0],
-            ]
-        )
-    ]
-    new_road["length_m"] = [new_road["geometry"].values[0].length]
-    new_road["time"] = 0.001 * new_road["length_m"] / new_road["speed"]
 
-    road_edges["time"] = 0.001 * road_edges["length_m"] / road_edges["speed"]
-    print(new_road)
+    road_edges["time"] = 0.001 * road_edges["length_m"] / road_edges["speed_kph"]
+    road_edges = road_edges.rename(columns={"speed_kph": "speed"})
     print(rail_edges)
     print(road_edges)
     columns = [
@@ -156,7 +140,6 @@ def main(config):
                 multi_modal[columns],
                 rail_edges[columns],
                 road_edges[columns],
-                new_road[columns],
             ],
             axis=0,
             ignore_index=True,
