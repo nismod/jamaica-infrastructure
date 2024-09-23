@@ -287,7 +287,7 @@ def explode_multi(df):
     geoms = []
     for item in df.itertuples(index=False):
         if item.geometry.geom_type in ("MultiPoint", "MultiLineString", "MultiPolygon"):
-            for part in item.geometry:
+            for part in item.geometry.geoms:
                 items.append(item._asdict())
                 geoms.append(part)
         else:
