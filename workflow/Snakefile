@@ -1,7 +1,8 @@
 configfile: "config.json"
 
 # assign globals to these paths, they're used frequently
-PROCESSED = config["paths"]["data"]
-RESULTS = config["paths"]["output"]
+DATA = config["paths"]["data"]
+OUTPUT = config["paths"]["output"]
 
+include: "direct_damages.smk"
 include: "transport_model.smk"

@@ -13,14 +13,14 @@ rule rasterise_networks:
     snakemake -c1 results/hazard_asset_intersection
     """
     input:
-        network_layers = f"{DATA}/network_layers.csv",
-        hazard_layers = f"{DATA}/hazard_layers.csv",
-        script = "../scripts/exposure/split_networks.py",
+        networks = config["paths"]["network_layers"],
+        hazards = config["paths"]["hazard_layers"],
+        script = "scripts/exposure/split_networks.py",
     output:
-        splits = directory(f"{DATA}/hazard_asset_intersection"),
+        splits = directory(f"{OUTPUT}/hazard_asset_intersection")
     shell:
-        """
-        python {input.script} {input.networks} {input.hazards} {wildcards.DATA_DATA}
+        f"""
+        python {{input.script}} {{input.networks}} {{input.hazards}} {DATA} {OUTPUT}
         """
 
 
