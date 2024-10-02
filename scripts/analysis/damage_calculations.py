@@ -2,13 +2,13 @@
 
 """
 
-import sys
+import logging
 import os
+import sys
 import warnings
 
 warnings.simplefilter(action="ignore", category=FutureWarning)
 import pandas as pd
-
 pd.options.mode.chained_assignment = None  # default='warn'
 warnings.simplefilter(action="ignore", category=pd.errors.PerformanceWarning)
 import geopandas as gpd
@@ -135,8 +135,8 @@ def main(
     processed_data_path = config["paths"]["data"]
     output_data_path = config["paths"]["output"]
 
-    direct_damages_results = os.path.join(output_data_path, results_folder)
-    if os.path.exists(direct_damages_results) == False:
+    direct_damages_results = os.path.join(output_data_path, "direct_damages")
+    if not os.path.exists(direct_damages_results):
         os.mkdir(direct_damages_results)
 
     hazard_asset_intersection_path = os.path.join(
@@ -224,7 +224,7 @@ def main(
             hazard_asset_intersection_path,
             f"{asset_info.asset_gpkg}_splits__hazard_layers__{asset_info.asset_layer}.geoparquet",
         )
-        if os.path.isfile(hazard_intersection_file) is True:
+        if os.path.isfile(hazard_intersection_file):
             hazard_df = gpd.read_parquet(hazard_intersection_file)
             hazard_df = hazard_df.to_crs(epsg=epsg_jamaica)
             hazard_df = add_exposure_dimensions(
@@ -355,6 +355,8 @@ def main(
                     print(
                         f"* {asset_info.asset_gpkg} {asset_info.asset_layer} not affected by {hazard_info.hazard}"
                     )
+        else:
+            raise RuntimeError(f"Missing necessary {hazard_intersection_file}...")
         if len(hazard_damages) > 0:
             asset_damages_results = os.path.join(
                 direct_damages_results,

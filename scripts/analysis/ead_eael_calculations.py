@@ -36,7 +36,7 @@ def main(
     processed_data_path = config["paths"]["data"]
     output_data_path = config["paths"]["output"]
 
-    direct_damages_results = os.path.join(output_data_path, results_folder)
+    direct_damages_results = os.path.join(output_data_path, "direct_damages")
     bridge_flood_protection = (
         50  # Bridges in Jamaica are designed to withstand 1 in 50 year floods
     )

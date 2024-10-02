@@ -24,21 +24,30 @@ rule rasterise_networks:
         """
 
 
-
-#   rule direct_damages:
-#       """
-#       
-#       """
-#       input:
-#           networks = "network_layers.csv",
-#           hazards = "hazard_layers.csv",
-#           asset_damage_curve_mapping = f"{DATA}/damage_curves/asset_damage_curve_mapping.csv",
-#           damage_thresholds = f"{DATA}/damage_curves/hazard_damage_parameters.csv",
-#       output:
-#
-#       script:
-#           "../scripts/analysis/damage_calculations.py"
-
+rule direct_damages:
+    """
+    Run direct damage calculation for all networks and hazards.
+    Test with:
+    snakemake -c1 results/direct_damages
+    """
+    input:
+        networks = config["paths"]["network_layers"],
+        hazards = config["paths"]["hazard_layers"],
+        splits = f"{OUTPUT}/hazard_asset_intersection",
+        asset_damage_curve_mapping = f"{DATA}/damage_curves/asset_damage_curve_mapping.csv",
+        damage_thresholds = f"{DATA}/damage_curves/hazard_damage_parameters.csv",
+        script_driver = "scripts/analysis/damage_loss_setup_script.py",
+        script_core = "scripts/analysis/damage_calculations.py",
+        script_eal_eael = "scripts/analysis/ead_eael_calculations.py",
+        script_loss_summary = "scripts/analysis/damage_loss_summarised.py",
+        script_loss_npv = "scripts/analysis/damage_loss_timeseries_and_npv.py",
+    threads:
+        workflow.cores
+    output:
+        damages = directory(f"{OUTPUT}/direct_damages"),
+        damage_results = f"{OUTPUT}/direct_damages/ead_eael_results.txt"
+    shell:
+        f"python {{input.script_driver}} {{input.networks}} {{input.hazards}} {{threads}}"
 
 
 rule extract:
