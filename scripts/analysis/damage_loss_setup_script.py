@@ -89,54 +89,8 @@ def main(config, network_csv, hazard_csv, n_cpu):
             for p in r:
                 pv = p.split(",")
                 f.write(
-                    f"{damage_results_folder},{network_csv},{hazard_csv},{flood_protection_column},{pv[0]},{pv[1]},{pv[2]}\n"
+                    f"{damage_results_folder},{network_csv},{hazard_csv},{flood_protection_column},{pv[0]},{pv[1]},{pv[2]}"
                 )
-
-    """Call the EAD and EAEL analysis script and loop through the failure results"""
-    args = [
-        "parallel",
-        "--lb",
-        "-j",
-        str(n_cpu),
-        "--colsep",
-        ",",
-        "-a",
-        ead_eael_results_fname,
-        "python",
-        "scripts/analysis/ead_eael_calculations.py",
-        "{}",
-    ]
-    print("* Start the processing of EAD and EAEL calculations")
-    print(args)
-    subprocess.check_output(args)
-
-    """Next we call the summary scripts
-    """
-    args = [
-        "python",
-        "scripts/analysis/damage_loss_summarised.py",
-        f"{damage_results_folder}",
-        f"{summary_folder}",
-        f"{network_csv}",
-        f"{parameter_combinations_file}",
-    ]
-    print("* Start the processing of summarising damage results")
-    print(args)
-    subprocess.check_output(args)
-
-    """Next we call the timeseries and NPV scripts
-    """
-    args = [
-        "python",
-        "scripts/analysis/damage_loss_timeseries_and_npv.py",
-        f"{summary_folder}",
-        f"{timeseries_results_folder}",
-        f"{discounted_results_folder}",
-        f"{network_csv}",
-    ]
-    print("* Start the processing of timeseries and NPV calculations")
-    print(args)
-    subprocess.check_output(args)
 
 
 if __name__ == "__main__":

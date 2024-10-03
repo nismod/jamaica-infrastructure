@@ -2,6 +2,7 @@
 
 """
 
+import datetime
 import sys
 import os
 
@@ -279,6 +280,10 @@ def main(
             # print (len(summarised_damages.index))
             del summarised_damages
         print(f"* Done with {asset_info.asset_gpkg} {asset_info.asset_layer}")
+
+    # signal to snakemake that the job is complete
+    with open(os.path.join(summary_results_folder, "summary.flag"), "w") as fp:
+        fp.write(datetime.datetime.now())
 
 
 if __name__ == "__main__":

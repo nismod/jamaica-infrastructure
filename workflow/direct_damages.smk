@@ -1,3 +1,9 @@
+"""
+- Rasterising/splitting networks by raster grids
+- Calculating direct damage estimates
+"""
+
+
 import pandas
 
 
@@ -38,14 +44,11 @@ rule direct_damages:
         damage_thresholds = f"{DATA}/damage_curves/hazard_damage_parameters.csv",
         script_driver = "scripts/analysis/damage_loss_setup_script.py",
         script_core = "scripts/analysis/damage_calculations.py",
-        script_eal_eael = "scripts/analysis/ead_eael_calculations.py",
-        script_loss_summary = "scripts/analysis/damage_loss_summarised.py",
-        script_loss_npv = "scripts/analysis/damage_loss_timeseries_and_npv.py",
     threads:
         workflow.cores
     output:
-        damages = directory(f"{OUTPUT}/direct_damages"),
-        damage_results = f"{OUTPUT}/direct_damages/ead_eael_results.txt"
+        sensitivity_parameter_set = f"{DATA}/parameter_combinations.txt"
+        problem_specification = f"{OUTPUT}/direct_damages/ead_eael_results.txt",
     shell:
         f"python {{input.script_driver}} {{input.networks}} {{input.hazards}} {{threads}}"
 

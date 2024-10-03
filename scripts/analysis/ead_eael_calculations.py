@@ -1,9 +1,11 @@
-"""Estimate direct damages to physical assets exposed to hazards
-
+"""
+Calculate Expected Annual Damages from direct damages at a set of return periods
+Calculate Expected Annual Economic Losses from single point of failure results and return period maps
 """
 
 import sys
 import os
+import datetime
 
 import warnings
 
@@ -58,8 +60,9 @@ def main(
             hazard_columns = [
                 c
                 for c in df.columns.values.tolist()
-                if c not in [asset_id, "damage_cost_unit" "exposure"]
+                if c not in [asset_id, "damage_cost_unit", "exposure"]
             ]
+            breakpoint()
             df = (
                 df.groupby([asset_id, "damage_cost_unit"])[hazard_columns]
                 .sum()
@@ -250,6 +253,10 @@ def main(
                 index=False,
             )
         print(f"* Done with {asset_info.asset_gpkg} {asset_info.asset_layer}")
+
+    # signal to snakemake that the job is complete
+    with open(os.path.join(asset_damages_results, "EAD_EAEL.flag"), "w") as fp:
+        fp.write(datetime.datetime.now())
 
 
 if __name__ == "__main__":
