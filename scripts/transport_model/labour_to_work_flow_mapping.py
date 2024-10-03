@@ -7,14 +7,15 @@ import pandas as pd
 import geopandas as gpd
 import numpy as np
 import igraph as ig
-from jamaica_infrastructure.utils import (
+from tqdm import tqdm
+
+from jamaica_infrastructure.transport.utils import (
     ckdnearest,
     load_config,
     map_nearest_locations_and_create_lines,
     network_od_paths_assembly,
 )
-import jamaica_infrastructure.transport_flow as tf
-from tqdm import tqdm
+import jamaica_infrastructure.transport.flow as tf
 
 tqdm.pandas()
 epsg_jamaica = 3448

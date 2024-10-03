@@ -10,8 +10,11 @@ import numpy as np
 from shapely.geometry import LineString
 from tqdm import tqdm
 
-from jamaica_infrastructure.utils import (load_config, map_nearest_locations_and_create_lines,
-                                          polygon_to_points)
+from jamaica_infrastructure.transport.utils import (
+    load_config,
+    map_nearest_locations_and_create_lines,
+    polygon_to_points,
+)
 
 tqdm.pandas()
 epsg_jamaica = 3448

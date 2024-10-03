@@ -1,11 +1,8 @@
 """Functions for preprocessing data
 """
 
-import sys
 import os
 import json
-
-import subprocess
 
 # import rasterio
 # import rioxarray
@@ -17,7 +14,6 @@ from shapely.geometry import Polygon, shape, LineString
 
 # workaround for geopandas >0.9 until snkit #37 and geopandas #1977 are fixed
 gpd._compat.USE_PYGEOS = False
-import fiona
 import numpy as np
 from scipy.spatial import cKDTree
 import snkit
