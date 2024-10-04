@@ -26,7 +26,7 @@ rule labour_to_work_flow_mapping:
         buildings = f"{DATA}/buildings/buildings_assigned_economic_activity.gpkg",
         population = f"{DATA}/population/population_projections.gpkg",
     output:
-        economic_activity = f"{DATA}/flow_mapping/road_nodes_labour_economic_activity_aggregations.gpkg",
+        economic_activity = f"{OUTPUT}/flow_mapping/road_nodes_labour_economic_activity_aggregations.gpkg",
         labour_to_sector_activity = f"{OUTPUT}/flow_mapping/labour_to_sectors_trips_and_activity.csv",
         node_activity = f"{OUTPUT}/flow_mapping/origins_destinations_labour_economic_activity.csv",
         labour_flows = f"{OUTPUT}/flow_mapping/labour_to_sectors_flow_paths.csv",
