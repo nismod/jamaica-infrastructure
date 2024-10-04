@@ -2,8 +2,9 @@
 """
 
 import ast
-import sys
+import logging
 import os
+import sys
 
 import pandas as pd
 import geopandas as gpd
@@ -236,25 +237,17 @@ def main(config, min_node_number, max_node_number):
     # print (labour_flow_edges)
     # G = ig.Graph.TupleList(network.itertuples(index=False), edge_attrs=list(network.columns)[2:])
 
-    trade_flows = pd.read_csv(
-        os.path.join(results_path, "flow_mapping", "sector_to_ports_flow_paths.csv")
+    trade_flows = pd.read_parquet(
+        os.path.join(results_path, "flow_mapping", "sector_to_ports_flow_paths.pq")
     )
-    trade_flows["edge_path"] = trade_flows.progress_apply(
-        lambda x: ast.literal_eval(x.edge_path), axis=1
-    )
-    # print (trade_flows)
 
-    labour_flows = pd.read_csv(
+    labour_flows = pd.read_parquet(
         os.path.join(
             results_path,
             "flow_mapping",
-            "labour_to_sectors_trips_and_activity_reduced_sample.csv",
+            "labour_to_sectors_trips_and_activity.pq",
         )
     )
-    labour_flows["edge_path"] = labour_flows.progress_apply(
-        lambda x: ast.literal_eval(x.edge_path), axis=1
-    )
-    # print (labour_flows)
 
     all_flows = pd.concat([trade_flows, labour_flows], axis=0, ignore_index=True)
     all_flows = all_flows[
@@ -332,7 +325,7 @@ def main(config, min_node_number, max_node_number):
                 "edge_path",
                 "time",
             )
-        print("* Done with edge", edge)
+        logging.info(f"* Done with edge: {edge}")
     edge_fail_results = pd.DataFrame(edge_fail_results)
     edge_fail_results = pd.merge(
         edge_fail_results, all_flows, how="left", on=["origin_id", "destination_id"]
@@ -413,13 +406,14 @@ def main(config, min_node_number, max_node_number):
 
 
 if __name__ == "__main__":
+    logging.basicConfig(format="%(asctime)s %(process)d %(filename)s %(message)s", level=logging.INFO)
     CONFIG = load_config()
     try:
         min_node_number = int(sys.argv[2])
         max_node_number = int(sys.argv[3])
         # print (min_node_number,max_node_number)
     except IndexError:
-        print("Got arguments", sys.argv)
+        logging.info("Got arguments", sys.argv)
         exit()
 
     main(CONFIG, min_node_number, max_node_number)

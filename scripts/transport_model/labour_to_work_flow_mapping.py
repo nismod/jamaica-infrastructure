@@ -398,6 +398,12 @@ def main(config):
         ),
         index=False,
     )
+    flow_paths.to_parquet(
+        os.path.join(
+            results_path, "flow_mapping", "labour_to_sectors_trips_and_activity.pq"
+        ),
+        index=False,
+    )
 
     flow_paths = pd.read_csv(
         os.path.join(

@@ -445,8 +445,14 @@ def main(config):
         flow_network.append(edge_flows)
 
         print(f"* Done with {trade_details.sector_type} {trade_details.trade_type}")
-    pd.concat(sector_flows, axis=0, ignore_index=True).to_csv(
-        os.path.join(results_path, "flow_mapping", f"sector_to_ports_flow_paths.csv"),
+
+    sector_flows = pd.concat(sector_flows, axis=0, ignore_index=True)
+    sector_flows.to_csv(
+        os.path.join(results_path, "flow_mapping", "sector_to_ports_flow_paths.csv"),
+        index=False,
+    )
+    sector_flows.to_parquet(
+        os.path.join(results_path, "flow_mapping", "sector_to_ports_flow_paths.pq"),
         index=False,
     )
     sector_network = pd.concat(sector_network, axis=0, ignore_index=True)[columns]

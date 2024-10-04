@@ -64,7 +64,7 @@ def get_flow_on_edges(save_paths_df, edge_id_column, edge_path_column, flow_colu
 def get_flow_paths_indexes_of_edges(flow_dataframe, path_criteria):
     edge_path_index = defaultdict(list)
     for k, v in zip(
-        chain.from_iterable(flow_dataframe[path_criteria].ravel()),
+        chain.from_iterable(flow_dataframe[path_criteria].to_numpy()),
         flow_dataframe.index.repeat(flow_dataframe[path_criteria].str.len()).tolist(),
     ):
         edge_path_index[k].append(v)
@@ -271,7 +271,7 @@ def igraph_scenario_edge_failures(
 
         if len(access_flows):
             access_flows = pd.concat(
-                access_flows, axis=0, sort="False", ignore_index=True
+                access_flows, axis=0, sort=False, ignore_index=True
             )
             select_flows = pd.merge(
                 select_flows,

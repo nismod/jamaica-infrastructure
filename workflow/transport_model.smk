@@ -27,7 +27,7 @@ rule labour_to_work_flow_mapping:
         population = f"{DATA}/population/population_projections.gpkg",
     output:
         economic_activity = f"{OUTPUT}/flow_mapping/road_nodes_labour_economic_activity_aggregations.gpkg",
-        labour_to_sector_activity = f"{OUTPUT}/flow_mapping/labour_to_sectors_trips_and_activity.csv",
+        labour_to_sector_activity = f"{OUTPUT}/flow_mapping/labour_to_sectors_trips_and_activity.pq",
         node_activity = f"{OUTPUT}/flow_mapping/origins_destinations_labour_economic_activity.csv",
         labour_flows = f"{OUTPUT}/flow_mapping/labour_to_sectors_flow_paths.csv",
     script:
@@ -65,8 +65,34 @@ rule trade_activity_flow_mapping:
         agriculture = f"{DATA}/agriculture_data/agriculture_gdp.gpkg",
         mining_areas = f"{DATA}/mining_data/mining_gdp.gpkg",
     output:
-        od = f"{OUTPUT}/flow_mapping/sector_to_ports_flow_paths.csv",
+        od = f"{OUTPUT}/flow_mapping/sector_to_ports_flow_paths.pq",
         trade_flows = f"{OUTPUT}/flow_mapping/sector_imports_exports_to_ports_flows.gpkg",
         economic_activity_by_node_sector = f"{OUTPUT}/flow_mapping/origins_destinations_trade_economic_activity.csv",
     script:
         "../scripts/transport_model/trade_activity_flow_mapping.py"
+
+
+rule transport_failure_flow_allocation:
+    """
+    Exhaustively fail transport edges, reallocate economic flows.
+    Test with:
+    snakemake -c1 results/transport_failures/transport_failures.flag
+    """
+    input:
+        script_core = "scripts/transport_model/transport_failure_analysis.py",
+        multi_modal_network = f"{DATA}/networks/transport/multi_modal_network.gpkg",
+        od = f"{OUTPUT}/flow_mapping/sector_to_ports_flow_paths.pq",
+        trade_flows = f"{OUTPUT}/flow_mapping/sector_imports_exports_to_ports_flows.gpkg",
+        labour_to_sector_activity = f"{OUTPUT}/flow_mapping/labour_to_sectors_trips_and_activity.pq",
+    threads:
+        workflow.cores
+    resources:
+        mem_gb=72  # ouch!
+    output:
+        failure_scenarios = f"{OUTPUT}/transport_failures/parallel_transport_scenario_selection.txt",
+        failure_scenarios_resampled = f"{OUTPUT}/transport_failures/parallel_transport_scenario_selection_resample.txt",
+        transport_failures_flag = f"{OUTPUT}/transport_failures/transport_failures.flag",
+    shell:
+        """
+        python scripts/transport_model/transport_failure_scenario_setup.py {threads}
+        """

@@ -94,6 +94,7 @@ def main(config, n_cpu):
     """
     args = [
         "parallel",
+        "--lb",
         "-j",
         str(n_cpu),
         "--colsep",
@@ -101,7 +102,7 @@ def main(config, n_cpu):
         "-a",
         scenarios_path,
         "python",
-        "transport_failure_analysis.py",
+        "scripts/transport_model/transport_failure_analysis.py",
         "{}",
     ]
     print(args)

@@ -39,7 +39,7 @@ rule summarise_damages:
     input:
         script_loss_summary = "scripts/analysis/damage_loss_summarised.py",
         eal_eael_flag = f"{OUTPUT}/direct_damages/EAD_EAEL.flag",
-        damage_results = directory(f"{OUTPUT}/direct_damages"),
+        damage_results = f"{OUTPUT}/direct_damages",
         networks = config["paths"]["network_layers"],
         parameter_combinations = f"{DATA}/parameter_combinations.txt"
     output:
