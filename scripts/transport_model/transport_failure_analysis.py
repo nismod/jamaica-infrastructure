@@ -212,7 +212,7 @@ def main(config, min_node_number, max_node_number):
     ]
     trade_flow_edges = gpd.read_file(
         os.path.join(
-            results_path, "flow_mapping", f"sector_imports_exports_to_ports_flows.gpkg"
+            results_path, "flow_mapping", "sector_imports_exports_to_ports_flows.gpkg"
         ),
         layer="edges",
     )

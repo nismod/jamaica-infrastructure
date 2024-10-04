@@ -26,9 +26,11 @@
         Each of these lines is a batch of scenarios that are run on different processors in parallel
 """
 
+import datetime
 import os
 import pandas as pd
 import subprocess
+import sys
 
 import geopandas as gpd
 import numpy as np
@@ -41,7 +43,7 @@ from jamaica_infrastructure.transport.utils import load_config
 #####################################
 
 
-def main(config):
+def main(config, n_cpu):
     processed_data_path = config["paths"]["data"]
     results_path = config["paths"]["output"]
 
@@ -61,7 +63,8 @@ def main(config):
     edge_fail = rail_edges + road_edges
 
     num_values = np.linspace(0, len(edge_fail) - 1, num_blocks)
-    with open("parallel_transport_scenario_selection.txt", "w+") as f:
+    scenarios_path = os.path.join(results_path, "transport_failures", "parallel_transport_scenario_selection.txt")
+    with open(scenarios_path, "w+") as f:
         for n in range(len(num_values) - 1):
             f.write(
                 "{},{},{}\n".format(
@@ -69,8 +72,13 @@ def main(config):
                 )
             )
 
-    with open("parallel_transport_scenario_selection_resample.txt", "w+") as f:
-        with open("parallel_transport_scenario_selection.txt") as t:
+    scenarios_resampled_path = os.path.join(
+        results_path,
+        "transport_failures",
+        "parallel_transport_scenario_selection_resample.txt"
+    )
+    with open(scenarios_resampled_path, "w+") as f:
+        with open(scenarios_path) as t:
             for line in t:
                 line = line.strip("\n")
                 file = os.path.join(
@@ -87,11 +95,11 @@ def main(config):
     args = [
         "parallel",
         "-j",
-        str(num_blocks),
+        str(n_cpu),
         "--colsep",
         ",",
         "-a",
-        "parallel_transport_scenario_selection.txt",
+        scenarios_path,
         "python",
         "transport_failure_analysis.py",
         "{}",
@@ -99,7 +107,14 @@ def main(config):
     print(args)
     subprocess.run(args)
 
+    # signal to snakemake that the job is complete
+    with open(os.path.join(results_path, "transport_failures", "transport_failures.flag"), "w") as fp:
+        fp.write(datetime.datetime.now())
+
 
 if __name__ == "__main__":
+
+    _, n_cpu = sys.argv
+
     CONFIG = load_config()
-    main(CONFIG)
+    main(CONFIG, int(n_cpu))

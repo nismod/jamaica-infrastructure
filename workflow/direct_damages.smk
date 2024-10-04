@@ -47,7 +47,7 @@ rule direct_damages:
     threads:
         workflow.cores
     output:
-        sensitivity_parameter_set = f"{DATA}/parameter_combinations.txt"
+        sensitivity_parameter_set = f"{DATA}/parameter_combinations.txt",
         problem_specification = f"{OUTPUT}/direct_damages/ead_eael_results.txt",
     shell:
         f"python {{input.script_driver}} {{input.networks}} {{input.hazards}} {{threads}}"

@@ -183,7 +183,7 @@ def filter_sector_from_buildings(buildings_dataframe, sector_code, subsector_cod
 
 def main(config):
     processed_data_path = config["paths"]["data"]
-    results_path = config["paths"]["results"]
+    results_path = config["paths"]["output"]
 
     """Get the ports and multimodal network
     """
