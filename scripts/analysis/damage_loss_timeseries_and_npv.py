@@ -239,7 +239,7 @@ def main(
 
     # signal to snakemake that the job is complete
     with open(os.path.join(summary_results, "losses_npv.flag"), "w") as fp:
-        fp.write(datetime.datetime.now())
+        fp.write(f"{datetime.datetime.now()}")
 
 
 if __name__ == "__main__":
