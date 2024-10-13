@@ -1,6 +1,6 @@
 # to install this environment:
 # micromamba create -f environment.yml -y
-name: jamaica-infrastructure
+name: jsrat
 channels:
   - conda-forge  # majority of dependencies
   - defaults
