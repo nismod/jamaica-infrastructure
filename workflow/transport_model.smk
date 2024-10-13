@@ -56,7 +56,7 @@ rule trade_activity_flow_mapping:
     """
     Identify trade flows from areas of economic activity across the transport network
     Test with:
-    snakemake -c1 processed_data/flow_mapping/sector_imports_exports_to_ports_flows.gpkg
+    snakemake -c1 results/flow_mapping/sector_imports_exports_to_ports_flows.gpkg
     """
     input:
         ports = f"{DATA}/networks/transport/port_polygon.gpkg",
