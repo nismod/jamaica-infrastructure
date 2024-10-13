@@ -61,8 +61,9 @@ rule summarise_direct_damages:
     snakemake -c1 results/direct_damages_summary/
     """
     input:
+        sensitivity_parameter_set = f"{DATA}/parameter_combinations.txt",
+        network_layers_intersections = f"{DATA}/networks/network_layers_hazard_intersections_details.csv",
         script_summarise = "scripts/analysis/direct_damage_summarise.py",
-        network_layers_intersections = f"{DATA}/networks/network_layers_hazard_intersections_details.csv"
     output:
         summary = directory(f"{OUTPUT}/direct_damages_summary")
     shell:
