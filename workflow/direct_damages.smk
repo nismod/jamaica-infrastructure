@@ -34,7 +34,7 @@ rule direct_damages:
     """
     Run direct damage calculation for all networks and hazards.
     Test with:
-    snakemake -c1 results/direct_damages
+    snakemake -c1 results/direct_damages/ead_eael_results.txt
     """
     input:
         networks = config["paths"]["network_layers"],
@@ -51,6 +51,22 @@ rule direct_damages:
         problem_specification = f"{OUTPUT}/direct_damages/ead_eael_results.txt",
     shell:
         f"python {{input.script_driver}} {{input.networks}} {{input.hazards}} {{threads}}"
+
+
+rule summarise_direct_damages:
+    """
+    Summarise direct damage results (aggregate over sensitivity analysis) for
+    all networks and hazards.
+    Test with:
+    snakemake -c1 results/direct_damages_summary/
+    """
+    input:
+        script_summarise = "scripts/analysis/direct_damage_summarise.py",
+        network_layers_intersections = f"{DATA}/networks/network_layers_hazard_intersections_details.csv"
+    output:
+        summary = directory(f"{OUTPUT}/direct_damages_summary")
+    shell:
+        f"python {{input.script_summarise}}"
 
 
 rule extract:

@@ -30,9 +30,9 @@ rule compute_EAD_and_EAEL:
         """
 
 
-rule summarise_damages:
+rule summarise_damages_and_losses:
     """
-    Summarise direct damages.
+    Summarise direct damages and losses.
     Test with:
     snakemake -c1 results/direct_damages_summary/summary.flag
     """
