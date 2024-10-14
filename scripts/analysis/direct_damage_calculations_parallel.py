@@ -278,7 +278,9 @@ def main(config, set_count, cost_uncertainty_parameter, damage_uncertainty_param
             hazard_data_details = pd.read_csv(
                 os.path.join(processed_data_path, hazard_file), encoding="latin1"
             )
-            if os.path.isfile(hazard_intersection_file) is True:
+            if not os.path.isfile(hazard_intersection_file):
+                raise RuntimeError(f"{hazard_intersection_file} not found...")
+            else:
                 hazard_df = gpd.read_parquet(hazard_intersection_file)
                 hazard_df = hazard_df.to_crs(epsg=epsg_jamaica)
                 hazard_df = add_exposure_dimensions(
@@ -422,18 +424,17 @@ def main(config, set_count, cost_uncertainty_parameter, damage_uncertainty_param
                 direct_damages_results,
                 f"{asset_info.asset_gpkg}_{asset_info.asset_layer}",
             )
-            if os.path.exists(asset_damages_results) == False:
+            if not os.path.exists(asset_damages_results):
                 os.mkdir(asset_damages_results)
             hazard_damages = pd.concat(
                 hazard_damages, axis=0, ignore_index=True
             ).fillna(0)
-            hazard_damages.to_csv(
-                os.path.join(
-                    asset_damages_results,
-                    f"{asset_info.asset_gpkg}_{asset_info.asset_layer}_direct_damages_parameter_set_{set_count}.csv",
-                ),
-                index=False,
-            )
+            filepath = os.path.join(
+                asset_damages_results,
+                f"{asset_info.asset_gpkg}_{asset_info.asset_layer}_direct_damages_parameter_set_{set_count}.csv",
+            ),
+            print(f"Writing damages to {filepath}...")
+            hazard_damages.to_csv(filepath, index=False)
 
 
 if __name__ == "__main__":

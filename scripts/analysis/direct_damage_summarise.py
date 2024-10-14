@@ -19,7 +19,7 @@ def quantiles(dataframe, grouping_by_columns, grouped_columns):
     # quantiles_list = ['mean','min','max','median','q5','q95']
     grouped = (
         dataframe.groupby(grouping_by_columns, dropna=False)[grouped_columns]
-        .agg([np.min, np.mean, np.max])
+        .agg(["min", "mean", "max"])
         .reset_index()
     )
     grouped.columns = grouping_by_columns + [
@@ -73,13 +73,13 @@ def main(config):
         os.path.join(
             processed_data_path,
             "networks",
-            "network_layers_hazard_intersections_details_1.csv",
+            "network_layers_hazard_intersections_details.csv",
         )
     )
     # asset_data_details = asset_data_details[(asset_data_details["sector"] == "energy") & (asset_data_details["asset_layer"] == "edges")]
     # print (asset_data_details)
 
-    param_values = open("parameter_combinations.txt")
+    param_values = open(os.path.join(processed_data_path, "parameter_combinations.txt"))
     param_values = [tuple(line.split(",")) for line in param_values.readlines()]
     param_values = pd.DataFrame(
         param_values,
@@ -141,13 +141,12 @@ def main(config):
             )
             # exposures.to_parquet(os.path.join(summary_results,
             #                 f"{asset_info.asset_gpkg}_{asset_info.asset_layer}_exposures.parquet"),index=False)
-            exposures.to_csv(
-                os.path.join(
-                    summary_results,
-                    f"{asset_info.asset_gpkg}_{asset_info.asset_layer}_exposures.csv",
-                ),
-                index=False,
+            exposure_file_path = os.path.join(
+                summary_results,
+                f"{asset_info.asset_gpkg}_{asset_info.asset_layer}_exposures.csv",
             )
+            print(exposure_file_path)
+            exposures.to_csv(exposure_file_path, index=False)
             del exposures
             damages = [
                 df.groupby(
@@ -170,13 +169,12 @@ def main(config):
                 )
                 # damages.to_parquet(os.path.join(summary_results,
                 #             f"{asset_info.asset_gpkg}_{asset_info.asset_layer}_damages.parquet"),index=False)
-                damages.to_csv(
-                    os.path.join(
-                        summary_results,
-                        f"{asset_info.asset_gpkg}_{asset_info.asset_layer}_damages.csv",
-                    ),
-                    index=False,
+                damages_file_path = os.path.join(
+                    summary_results,
+                    f"{asset_info.asset_gpkg}_{asset_info.asset_layer}_damages.csv",
                 )
+                print(damages_file_path)
+                damages.to_csv(damages_file_path, index=False)
             del damages
         # Process the EAD and EAEL results
         damage_files = [

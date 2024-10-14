@@ -28,9 +28,7 @@
 
 import os
 import sys
-import ujson
 from SALib.sample import morris
-import SALib.analyze.morris
 from analysis_utils import *
 import subprocess
 
@@ -73,7 +71,7 @@ def main(config):
         "-a",
         "parameter_combinations.txt",
         "python",
-        "direct_damage_calculations_parallel.py",
+        "scripts/analysis/direct_damage_calculations_parallel.py",
         "{}",
     ]
     print(args)

@@ -16,7 +16,7 @@ tqdm.pandas()
 def main(config):
     # Set global paths
     processed_data_path = config["paths"]["data"]
-    results_data_path = config["paths"]["results"]
+    results_data_path = config["paths"]["output"]
 
     # Create a path to store intersection outputs
     output_path = os.path.join(results_data_path, "buildings_heights")

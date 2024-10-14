@@ -27,19 +27,13 @@
 """
 
 import os
-import sys
-import configparser
-import csv
-import fiona
-import time
-import ast
-import copy
-import ujson
+import subprocess
+
 import pandas as pd
 import geopandas as gpd
-from utils import *
 from tqdm import tqdm
-import subprocess
+
+from jamaica_infrastructure.transport.utils import load_config, np
 
 #####################################
 # READ MAIN DATA
