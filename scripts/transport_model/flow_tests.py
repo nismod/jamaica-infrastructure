@@ -8,8 +8,14 @@ import pandas as pd
 import geopandas as gpd
 import numpy as np
 import igraph as ig
-from utils import *
 from tqdm import tqdm
+
+from jamaica_infrastructure.transport.utils import (
+    load_config,
+    map_nearest_locations_and_create_lines,
+    network_od_path_estimations,
+    network_od_paths_assembly,
+)
 
 tqdm.pandas()
 epsg_jamaica = 3448

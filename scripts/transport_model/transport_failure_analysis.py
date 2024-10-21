@@ -1,17 +1,23 @@
 """Do a transport failure analysis with rerouting
 """
 
-import sys
+import ast
+import logging
 import os
+import sys
 
 import pandas as pd
 import geopandas as gpd
 import numpy as np
 import igraph as ig
-import ast
-from utils import *
-import transport_flow_and_failure_functions as tf
 from tqdm import tqdm
+
+from jamaica_infrastructure.transport.utils import (
+    load_config,
+    map_nearest_locations_and_create_lines,
+    network_od_paths_assembly,
+)
+import jamaica_infrastructure.transport.flow as tf
 
 tqdm.pandas()
 epsg_jamaica = 3448
@@ -207,7 +213,7 @@ def main(config, min_node_number, max_node_number):
     ]
     trade_flow_edges = gpd.read_file(
         os.path.join(
-            results_path, "flow_mapping", f"sector_imports_exports_to_ports_flows.gpkg"
+            results_path, "flow_mapping", "sector_imports_exports_to_ports_flows.gpkg"
         ),
         layer="edges",
     )
@@ -231,25 +237,17 @@ def main(config, min_node_number, max_node_number):
     # print (labour_flow_edges)
     # G = ig.Graph.TupleList(network.itertuples(index=False), edge_attrs=list(network.columns)[2:])
 
-    trade_flows = pd.read_csv(
-        os.path.join(results_path, "flow_mapping", "sector_to_ports_flow_paths.csv")
+    trade_flows = pd.read_parquet(
+        os.path.join(results_path, "flow_mapping", "sector_to_ports_flow_paths.pq")
     )
-    trade_flows["edge_path"] = trade_flows.progress_apply(
-        lambda x: ast.literal_eval(x.edge_path), axis=1
-    )
-    # print (trade_flows)
 
-    labour_flows = pd.read_csv(
+    labour_flows = pd.read_parquet(
         os.path.join(
             results_path,
             "flow_mapping",
-            "labour_to_sectors_trips_and_activity_reduced_sample.csv",
+            "labour_to_sectors_trips_and_activity.pq",
         )
     )
-    labour_flows["edge_path"] = labour_flows.progress_apply(
-        lambda x: ast.literal_eval(x.edge_path), axis=1
-    )
-    # print (labour_flows)
 
     all_flows = pd.concat([trade_flows, labour_flows], axis=0, ignore_index=True)
     all_flows = all_flows[
@@ -316,6 +314,7 @@ def main(config, min_node_number, max_node_number):
     if max_node_number > len(edge_fail):
         max_node_number = len(edge_fail)
     edge_fail_results = []
+    # TODO: extremely slow, can we parallelise on this loop? are we already?
     for edge_number in range(min_node_number, max_node_number):
         edge = edge_fail[edge_number]
         for networks in network_dictionary:
@@ -327,7 +326,7 @@ def main(config, min_node_number, max_node_number):
                 "edge_path",
                 "time",
             )
-        print("* Done with edge", edge)
+        logging.info(f"* Done with edge: {edge}")
     edge_fail_results = pd.DataFrame(edge_fail_results)
     edge_fail_results = pd.merge(
         edge_fail_results, all_flows, how="left", on=["origin_id", "destination_id"]
@@ -357,6 +356,9 @@ def main(config, min_node_number, max_node_number):
     # print (edge_fail_results[["edge_id","no_access","time_loss",
     #                         "labour_rerouting_loss","trade_rerouting_loss",
     #                         "labour_gdp_loss","trade_loss"]])
+
+    # TODO: fails here: groupbys should be immediately followed by aggregation, no?
+    # troubleshoot with a small subset of edges
     losses = (
         edge_fail_results.groupby(["edge_id", "no_access"])[
             "time_loss",
@@ -408,13 +410,14 @@ def main(config, min_node_number, max_node_number):
 
 
 if __name__ == "__main__":
+    logging.basicConfig(format="%(asctime)s %(process)d %(filename)s %(message)s", level=logging.INFO)
     CONFIG = load_config()
     try:
         min_node_number = int(sys.argv[2])
         max_node_number = int(sys.argv[3])
         # print (min_node_number,max_node_number)
     except IndexError:
-        print("Got arguments", sys.argv)
+        logging.info("Got arguments", sys.argv)
         exit()
 
     main(CONFIG, min_node_number, max_node_number)

@@ -1,0 +1,24 @@
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "jamaica-infrastructure"
+version = "0.0.1"
+authors = [
+  {name="Raghav Pant", email="raghav.pant@ouce.ox.ac.uk"},
+  {name="Tom Russell", email="tom.russell@ouce.ox.ac.uk"},
+  {name="Fred Thomas", email="fred.thomas@eci.ox.ac.uk"}
+]
+description = "Helper package for jamaica-infrastructure workflow"
+readme = "README.md"
+requires-python = ">=3.10"
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "License :: OSI Approved :: MIT License",
+    "Operating System :: OS Independent",
+]
+
+[project.urls]
+"Homepage" = "https://github.com/nismod/jamaica-infrastructure"
+"Bug Tracker" = "https://github.com/nismod/jamaica-infrastructure/issues"
