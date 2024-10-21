@@ -1,8 +1,15 @@
 #
 processed_data/
 results/
-drought/
-incoming_data/
+
+# 
+drought/*
+incoming_data/*
+!incoming_data/water/
+incoming_data/water/*
+!incoming_data/water/water-model
+incoming_data/water/water-model/*
+!incoming_data/water/water-model/*.py
 
 # local module build files
 *.egg-info
