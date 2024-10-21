@@ -1,6 +1,8 @@
 #
 processed_data/
 results/
+drought/
+incoming_data/
 
 # local module build files
 *.egg-info
