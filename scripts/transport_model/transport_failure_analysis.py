@@ -314,6 +314,7 @@ def main(config, min_node_number, max_node_number):
     if max_node_number > len(edge_fail):
         max_node_number = len(edge_fail)
     edge_fail_results = []
+    # TODO: extremely slow, can we parallelise on this loop? are we already?
     for edge_number in range(min_node_number, max_node_number):
         edge = edge_fail[edge_number]
         for networks in network_dictionary:
@@ -355,6 +356,9 @@ def main(config, min_node_number, max_node_number):
     # print (edge_fail_results[["edge_id","no_access","time_loss",
     #                         "labour_rerouting_loss","trade_rerouting_loss",
     #                         "labour_gdp_loss","trade_loss"]])
+
+    # TODO: fails here: groupbys should be immediately followed by aggregation, no?
+    # troubleshoot with a small subset of edges
     losses = (
         edge_fail_results.groupby(["edge_id", "no_access"])[
             "time_loss",
