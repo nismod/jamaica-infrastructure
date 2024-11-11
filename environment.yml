@@ -1,0 +1,21 @@
+name: jsrat
+dependencies:
+  - python=3.12
+  - pip
+  - fiona
+  - geopandas
+  - jupyter
+  - matplotlib
+  - nbstripout
+  - numpy
+  - openpyxl
+  - pandas
+  - pathos
+  - rasterio
+  - rioxarray
+  - SALib
+  - scipy
+  - shapely
+  - snkit
+  - tqdm
+  - xarray
