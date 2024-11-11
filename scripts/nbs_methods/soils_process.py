@@ -1,6 +1,8 @@
 """Assign areas to different soil types for Jamaica
 Find the areas by different classes as totals and percentages
 """
+
+import sys
 import os
 import pandas as pd
 import geopandas as gpd

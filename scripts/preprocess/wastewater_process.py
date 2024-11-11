@@ -1,6 +1,7 @@
 """Create the wastewater asset data for Jamaica
     Add the final asset data into a geopackage
 """
+
 import sys
 import os
 
@@ -9,18 +10,24 @@ import geopandas as gpd
 import numpy as np
 from preprocess_utils import *
 
-def estimate_costs_and_units(x):
-    if x.curve == 'Y (/mgd)':
-        # print (str(x['capacity (mgd) from supplement']), x['capacity_inferred'])
-        min_damage_cost = float(str(x['cost ($J) - lower bound']).replace(",",""))*float(x['capacity_inferred'])
-        max_damage_cost = float(str(x['cost ($J) - upper bound']).replace(",",""))*float(x['capacity_inferred'])
-        cost_unit = '$J'
-    else:
-        min_damage_cost = float(str(x['cost ($J) - lower bound']).replace(",",""))
-        max_damage_cost = float(str(x['cost ($J) - upper bound']).replace(",",""))
-        cost_unit = '$J'
 
-    return cost_unit,min_damage_cost,max_damage_cost
+def estimate_costs_and_units(x):
+    if x.curve == "Y (/mgd)":
+        # print (str(x['capacity (mgd) from supplement']), x['capacity_inferred'])
+        min_damage_cost = float(
+            str(x["cost ($J) - lower bound"]).replace(",", "")
+        ) * float(x["capacity_inferred"])
+        max_damage_cost = float(
+            str(x["cost ($J) - upper bound"]).replace(",", "")
+        ) * float(x["capacity_inferred"])
+        cost_unit = "$J"
+    else:
+        min_damage_cost = float(str(x["cost ($J) - lower bound"]).replace(",", ""))
+        max_damage_cost = float(str(x["cost ($J) - upper bound"]).replace(",", ""))
+        cost_unit = "$J"
+
+    return cost_unit, min_damage_cost, max_damage_cost
+
 
 def main(config):
     incoming_data_path = config["paths"]["incoming_data"]
@@ -38,7 +45,9 @@ def main(config):
     waste_water_facilities_NWC = gpd.read_file(
         os.path.join(wastewater_data_path, "raw", "waste_water_facilities_NWC.shp")
     ).rename(columns={"Type": "asset_type", "Capacity": "capacity"})
-    cost_data = pd.read_csv(os.path.join(incoming_data_path,"water","cost","water_asset_costs.csv"))
+    cost_data = pd.read_csv(
+        os.path.join(incoming_data_path, "water", "cost", "water_asset_costs.csv")
+    )
     # Currently ignoring sewers
     # sewers = gpd.read_file(
     #     os.path.join(wastewater_data_path, "raw", "wGravityMain.shp")
@@ -65,8 +74,10 @@ def main(config):
 
     # merge
     waste_water_facilities_NWC = pd.merge(
-        waste_water_facilities_NWC, supplement_treatment_plant_capacity, 
-        how = "left",on=["Name","asset_type"]
+        waste_water_facilities_NWC,
+        supplement_treatment_plant_capacity,
+        how="left",
+        on=["Name", "asset_type"],
     )
 
     # assign asset name for matching with cost/damage data
@@ -99,28 +110,39 @@ def main(config):
         }
     )
     waste_water_facilities_NWC = pd.merge(
-        waste_water_facilities_NWC, asset_type_name_conversion, how="left",on="asset_type"
+        waste_water_facilities_NWC,
+        asset_type_name_conversion,
+        how="left",
+        on="asset_type",
     )
 
     waste_water_facilities_NWC = pd.merge(
-        waste_water_facilities_NWC, cost_data, 
-        left_on = "asset_type_cost_data", 
-        right_on = "asset", 
-        how="left"
+        waste_water_facilities_NWC,
+        cost_data,
+        left_on="asset_type_cost_data",
+        right_on="asset",
+        how="left",
     )
-    waste_water_facilities_NWC['capacity_inferred'] = waste_water_facilities_NWC['capacity (mgd) from supplement'].astype(float).fillna(0.1)
+    waste_water_facilities_NWC["capacity_inferred"] = (
+        waste_water_facilities_NWC["capacity (mgd) from supplement"]
+        .astype(float)
+        .fillna(0.1)
+    )
     # print (waste_water_facilities_NWC[['capacity (mgd) from supplement','capacity_inferred']])
-    waste_water_facilities_NWC['cost_and_units'] = waste_water_facilities_NWC.progress_apply(lambda x: estimate_costs_and_units(x),axis=1)
-    waste_water_facilities_NWC[[
-                    'cost_unit',
-                    'min_damage_cost',
-                    'max_damage_cost']] = waste_water_facilities_NWC['cost_and_units'].apply(pd.Series)
-    waste_water_facilities_NWC.drop(['cost_and_units'],axis=1,inplace=True)
-
+    waste_water_facilities_NWC["cost_and_units"] = (
+        waste_water_facilities_NWC.progress_apply(
+            lambda x: estimate_costs_and_units(x), axis=1
+        )
+    )
+    waste_water_facilities_NWC[["cost_unit", "min_damage_cost", "max_damage_cost"]] = (
+        waste_water_facilities_NWC["cost_and_units"].apply(pd.Series)
+    )
+    waste_water_facilities_NWC.drop(["cost_and_units"], axis=1, inplace=True)
 
     # provide id
-    waste_water_facilities_NWC["node_id"] = waste_water_facilities_NWC \
-        .apply(lambda node: f"{node.asset_type}_{node.OBJECTID}", axis=1)
+    waste_water_facilities_NWC["node_id"] = waste_water_facilities_NWC.apply(
+        lambda node: f"{node.asset_type}_{node.OBJECTID}", axis=1
+    )
 
     # waste_water_facilities_NWC.rename(columns={"curve": "cost_unit"},inplace=True)
     # export as gpkg

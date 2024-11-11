@@ -25,6 +25,7 @@
         
         Each of these lines is a batch of scenarios that are run on different processors in parallel
 """
+
 import os
 import sys
 import configparser
@@ -38,30 +39,35 @@ import pandas as pd
 import geopandas as gpd
 from utils import *
 from tqdm import tqdm
-import subprocess 
+import subprocess
 
 #####################################
 # READ MAIN DATA
 #####################################
 
+
 def main(config):
-    processed_data_path = config['paths']['data']
-    results_path = config['paths']['output']
-    
-    num_blocks = 20 # Number of partitions of the networks nodes created for parallel processing
-    bridges = gpd.read_file(os.path.join(processed_data_path,
-                                    'networks',
-                                    'transport',
-                                    'roads.gpkg'),
-                            layer='nodes')
+    processed_data_path = config["paths"]["data"]
+    results_path = config["paths"]["output"]
+
+    num_blocks = (
+        20  # Number of partitions of the networks nodes created for parallel processing
+    )
+    bridges = gpd.read_file(
+        os.path.join(processed_data_path, "networks", "transport", "roads.gpkg"),
+        layer="nodes",
+    )
     bridges = bridges[bridges["asset_type"] == "bridge"]["node_id"].values.tolist()
-    
-                
-    num_values = np.linspace(0,len(bridges)-1,num_blocks)
-    with open("parallel_bridge_scenario_selection.txt","w+") as f:
-        for n in range(len(num_values)-1):  
-            f.write('{},{},{}\n'.format("fail bridges",int(num_values[n]),int(num_values[n+1])))
-    
+
+    num_values = np.linspace(0, len(bridges) - 1, num_blocks)
+    with open("parallel_bridge_scenario_selection.txt", "w+") as f:
+        for n in range(len(num_values) - 1):
+            f.write(
+                "{},{},{}\n".format(
+                    "fail bridges", int(num_values[n]), int(num_values[n + 1])
+                )
+            )
+
     f.close()
 
     # with open("parallel_transport_scenario_selection_resample.txt","w+") as f:
@@ -76,21 +82,25 @@ def main(config):
     #                 f.write(f"{line}\n")
 
     # f.close()
-    
+
     """Next we call the failure analysis script and loop through the falure scenarios
     """
-    args = ["parallel",
-            "-j", str(num_blocks),
-            "--colsep", ",",
-            "-a",
-            "parallel_bridge_scenario_selection.txt",
-            "python",
-            "roads_bridges_failure_analysis.py",
-            "{}"
-            ]
-    print (args)
+    args = [
+        "parallel",
+        "-j",
+        str(num_blocks),
+        "--colsep",
+        ",",
+        "-a",
+        "parallel_bridge_scenario_selection.txt",
+        "python",
+        "roads_bridges_failure_analysis.py",
+        "{}",
+    ]
+    print(args)
     subprocess.run(args)
-                                
-if __name__ == '__main__':
+
+
+if __name__ == "__main__":
     CONFIG = load_config()
     main(CONFIG)

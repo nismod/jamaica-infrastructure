@@ -25,53 +25,61 @@
         
         Each of these lines is a batch of scenarios that are run on different processors in parallel
 """
+
 import os
 import sys
 import ujson
 from SALib.sample import morris
-import SALib.analyze.morris 
+import SALib.analyze.morris
 from analysis_utils import *
-import subprocess 
+import subprocess
 
 #####################################
 # READ MAIN DATA
 #####################################
 
+
 def main(config):
-    processed_data_path = config['paths']['data']
-    results_path = config['paths']['output']
-    
+    processed_data_path = config["paths"]["data"]
+    results_path = config["paths"]["output"]
+
     # Set up problem for sensitivity analysis
     problem = {
-              'num_vars': 2,
-              'names': ['cost_uncertainty_parameter','damage_uncertainty_parameter'],
-              'bounds': [[0.0,1.0],[0.0,1.0]]
-              }
-    
+        "num_vars": 2,
+        "names": ["cost_uncertainty_parameter", "damage_uncertainty_parameter"],
+        "bounds": [[0.0, 1.0], [0.0, 1.0]],
+    }
+
     # And create parameter values
-    param_values = morris.sample(problem, 10, num_levels=4, optimal_trajectories=8,local_optimization =False)
-    param_values = list(set([(p[0],p[1]) for p in param_values]))
-    with open("parameter_combinations.txt","w+") as f:
-        # f.write("parameter_set cost_uncertainty_parameter damage_uncertainty_parameter\n") 
-        for p in range(len(param_values)):  
+    param_values = morris.sample(
+        problem, 10, num_levels=4, optimal_trajectories=8, local_optimization=False
+    )
+    param_values = list(set([(p[0], p[1]) for p in param_values]))
+    with open("parameter_combinations.txt", "w+") as f:
+        # f.write("parameter_set cost_uncertainty_parameter damage_uncertainty_parameter\n")
+        for p in range(len(param_values)):
             f.write(f"{p},{param_values[p][0]},{param_values[p][1]}\n")
-    
+
     f.close()
     num_blocks = len(param_values)
     """Next we call the failure analysis script and loop through the falure scenarios
     """
-    args = ["parallel",
-            "-j", str(num_blocks),
-            "--colsep", ",",
-            "-a",
-            "parameter_combinations.txt",
-            "python",
-            "direct_damage_calculations_parallel.py",
-            "{}"
-            ]
-    print (args)
+    args = [
+        "parallel",
+        "-j",
+        str(num_blocks),
+        "--colsep",
+        ",",
+        "-a",
+        "parameter_combinations.txt",
+        "python",
+        "direct_damage_calculations_parallel.py",
+        "{}",
+    ]
+    print(args)
     subprocess.run(args)
-                                
-if __name__ == '__main__':
+
+
+if __name__ == "__main__":
     CONFIG = load_config()
     main(CONFIG)

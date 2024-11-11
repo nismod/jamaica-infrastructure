@@ -133,9 +133,10 @@ def process(with_elevation, cell):
         cell,
         {"NAME": "forest_reserve_name"},
     )
-    with_forest_reserves[
-        "within_forest_reserve"
-    ] = ~with_forest_reserves.forest_reserve_name.isna()
+        
+    with_forest_reserves["within_forest_reserve"] = (
+        ~with_forest_reserves.forest_reserve_name.isna()
+    )
 
     protected_areas = geopandas.read_file(
         "Protected Sites/Protected Areas/Protected areas.shp"
@@ -154,10 +155,11 @@ def process(with_elevation, cell):
         | ~with_protected.protected_area_NATIONAL_PARK_name.isna()
         | ~with_protected.protected_area_PROTECTED_AREA_name.isna()
         | ~with_protected.protected_area_MARINE_PARK_name.isna()
+      
     )
-    with_protected[
-        "is_proposed_protected"
-    ] = ~with_protected.protected_area_PROPOSED_PROTECTED_AREA_name.isna()
+    with_protected["is_proposed_protected"] = (
+        ~with_protected.protected_area_PROPOSED_PROTECTED_AREA_name.isna()
+    )
 
     with_major = associate_vector(
         "Terrestrial/Riparian NbS/Rivers buffered 50m/Major rivers/Major rivers buffered 50m.gpkg",

@@ -25,6 +25,7 @@
         
         Each of these lines is a batch of scenarios that are run on different processors in parallel
 """
+
 import os
 import sys
 import configparser
@@ -38,16 +39,17 @@ import pandas as pd
 import geopandas as gpd
 from utils import *
 from tqdm import tqdm
-import subprocess 
+import subprocess
 
 #####################################
 # READ MAIN DATA
 #####################################
 
+
 def main(config):
-    processed_data_path = config['paths']['data']
-    results_path = config['paths']['output']
-    
+    processed_data_path = config["paths"]["data"]
+    results_path = config["paths"]["output"]
+
     # num_blocks = 200 # Number of partitions of the networks nodes created for parallel processing
     # edges = gpd.read_file(os.path.join(processed_data_path,
     #                                 'networks',
@@ -57,27 +59,29 @@ def main(config):
     # rail_edges = edges[(edges["from_mode"] == "rail") & (edges["to_mode"] == "rail")]["edge_id"].values.tolist()
     # road_edges = edges[(edges["from_mode"] == "road") & (edges["to_mode"] == "road")]["edge_id"].values.tolist()
     # edge_fail = rail_edges + road_edges
-                
+
     # num_values = np.linspace(0,len(edge_fail)-1,num_blocks)
     # with open("parallel_transport_scenario_selection.txt","w+") as f:
-    #     for n in range(len(num_values)-1):  
+    #     for n in range(len(num_values)-1):
     #         f.write('{},{},{}\n'.format("fail edges",int(num_values[n]),int(num_values[n+1])))
-    
+
     # f.close()
 
-    with open("parallel_transport_scenario_selection_resample.txt","w+") as f:
+    with open("parallel_transport_scenario_selection_resample.txt", "w+") as f:
         with open("parallel_transport_scenario_selection.txt") as t:
             for line in t:
-                line = line.strip('\n')
-                file = os.path.join(results_path,
-                                "transport_failures",
-                                f"single_link_failures_scenarios_{line.split(',')[1]}_{line.split(',')[2]}.csv")
-                print (file)
+                line = line.strip("\n")
+                file = os.path.join(
+                    results_path,
+                    "transport_failures",
+                    f"single_link_failures_scenarios_{line.split(',')[1]}_{line.split(',')[2]}.csv",
+                )
+                print(file)
                 if os.path.exists(file) is False:
                     f.write(f"{line}\n")
 
     f.close()
-    
+
     # """Next we call the failure analysis script and loop through the falure scenarios
     # """
     # args = ["parallel",
@@ -91,7 +95,8 @@ def main(config):
     #         ]
     # print (args)
     # subprocess.run(args)
-                                
-if __name__ == '__main__':
+
+
+if __name__ == "__main__":
     CONFIG = load_config()
     main(CONFIG)

@@ -25,38 +25,44 @@
         
         Each of these lines is a batch of scenarios that are run on different processors in parallel
 """
+
 import os
 import sys
 import ujson
 from SALib.sample import morris
-import SALib.analyze.morris 
+import SALib.analyze.morris
 from analysis_utils import *
-import subprocess 
+import subprocess
 
 #####################################
 # READ MAIN DATA
 #####################################
 
+
 def main(config):
-    processed_data_path = config['paths']['data']
-    results_path = config['paths']['output']
-    
-    param_values = open('parameter_combinations.txt')
-    num_blocks = len([tuple(line.split(',')) for line in param_values.readlines()])
+    processed_data_path = config["paths"]["data"]
+    results_path = config["paths"]["output"]
+
+    param_values = open("parameter_combinations.txt")
+    num_blocks = len([tuple(line.split(",")) for line in param_values.readlines()])
     """Next we call the failure analysis script and loop through the falure scenarios
     """
-    args = ["parallel",
-            "-j", str(num_blocks),
-            "--colsep", ",",
-            "-a",
-            "parameter_combinations.txt",
-            "python",
-            "nbs_damages.py",
-            "{}"
-            ]
-    print (args)
+    args = [
+        "parallel",
+        "-j",
+        str(num_blocks),
+        "--colsep",
+        ",",
+        "-a",
+        "parameter_combinations.txt",
+        "python",
+        "nbs_damages.py",
+        "{}",
+    ]
+    print(args)
     subprocess.run(args)
-                                
-if __name__ == '__main__':
+
+
+if __name__ == "__main__":
     CONFIG = load_config()
     main(CONFIG)

@@ -1,6 +1,8 @@
 """Create buffers around NBS = mangrove, seagrass and coral layers for Jamaica
     Find the intersections of different buffer boundaries
 """
+
+import sys
 import os
 import pandas as pd
 import geopandas as gpd

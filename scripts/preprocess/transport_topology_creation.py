@@ -1,6 +1,7 @@
 """Take road and rail data from the NSDMB database and create topological networks
     Add these networks into a geopackage
 """
+
 import sys
 import os
 
@@ -15,13 +16,13 @@ def main(config):
 
     sector_details = [
         {
-            'sector_name':'rail',
-            'node_folder':'nsdmb',
-            'node_layer':'railway_stations',
-            'node_file_type':database_name,
-            'edge_folder':'nsdmb',
-            'edge_layer':'railways',
-            'edge_file_type':database_name,
+            "sector_name": "rail",
+            "node_folder": "nsdmb",
+            "node_layer": "railway_stations",
+            "node_file_type": database_name,
+            "edge_folder": "nsdmb",
+            "edge_layer": "railways",
+            "edge_file_type": database_name,
         },
         {
             "sector_name": "roads",
@@ -31,7 +32,7 @@ def main(config):
             "edge_folder": "nsdmb",
             "edge_layer": "Transport_Roads",
             "edge_file_type": database_name,
-        }
+        },
     ]
 
     for sector in sector_details:

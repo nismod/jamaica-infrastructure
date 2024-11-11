@@ -1,6 +1,7 @@
 """Create a combined land use layer from TNC and Forestry land use layers
     Also combine a global mining areas land use layer 
 """
+
 import sys
 import os
 import subprocess
@@ -13,11 +14,13 @@ from shapely.geometry import Point
 import numpy as np
 from preprocess_utils import *
 from tqdm import tqdm
+
 tqdm.pandas()
 
 epsg_jamaica = 3448
 
-def raster_rewrite(in_raster,out_raster):
+
+def raster_rewrite(in_raster, out_raster):
     """Rewrite a raster to reproject and change no data value
 
     Parameters
@@ -35,21 +38,24 @@ def raster_rewrite(in_raster,out_raster):
     # os.remove(in_raster)
     # os.rename(out_raster,in_raster)
 
+
 def main(config):
     incoming_data_path = config["paths"]["incoming_data"]
     processed_data_path = config["paths"]["data"]
 
     mangrove_input_path = os.path.join(
-                                        incoming_data_path,
-                                        "forces_of_nature_project_data",
-                                        "mangroves/commondata/nsdmd",
-                                    )
+        incoming_data_path,
+        "forces_of_nature_project_data",
+        "mangroves/commondata/nsdmd",
+    )
 
-
-    mangroves_file = gpd.read_file(os.path.join(mangrove_input_path,"mangroves.shp"))
-    print (mangroves_file)
+    mangroves_file = gpd.read_file(os.path.join(mangrove_input_path, "mangroves.shp"))
+    print(mangroves_file)
     mangroves_file = mangroves_file.to_crs(epsg=epsg_jamaica)
-    mangroves_file.to_file(os.path.join(processed_data_path,"nbs","nsmdb-mangroves.gpkg"))
+    mangroves_file.to_file(
+        os.path.join(processed_data_path, "nbs", "nsmdb-mangroves.gpkg")
+    )
+
 
 if __name__ == "__main__":
     CONFIG = load_config()

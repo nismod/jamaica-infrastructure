@@ -25,35 +25,41 @@
         
         Each of these lines is a batch of scenarios that are run on different processors in parallel
 """
+
 import os
 import sys
 import ujson
 from analysis_utils import *
-import subprocess 
+import subprocess
 
 #####################################
 # READ MAIN DATA
 #####################################
 
+
 def main(config):
-    processed_data_path = config['paths']['data']
-    results_path = config['paths']['output']
-    
+    processed_data_path = config["paths"]["data"]
+    results_path = config["paths"]["output"]
+
     """Next we call the failure analysis script and loop through the falure scenarios
     """
     num_blocks = 14
-    args = ["parallel",
-            "-j", str(num_blocks),
-            "--colsep", ",",
-            "-a",
-            "parameter_combinations.txt",
-            "python",
-            "expected_damages_losses_calculations_parallel.py",
-            "{}"
-            ]
-    print (args)
+    args = [
+        "parallel",
+        "-j",
+        str(num_blocks),
+        "--colsep",
+        ",",
+        "-a",
+        "parameter_combinations.txt",
+        "python",
+        "expected_damages_losses_calculations_parallel.py",
+        "{}",
+    ]
+    print(args)
     subprocess.run(args)
-                                
-if __name__ == '__main__':
+
+
+if __name__ == "__main__":
     CONFIG = load_config()
     main(CONFIG)
