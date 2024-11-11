@@ -1,3 +1,5 @@
+"""Read ShapeFile, buffer to force valid polygons, write to GeoPackage
+"""
 import geopandas as gpd
 
 df = gpd.read_file("2013_landuse_Landcover.shp")

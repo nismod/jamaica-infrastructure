@@ -133,6 +133,7 @@ def process(with_elevation, cell):
         cell,
         {"NAME": "forest_reserve_name"},
     )
+        
     with_forest_reserves["within_forest_reserve"] = (
         ~with_forest_reserves.forest_reserve_name.isna()
     )
@@ -154,6 +155,7 @@ def process(with_elevation, cell):
         | ~with_protected.protected_area_NATIONAL_PARK_name.isna()
         | ~with_protected.protected_area_PROTECTED_AREA_name.isna()
         | ~with_protected.protected_area_MARINE_PARK_name.isna()
+      
     )
     with_protected["is_proposed_protected"] = (
         ~with_protected.protected_area_PROPOSED_PROTECTED_AREA_name.isna()

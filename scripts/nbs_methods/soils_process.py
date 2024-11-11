@@ -1,14 +1,14 @@
 """Assign areas to different soil types for Jamaica
-    Find the areas by different classes as totals and percentages
+Find the areas by different classes as totals and percentages
 """
 
 import sys
 import os
 import pandas as pd
 import geopandas as gpd
-import numpy as np
-from utils import *
 from tqdm import tqdm
+
+from utils import load_config
 
 tqdm.pandas()
 
@@ -19,7 +19,7 @@ m2_to_hectare = 0.0001
 
 def get_areas(gdf):
     gdf = gdf.to_crs(epsg=epsg_jamaica)
-    gdf["area_m2"] = gdf.progress_apply(lambda x: x.geometry.area, axis=1)
+    gdf["area_m2"] = gdf.geometry.area
     gdf["area_hectares"] = m2_to_hectare * gdf["area_m2"]
     gdf["percentage"] = 100.0 * gdf["area_m2"] / gdf["area_m2"].sum()
 

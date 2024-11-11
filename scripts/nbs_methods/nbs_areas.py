@@ -1,14 +1,14 @@
 """Find areas of different layers of land use and NBS value for Jamaica
-    Find the areas by different classes as totals and percentages
+Find the areas by different classes as totals and percentages
 """
 
 import sys
 import os
 import pandas as pd
 import geopandas as gpd
-import numpy as np
-from utils import *
 from tqdm import tqdm
+
+from utils import load_config
 
 tqdm.pandas()
 

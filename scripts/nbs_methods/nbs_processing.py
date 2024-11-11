@@ -6,9 +6,9 @@ import sys
 import os
 import pandas as pd
 import geopandas as gpd
-import numpy as np
-from utils import *
 from tqdm import tqdm
+
+from utils import load_config
 
 tqdm.pandas()
 # The projection system for Jamaica
