@@ -1,3 +1,11 @@
+"""
+Olivia's water script (v4)
+
+Run with:
+$ python water-script-4.py
+"""
+
+
 import pandas as pd
 import numpy as np
 import geopandas as gpd
@@ -8,6 +16,8 @@ import math
 # # potable
 # ########################################################################
 # ########################################################################
+
+oliv = "Olivia"
 
 def roundup(x):
     return int(math.ceil(x / 50.0)) * 50
@@ -63,7 +73,7 @@ GVA_per_sector_per_zone_gb['GVA (JD/day)'] = GVA_per_sector_per_parish.groupby([
 GVA_per_sector_per_zone_gb['osm_id'] = GVA_per_sector_per_zone_gb['osm_id'].astype(str)
 
 wsz_census_gb_par = pd.merge(wsz_census_gb_par, GVA_per_sector_per_zone_gb, left_on=['WSZONEID'], right_on=['WSZONEID'],how='left')
-wsz_census_gb_par.to_csv('/soge-home/projects/mistral/jamaica-ccri/drought/calibrated_method/input/wsz_census_gb_par_update.csv')
+wsz_census_gb_par.to_csv('../../../drought/calibrated_method/input/wsz_census_gb_par_update.csv')
 
 Water_Supply_Zones = gpd.read_file('potable/Water_Supply_Zone.gpkg')
 Water_Supply_Zones = Water_Supply_Zones.merge(wsz_census_gb_par[['WSZONEID','system_connected_pop_2010','system_connected_pop_2020','system_connected_pop_2030','system_connected_pop_2040','system_connected_pop_2050','GVA (JD/day)','osm_id']], on='WSZONEID') #
@@ -112,7 +122,7 @@ print(potable_assets.groupby('WSZONEID')['asset_connected_pop_2020'].max().to_fr
 potable_assets_gb = potable_assets.groupby(['node_id','node_type','X','Y'])['asset_connected_pop_2020'].sum().to_frame().reset_index()
 
 
-potable_facilities_NWC = gpd.read_file('/soge-home/projects/mistral/jamaica-ccri/processed_data/networks/water/ss/potable_facilities_NWC.gpkg')[['OBJECTID', 'LOCATION_x', 'PARISH', 'asset_type', 'Capacity',
+potable_facilities_NWC = gpd.read_file('../../../processed_data/networks/water/ss/potable_facilities_NWC.gpkg')[['OBJECTID', 'LOCATION_x', 'PARISH', 'asset_type', 'Capacity',
        'Comments', 'Status', 'Metered', 'Meter_Manu', 'Meter_Numb',
        'Date_mappe', 'Tank_Type', 'capacity (mgd)',
        'asset_type_cost_data',
@@ -208,7 +218,7 @@ potable_facilities_NWC_pop.to_file('potable_facilities_NWC_pop_update_070322.gpk
 pipelines_centroid = gpd.read_file('potable/processed/pipelines_centroid_filtered.gpkg')
 pipelines_centroid['edge_id'] = [s.replace('pipeline', 'potable') for s in pipelines_centroid['edge_id'].to_list()] 
 print(pipelines_centroid['edge_id'])
-pipelines_NWC = gpd.read_file('/soge-home/projects/mistral/jamaica-ccri/processed_data/networks/water/ss2/pipelines_NWC_edges.gpkg')
+pipelines_NWC = gpd.read_file('../../../processed_data/networks/water/ss/pipelines_NWC.gpkg', layer="edges")
 pipelines_NWC_pop = pipelines_NWC[['edge_id','geometry']].merge(pipelines_centroid[['edge_id','node_id']], on='edge_id', how='left').drop_duplicates()
 print(pipelines_NWC_pop['node_id'])
 pipelines_NWC_pop.to_file('pipelines_NWC_edges_pop_update_070322.gpkg', driver='GPKG', layer='edge')
@@ -227,9 +237,9 @@ print(potable_facilities_NWC_economic_m['node_id'])
 print(potable_pipelines_NWC_economic_m['node_id'])
 potable_pipelines_NWC_economic_m[['edge_id','A_GDP', 'B_GDP', 'C_GDP', 'D_GDP', 'E_GDP', 'F_GDP', 'G_GDP', 'H_GDP',
        'I_GDP', 'J_GDP', 'K_GDP', 'L_GDP', 'M_GDP', 'N_GDP', 'O_GDP',
-       'W_GDP']].to_csv('/soge-home/projects/mistral/jamaica-ccri/processed_data/networks_economic_activity/potable_pipelines_buildings_economic_activity_mapping_070322.csv') # W_GDP
+       'W_GDP']].to_csv('../../../processed_data/networks_economic_activity/potable_pipelines_buildings_economic_activity_mapping_070322.csv') # W_GDP
 potable_pipelines_NWC_economic_m = pd.merge(pipelines_NWC_pop[['edge_id','node_id']], potable_facilities_NWC_economic_m_2_gb[['node_id','W_GDP','A_GDP', 'B_GDP', 'C_GDP', 'D_GDP', 'E_GDP', 'F_GDP', 'G_GDP', 'H_GDP',
-       'I_GDP', 'J_GDP', 'K_GDP', 'L_GDP', 'M_GDP', 'N_GDP', 'O_GDP']], on='node_id', how='left').to_csv('/soge-home/projects/mistral/jamaica-ccri/processed_data/networks_economic_activity/potable_pipelines_dependent_economic_activity_070322.csv')
+       'I_GDP', 'J_GDP', 'K_GDP', 'L_GDP', 'M_GDP', 'N_GDP', 'O_GDP']], on='node_id', how='left').to_csv('../../../processed_data/networks_economic_activity/potable_pipelines_dependent_economic_activity_070322.csv')
 print(potable_pipelines_NWC_economic_m)
 print(oliv)
 ########################################################################
@@ -256,9 +266,9 @@ print(oliv)
 #########################################################################
 #########################################################################
 
-NIC_IRRIGATION_SCHEMES = gpd.read_file('/soge-home/projects/mistral/jamaica-ccri/incoming_data/water/irrigation/raw/Irrigation Districts/NIC_IRRIGATION_SCHEMES.shp')
+NIC_IRRIGATION_SCHEMES = gpd.read_file('../../../incoming_data/water/irrigation/raw/Irrigation Districts/NIC_IRRIGATION_SCHEMES.shp')
 
-NIC_IRRIGATION_SCHEMES_convex = gpd.read_file('/soge-home/projects/mistral/jamaica-ccri/incoming_data/water/irrigation/raw/Irrigation Districts/NIC_IRRIGATION_SCHEMES_convex.shp')
+NIC_IRRIGATION_SCHEMES_convex = gpd.read_file('../../../incoming_data/water/irrigation/raw/Irrigation Districts/NIC_IRRIGATION_SCHEMES_convex.shp')
 NIC_IRRIGATION_SCHEMES_convex = NIC_IRRIGATION_SCHEMES_convex.rename(columns = {'DISTRICT':'District'})
 NIC_IRRIGATION_SCHEMES_convex['District'] = np.where(NIC_IRRIGATION_SCHEMES_convex['District']=='BEACON','BEACON-LITTLE PARK',
                           np.where(NIC_IRRIGATION_SCHEMES_convex['District']=='MID - CLARENDON','MID CLARENDON',
@@ -284,7 +294,7 @@ schemes_gb['GDP_persqm'] = schemes.groupby(['DXF_TEXT'])['GDP_persqm'].mean().to
 schemes_gb['scheme_area_sqm'] = schemes.groupby(['DXF_TEXT'])['scheme_area_sqm'].mean().to_frame().reset_index()['scheme_area_sqm']
 schemes_gb['GVA (JD/day)'] = schemes_gb['GDP_persqm']*schemes_gb['scheme_area_sqm']
 NIC_IRRIGATION_SCHEMES = NIC_IRRIGATION_SCHEMES[['DXF_TEXT','geometry']].merge(schemes_gb, on='DXF_TEXT')
-NIC_IRRIGATION_SCHEMES = gpd.GeoDataFrame(NIC_IRRIGATION_SCHEMES,crs="EPSG:3448",geometry=NIC_IRRIGATION_SCHEMES['geometry']) #.merge(schemes_gb, on='DXF_TEXT')
+NIC_IRRIGATION_SCHEMES = gpd.GeoDataFrame(NIC_IRRIGATION_SCHEMES,crs="EPSG:3448",geometry=NIC_IRRIGATION_SCHEMES['geometry'].to_crs("EPSG:3448")) #.merge(schemes_gb, on='DXF_TEXT')
 NIC_IRRIGATION_SCHEMES.drop_duplicates().to_file('NIC_IRRIGATION_SCHEMES_update_2.gpkg', driver='GPKG')
 
 wells = pd.read_csv('irrigation/wells.csv')
@@ -303,7 +313,7 @@ wells_merge_2 = wells_merge.merge(wells_gb, on=['DXF_TEXT'],how='left').drop_dup
 wells_merge_2['sqm_per_node'] = wells_merge_2['scheme_area_sqm']/wells_merge_2['no. wells']
 wells_merge_2['GDP/day_per_node'] = wells_merge_2['GVA (JD/day)']/wells_merge_2['no. wells']
 
-irrigation_assets_NIC = gpd.read_file('/soge-home/projects/mistral/jamaica-ccri/processed_data/networks/water/ss/irrigation_assets_NIC.gpkg', layer ='nodes')
+irrigation_assets_NIC = gpd.read_file('../../../processed_data/networks/water/ss/irrigation_assets_NIC.gpkg', layer ='nodes')
 irrigation_assets_NIC['node_id'] = 'well_'+irrigation_assets_NIC['OBJECTID'].astype(float).astype(str)
 irrigation_assets_NIC['cost ($J) - lower bound'] = np.where(irrigation_assets_NIC['asset_type']=='well',5000000,irrigation_assets_NIC['cost ($J) - lower bound']) # same for irrigation
 irrigation_assets_NIC['cost ($J) - upper bound'] = np.where(irrigation_assets_NIC['asset_type']=='well',20000000,irrigation_assets_NIC['cost ($J) - upper bound']) # same for irrigation
