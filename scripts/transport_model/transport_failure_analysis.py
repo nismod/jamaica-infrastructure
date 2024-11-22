@@ -1,14 +1,12 @@
-"""Do a transport failure analysis with rerouting
-"""
+"""Transport failure analysis with rerouting."""
 
-import ast
+import json
 import logging
 import os
 import sys
 
 import pandas as pd
 import geopandas as gpd
-import numpy as np
 import igraph as ig
 from tqdm import tqdm
 
@@ -183,119 +181,53 @@ def filter_sector_from_buildings(buildings_dataframe, sector_code, subsector_cod
     return get_sector[get_sector["find_subsector"] == 1]
 
 
-def main(config, min_node_number, max_node_number):
-    # 0.6 - 2.1% of the value per day
-    # so we need to make an assumption on the average wage per working person,
-    # say 200 USD per day. Then if a road is disrupted which has 1000 daily trips and
-    # they have to be rerouted with an hour, the cost would be: 0.4 * 200 * 1/24 * 100 = 333 USD
-    # So corrected for inflation in 2019 values, this would be 1.2-2.9 USD per hour of value of time for business related trips
-    incoming_data_path = config["paths"]["incoming_data"]
+def read_flow_data(data_path: str):
+    """
+    Read combined flow data from disk ready for transport failure disruption.
+    """
+
+    network_data: dict = {}
+    for flow_type in ("labour", "trade"):
+        output_flow_dir = os.path.join(data_path, flow_type)
+        logging.info(f"Reading {flow_type} network")
+        network_df = gpd.read_parquet(os.path.join(output_flow_dir, "network.gpq"))
+        network: ig.Graph = ig.Graph.TupleList(
+            network_df.itertuples(index=False),
+            edge_attrs=['edge_id', 'from_mode', 'to_mode', 'length_m', 'speed', 'time', 'geometry']
+        )
+        logging.info(f"Reading {flow_type} flows")
+        flows = pd.read_parquet(os.path.join(output_flow_dir, "flows.pq"))
+        logging.info(f"Reading {flow_type} edge indices")
+        edge_indexes = pd.read_parquet(os.path.join(output_flow_dir, "edge_indexes.pq"))
+        network_data[flow_type] = {
+            "network": network,
+            "flows": flows,
+            "edge_indexes": edge_indexes.to_dict()["edge_indexes"],
+        }
+
+    logging.info("Reading combined flows")
+    all_flows = pd.read_parquet(os.path.join(data_path, "all_flows.pq"))
+
+    logging.info("Reading trade sectors")
+    with open(os.path.join(data_path, "trade", "trade_sectors.json"), "r") as fp:
+        trade_sectors = json.load(fp)
+
+    return network_data, all_flows, trade_sectors
+
+
+def main(config, min_edge_number, max_edge_number):
     processed_data_path = config["paths"]["data"]
     results_path = config["paths"]["output"]
 
-    hourly_wage = (
-        0.4 * (1 + 0.454) * 235.25
-    )  # Between 200 - 500 JMD for 2012 stats, 45.4% inflation in currency
-    trade_effect = 0.02  # 2% of the value of trade will be affected by rerouting
-
-    """Get the underlying flow networks
-    """
-    columns = [
-        "from_node",
-        "to_node",
-        "edge_id",
-        "from_mode",
-        "to_mode",
-        "length_m",
-        "speed",
-        "time",
-        "geometry",
-    ]
-    trade_flow_edges = gpd.read_file(
-        os.path.join(
-            results_path, "flow_mapping", "sector_imports_exports_to_ports_flows.gpkg"
-        ),
-        layer="edges",
-    )
-    # print (trade_flow_edges)
-    trade_sectors = [
-        s
-        for s in list(set(trade_flow_edges["from_mode"].values.tolist()))
-        if s not in ["road", "rail", "port", "air"]
-    ]
-    # print (trade_sectors)
-    labour_flow_edges = gpd.read_file(
-        os.path.join(
-            processed_data_path, "networks", "transport", "multi_modal_network.gpkg"
-        ),
-        layer="edges",
-    )
-    labour_flow_edges = labour_flow_edges[
-        (labour_flow_edges["from_mode"] == "road")
-        & (labour_flow_edges["to_mode"] == "road")
-    ][columns]
-    # print (labour_flow_edges)
-    # G = ig.Graph.TupleList(network.itertuples(index=False), edge_attrs=list(network.columns)[2:])
-
-    trade_flows = pd.read_parquet(
-        os.path.join(results_path, "flow_mapping", "sector_to_ports_flow_paths.pq")
+    logging.info(
+        f"Running transport failure analysis for edge positions {min_edge_number} -> {max_edge_number}"
     )
 
-    labour_flows = pd.read_parquet(
-        os.path.join(
-            results_path,
-            "flow_mapping",
-            "labour_to_sectors_trips_and_activity.pq",
-        )
-    )
+    logging.info("Reading network data")
 
-    all_flows = pd.concat([trade_flows, labour_flows], axis=0, ignore_index=True)
-    all_flows = all_flows[
-        ["origin_id", "destination_id", "gcost", "working_trips", "GDP_to_trips"]
-        + [f"{t}_trade" for t in trade_sectors]
-    ]
-    labour_flow_path_indexes = tf.get_flow_paths_indexes_of_edges(
-        labour_flows, "edge_path"
+    network_dictionary, all_flows, trade_sectors = read_flow_data(
+        os.path.join(results_path, "transport_failures", "nominal")
     )
-    network_dictionary = [
-        {
-            "network": labour_flow_edges,
-            "flows": labour_flows,
-            "edge_indexes": labour_flow_path_indexes,
-        }
-    ]
-    del labour_flow_edges, labour_flows, labour_flow_path_indexes
-
-    for t in trade_sectors:
-        if t != "C":
-            sector_network = trade_flow_edges[
-                (trade_flow_edges["from_mode"].isin([t, "port", "air", "road"]))
-                & (trade_flow_edges["from_mode"].isin([t, "port", "air", "road"]))
-            ]
-        else:
-            sector_network = trade_flow_edges[
-                (trade_flow_edges["from_mode"].isin([t, "port", "air", "rail", "road"]))
-                & (
-                    trade_flow_edges["from_mode"].isin(
-                        [t, "port", "air", "rail", "road"]
-                    )
-                )
-            ]
-        trade_flows[f"{t}_trade"] = trade_flows[f"{t}_trade"].fillna(0)
-        sector_flows = trade_flows[trade_flows[f"{t}_trade"] > 0][
-            ["origin_id", "destination_id", "edge_path", "gcost", f"{t}_trade"]
-        ].reset_index()
-        sector_flow_path_indexes = tf.get_flow_paths_indexes_of_edges(
-            sector_flows, "edge_path"
-        )
-        network_dictionary.append(
-            {
-                "network": sector_network,
-                "flows": sector_flows,
-                "edge_indexes": sector_flow_path_indexes,
-            }
-        )
-        del sector_network, sector_flows, sector_flow_path_indexes
 
     edges = gpd.read_file(
         os.path.join(
@@ -311,22 +243,41 @@ def main(config, min_node_number, max_node_number):
     ].values.tolist()
     edge_fail = rail_edges + road_edges
 
-    if max_node_number > len(edge_fail):
-        max_node_number = len(edge_fail)
+    logging.info("Failing edges and reallocating flows")
+
+    if max_edge_number > len(edge_fail):
+        max_edge_number = len(edge_fail)
+
     edge_fail_results = []
     # TODO: extremely slow, can we parallelise on this loop? are we already?
-    for edge_number in range(min_node_number, max_node_number):
+    for edge_number in range(min_edge_number, max_edge_number):
         edge = edge_fail[edge_number]
-        for networks in network_dictionary:
-            edge_fail_results += tf.igraph_scenario_edge_failures(
-                networks["network"],
+        logging.info(f"Failing {edge}")
+        for networks in network_dictionary.values():
+            edge_fail_results += tf.igraph_scenario_edge_failures_premade_network(
+                # we will remove edges from the graph, only operate on a copy
+                networks["network"].copy(),
                 [edge],
                 networks["flows"],
                 networks["edge_indexes"],
                 "edge_path",
                 "time",
             )
-        logging.info(f"* Done with edge: {edge}")
+
+    logging.info("Done failing edges")
+
+    logging.info("Calculating resulting economic losses")
+
+    # 0.6 - 2.1% of the value per day
+    # so we need to make an assumption on the average wage per working person,
+    # say 200 USD per day. Then if a road is disrupted which has 1000 daily trips and
+    # they have to be rerouted with an hour, the cost would be: 0.4 * 200 * 1/24 * 100 = 333 USD
+    # So corrected for inflation in 2019 values, this would be 1.2-2.9 USD per hour of value of time for business related trips
+    hourly_wage = (
+        0.4 * (1 + 0.454) * 235.25
+    )  # Between 200 - 500 JMD for 2012 stats, 45.4% inflation in currency
+    trade_effect = 0.02  # 2% of the value of trade will be affected by rerouting
+
     edge_fail_results = pd.DataFrame(edge_fail_results)
     edge_fail_results = pd.merge(
         edge_fail_results, all_flows, how="left", on=["origin_id", "destination_id"]
@@ -357,67 +308,79 @@ def main(config, min_node_number, max_node_number):
     #                         "labour_rerouting_loss","trade_rerouting_loss",
     #                         "labour_gdp_loss","trade_loss"]])
 
-    # TODO: fails here: groupbys should be immediately followed by aggregation, no?
-    # troubleshoot with a small subset of edges
+    index_cols = ["edge_id", "no_access"]
     losses = (
-        edge_fail_results.groupby(["edge_id", "no_access"])[
-            "time_loss",
-            "labour_rerouting_loss",
-            "trade_rerouting_loss",
-            "labour_gdp_loss",
-            "trade_loss",
+        edge_fail_results.loc[
+            :,
+            index_cols
+            + [
+                "time_loss",
+                "labour_rerouting_loss",
+                "trade_rerouting_loss",
+                "labour_gdp_loss",
+                "trade_loss",
+            ],
         ]
+        .groupby(index_cols)
         .sum()
         .reset_index()
     )
     rerouting_times_min = (
-        edge_fail_results.groupby(["edge_id", "no_access"])["time_loss"]
+        edge_fail_results.loc[:, index_cols + ["time_loss"]]
+        .groupby(index_cols)
         .min()
         .reset_index()
     )
-    rerouting_times_min.rename(
-        columns={"time_loss": "min_trip_time_loss"}, inplace=True
+    rerouting_times_min = rerouting_times_min.rename(
+        columns={"time_loss": "min_trip_time_loss"}
     )
     rerouting_times_max = (
-        edge_fail_results.groupby(["edge_id", "no_access"])["time_loss"]
+        edge_fail_results.loc[:, index_cols + ["time_loss"]]
+        .groupby(index_cols)
         .max()
         .reset_index()
     )
-    rerouting_times_max.rename(
-        columns={"time_loss": "max_trip_time_loss"}, inplace=True
+    rerouting_times_max = rerouting_times_max.rename(
+        columns={"time_loss": "max_trip_time_loss"}
     )
     rerouting_times_mean = (
-        edge_fail_results.groupby(["edge_id", "no_access"])["time_loss"]
+        edge_fail_results.loc[:, index_cols + ["time_loss"]]
+        .groupby(index_cols)
         .mean()
         .reset_index()
     )
-    rerouting_times_mean.rename(
-        columns={"time_loss": "mean_trip_time_loss"}, inplace=True
+    rerouting_times_mean = rerouting_times_mean.rename(
+        columns={"time_loss": "mean_trip_time_loss"}
     )
 
-    losses = pd.merge(losses, rerouting_times_min, how="left", on=["edge_id"])
-    losses = pd.merge(losses, rerouting_times_max, how="left", on=["edge_id"])
-    losses = pd.merge(losses, rerouting_times_mean, how="left", on=["edge_id"])
+    logging.info("Writing results to disk")
+
+    losses = pd.merge(losses, rerouting_times_min.drop(columns=["no_access"]), how="left", on=["edge_id"])
+    losses = pd.merge(losses, rerouting_times_max.drop(columns=["no_access"]), how="left", on=["edge_id"])
+    losses = pd.merge(losses, rerouting_times_mean.drop(columns=["no_access"]), how="left", on=["edge_id"])
 
     losses.to_csv(
         os.path.join(
             results_path,
             "transport_failures",
-            f"single_link_failures_scenarios_{min_node_number}_{max_node_number}.csv",
+            f"single_link_failures_scenarios_{min_edge_number}_{max_edge_number}.csv",
         ),
         index=False,
     )
 
 
 if __name__ == "__main__":
-    logging.basicConfig(format="%(asctime)s %(process)d %(filename)s %(message)s", level=logging.INFO)
+
+    logging.basicConfig(
+        format="%(asctime)s %(process)d %(filename)s %(message)s", level=logging.INFO
+    )
+
     CONFIG = load_config()
     try:
-        min_node_number = int(sys.argv[2])
-        max_node_number = int(sys.argv[3])
-        # print (min_node_number,max_node_number)
+        min_edge_number = int(sys.argv[2])
+        max_edge_number = int(sys.argv[3])
     except IndexError:
         logging.info("Got arguments", sys.argv)
         exit()
 
-    main(CONFIG, min_node_number, max_node_number)
+    main(CONFIG, min_edge_number, max_edge_number)

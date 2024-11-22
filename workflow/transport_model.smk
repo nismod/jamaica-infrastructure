@@ -72,6 +72,30 @@ rule trade_activity_flow_mapping:
         "../scripts/transport_model/trade_activity_flow_mapping.py"
 
 
+rule transport_failure_flow_allocation_setup:
+    """
+    Create input data and chunk problem prior to exhaustively failing transport edges.
+    Test with:
+    snakemake -c1 results/transport_failures/nominal
+    """
+    input:
+        script_setup = "scripts/transport_model/transport_failure_scenario_setup.py",
+        multi_modal_network = f"{DATA}/networks/transport/multi_modal_network.gpkg",
+        od = f"{OUTPUT}/flow_mapping/sector_to_ports_flow_paths.pq",
+        trade_flows = f"{OUTPUT}/flow_mapping/sector_imports_exports_to_ports_flows.gpkg",
+        labour_to_sector_activity = f"{OUTPUT}/flow_mapping/labour_to_sectors_trips_and_activity.pq",
+    params:
+        n_chunks = 128
+    output:
+        collated_input_data = directory(f"{OUTPUT}/transport_failures/nominal"),
+        failure_scenarios = f"{OUTPUT}/transport_failures/parallel_transport_scenario_selection.txt",
+        failure_scenarios_resampled = f"{OUTPUT}/transport_failures/parallel_transport_scenario_selection_resample.txt",
+    shell:
+        """
+        python {input.script_setup} {params.n_chunks}
+        """
+
+
 rule transport_failure_flow_allocation:
     """
     Exhaustively fail transport edges, reallocate economic flows.
@@ -81,18 +105,37 @@ rule transport_failure_flow_allocation:
     input:
         script_core = "scripts/transport_model/transport_failure_analysis.py",
         multi_modal_network = f"{DATA}/networks/transport/multi_modal_network.gpkg",
-        od = f"{OUTPUT}/flow_mapping/sector_to_ports_flow_paths.pq",
-        trade_flows = f"{OUTPUT}/flow_mapping/sector_imports_exports_to_ports_flows.gpkg",
-        labour_to_sector_activity = f"{OUTPUT}/flow_mapping/labour_to_sectors_trips_and_activity.pq",
+        collated_input_data = f"{OUTPUT}/transport_failures/nominal",
+        failure_scenarios = f"{OUTPUT}/transport_failures/parallel_transport_scenario_selection.txt",
     threads:
         workflow.cores
     resources:
-        mem_gb=72  # ouch!
+        mem_gb=24  # ouch!
     output:
-        failure_scenarios = f"{OUTPUT}/transport_failures/parallel_transport_scenario_selection.txt",
-        failure_scenarios_resampled = f"{OUTPUT}/transport_failures/parallel_transport_scenario_selection_resample.txt",
         transport_failures_flag = f"{OUTPUT}/transport_failures/transport_failures.flag",
-    shell:
-        """
-        python scripts/transport_model/transport_failure_scenario_setup.py {threads}
-        """
+    run:
+        import datetime
+        import subprocess
+
+        args = [
+            "parallel",
+            "--halt-on-error",
+            "1",
+            "--lb",
+            "-j",
+            str(workflow.cores),
+            "--colsep",
+            ",",
+            "-a",
+            input.failure_scenarios,
+            "python",
+            "scripts/transport_model/transport_failure_analysis.py",
+            "{}",
+        ]
+        print(args)
+        subprocess.run(args)
+
+        # signal to snakemake that the job is complete
+        with open(output.transport_failures_flag, "w") as fp:
+            fp.write(f"{datetime.datetime.now()}")
+
