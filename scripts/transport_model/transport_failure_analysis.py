@@ -359,12 +359,9 @@ def main(config, min_edge_number, max_edge_number):
     losses = pd.merge(losses, rerouting_times_max.drop(columns=["no_access"]), how="left", on=["edge_id"])
     losses = pd.merge(losses, rerouting_times_mean.drop(columns=["no_access"]), how="left", on=["edge_id"])
 
+    output_dir = os.path.join(results_path, "transport_failures", "scenario_results")
     losses.to_csv(
-        os.path.join(
-            results_path,
-            "transport_failures",
-            f"single_link_failures_scenarios_{min_edge_number}_{max_edge_number}.csv",
-        ),
+        os.path.join(output_dir, f"single_link_failures_scenarios_{min_edge_number}_{max_edge_number}.csv"),
         index=False,
     )
 

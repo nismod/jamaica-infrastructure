@@ -99,8 +99,9 @@ rule transport_failure_flow_allocation_setup:
 rule transport_failure_flow_allocation:
     """
     Exhaustively fail transport edges, reallocate economic flows.
+    Uses approximately 16GB RAM per core.
     Test with:
-    snakemake -c1 results/transport_failures/transport_failures.flag
+    snakemake -c1 results/transport_failures/scenario_results
     """
     input:
         script_core = "scripts/transport_model/transport_failure_analysis.py",
@@ -109,10 +110,8 @@ rule transport_failure_flow_allocation:
         failure_scenarios = f"{OUTPUT}/transport_failures/parallel_transport_scenario_selection.txt",
     threads:
         workflow.cores
-    resources:
-        mem_gb=24  # ouch!
     output:
-        transport_failures_flag = f"{OUTPUT}/transport_failures/transport_failures.flag",
+        transport_failures_scenarios = directory(f"{OUTPUT}/transport_failures/scenario_results"),
     run:
         import datetime
         import subprocess
