@@ -134,7 +134,39 @@ rule transport_failure_flow_allocation:
         print(args)
         subprocess.run(args)
 
-        # signal to snakemake that the job is complete
-        with open(output.transport_failures_flag, "w") as fp:
-            fp.write(f"{datetime.datetime.now()}")
+
+rule transport_accumulate_flows_to_edges:
+    """
+    Accumulate nominal economic flows to transport edges.
+    Test with:
+    snakemake -c1 results/flow_mapping/labour_trips_and_activity.pq
+    """
+    input:
+        script = "scripts/transport_model/accumulate_flows_to_edges.py",
+        multi_modal_network = f"{DATA}/networks/transport/multi_modal_network.gpkg",
+        labour_flows = f"{OUTPUT}/flow_mapping/labour_to_sectors_trips_and_activity.pq",
+    output:
+        edge_flows = f"{OUTPUT}/flow_mapping/labour_trips_and_activity.pq",
+    shell:
+        """
+        python {input.script} {workflow.cores} {input.multi_modal_network} {input.labour_flows} {output.edge_flows}
+        """
+
+
+rule transport_failure_flow_allocation_combine_results:
+    """
+    Gather step to combine chunked failured analysis.
+    Test with:
+    snakemake -c1 results/transport_failures/single_point_failure_road_rail_edges_economic_losses.csv
+    """
+    input:
+        script = "scripts/transport_model/transport_failure_results_combine.py",
+        edge_flows = f"{OUTPUT}/flow_mapping/labour_trips_and_activity.pq",
+        transport_failures_scenarios = f"{OUTPUT}/transport_failures/scenario_results",
+    output:
+        road_and_rail_losses = f"{OUTPUT}/transport_failures/single_point_failure_road_rail_edges_economic_losses.csv",
+    shell:
+        """
+        python {input.script}
+        """
 
