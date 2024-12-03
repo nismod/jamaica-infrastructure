@@ -4,59 +4,55 @@ import sys
 
 import geopandas as gpd
 import pandas as pd
+from tqdm import tqdm
 
 
-def init_worker(labour_flows_path: str):
-    logging.info("Initialising worker")
-    global od_pairs
-    od_pairs = pd.read_parquet(labour_flows_path, columns=("edge_path", "working_trips", "GDP_to_trips"))
-    return
-
-
-def find_od_pairs_using_edge(edge_id) -> list[tuple[str, float, float]]:
-    logging.info(edge_id)
-    edge_trips = []
-    for od_pair in od_pairs.itertuples():
-        if edge_id in od_pair.edge_path:
-            edge_trips.append(
-                (
-                    edge_id,
-                    od_pair.working_trips,
-                    od_pair.GDP_to_trips
-                )
-            )
-    return edge_trips
-
-
-def flatten(x: list[list]) -> list:
-    return [item for sublist in x for item in sublist]
+def increment_edge_flows(edge_flows: pd.DataFrame, od_pairs_chunk: pd.DataFrame) -> pd.DataFrame:
+    for od_pair in tqdm(od_pairs_chunk.itertuples(), total=len(od_pairs_chunk)):
+        edge_flows.loc[od_pair.edge_path, "working_trips"] += od_pair.working_trips
+        edge_flows.loc[od_pair.edge_path, "GDP_to_trips"] += od_pair.GDP_to_trips
+    return edge_flows
 
 
 if __name__ == "__main__":
 
     logging.basicConfig(format="%(asctime)s %(process)d %(filename)s %(message)s", level=logging.INFO)
 
-    _, n_cpu, network_path, labour_flows_path, edge_flows_path = sys.argv
+    _, n_cpu, network_path, labour_flows_path, edge_flows_path, edge_flows_geometry_path = sys.argv
+    n_cpu = int(n_cpu)
 
     logging.info("Reading multi-modal network")
     network_edges = gpd.read_file(network_path, layer="edges")
 
-    logging.info("Accumulating flows to edges")
-    # ~50s per edge, 100k edges, therefore ~60d in serial!
-    results = []
-    edge_list = network_edges["edge_id"].tolist()
-    with multiprocessing.Pool(
-        processes=int(n_cpu),
-        initializer=init_worker,
-        initargs=(labour_flows_path,),
-    ) as pool:
-        results = pool.starmap(find_od_pairs_using_edge, [(edge_id,) for edge_id in edge_list])
+    logging.info("Reading flows")
+    od_pairs = pd.read_parquet(labour_flows_path, columns=("edge_path", "working_trips", "GDP_to_trips"))
 
-    edge_trips = flatten(results)
-    flows_by_edge = pd.DataFrame(
-        edge_trips, columns=["edge_id", "working_trips", "GDP_to_trips"]
-    )
-    accumulated_flows = flows_by_edge.loc[:, ["edge_id", "working_trips", "GDP_to_trips"]].groupby("edge_id").sum().reset_index()
+    # empty edge flows dataframe to accumulate flows to
+    edge_flows = network_edges.loc[:, ["edge_id"]].copy()
+    edge_flows["working_trips"] = 0.0
+    edge_flows["GDP_to_trips"] = 0.0
+    edge_flows = edge_flows.set_index("edge_id")
+
+    chunk_size = int(len(od_pairs) // n_cpu + 1)
+    logging.info(f"Splitting OD pairs into {n_cpu} chunks of ~{chunk_size}")
+    args = []
+    for i in range(n_cpu):
+        args.append((edge_flows.copy(), od_pairs.iloc[i * chunk_size: (i + 1) * chunk_size].copy()))
+
+    logging.info("Accumulating flows to edges")
+    with multiprocessing.Pool(processes=n_cpu) as pool:
+        results = pool.starmap(increment_edge_flows, args)
+    
+    # combine the chunks, summing across edges
+    edge_flows, *other_edge_flows = results
+    for other in other_edge_flows:
+        edge_flows += other
 
     logging.info("Writing accumulated flows to disk")
-    accumulated_flows.to_parquet(edge_flows_path)
+    edge_flows = edge_flows.reset_index()
+    edge_flows.to_parquet(edge_flows_path)
+    # join with geometry
+    edge_flows_geometry = gpd.GeoDataFrame(
+        edge_flows.merge(network_edges.loc[:, ["edge_id", "geometry"]], on="edge_id")
+    )
+    edge_flows_geometry.to_parquet(edge_flows_geometry_path)

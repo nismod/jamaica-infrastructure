@@ -110,6 +110,8 @@ rule transport_failure_flow_allocation:
         failure_scenarios = f"{OUTPUT}/transport_failures/parallel_transport_scenario_selection.txt",
     threads:
         workflow.cores
+    resources:
+        mem_gb = 16
     output:
         transport_failures_scenarios = directory(f"{OUTPUT}/transport_failures/scenario_results"),
     run:
@@ -145,11 +147,20 @@ rule transport_accumulate_flows_to_edges:
         script = "scripts/transport_model/accumulate_flows_to_edges.py",
         multi_modal_network = f"{DATA}/networks/transport/multi_modal_network.gpkg",
         labour_flows = f"{OUTPUT}/flow_mapping/labour_to_sectors_trips_and_activity.pq",
+    threads:
+        workflow.cores
     output:
         edge_flows = f"{OUTPUT}/flow_mapping/labour_trips_and_activity.pq",
+        edge_flows_geometry = f"{OUTPUT}/flow_mapping/labour_trips_and_activity.gpq",
     shell:
         """
-        python {input.script} {workflow.cores} {input.multi_modal_network} {input.labour_flows} {output.edge_flows}
+        python \
+            {input.script} \
+            {workflow.cores} \
+            {input.multi_modal_network} \
+            {input.labour_flows} \
+            {output.edge_flows} \
+            {output.edge_flows_geometry}
         """
 
 
