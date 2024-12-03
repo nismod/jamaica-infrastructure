@@ -42,6 +42,7 @@ def get_failure_estimates(failure_df, id_column, hourly_wage):
 
 
 def main(config):
+    processed_data_path = config["paths"]["data"]
     results_path = config["paths"]["output"]
 
     hourly_wage = (
@@ -74,7 +75,6 @@ def main(config):
 
     logging.info("Reading labour flows")
     labour_flows = pd.read_parquet(os.path.join(results_path, "flow_mapping", "labour_trips_and_activity.pq"))
-    breakpoint()
 
     all_failures = pd.merge(
         all_failures,
@@ -85,14 +85,28 @@ def main(config):
 
     all_failures = get_failure_estimates(all_failures, "edge_id", hourly_wage)
 
-    results_dir = os.path.join(
-        results_path, "economic_losses", "single_failure_scenarios"
+    logging.info("Reading network edges")
+    network_edges = gpd.read_file(
+        os.path.join(processed_data_path, "networks", "transport", "multi_modal_network.gpkg"),
+        layer="edges"
     )
+
+    logging.info("Writing economic losses to disk")
+    output_dir = os.path.join(results_path, "economic_losses")
+    os.makedirs(output_dir, exist_ok=True)
     all_failures.to_csv(
         os.path.join(
-            results_dir, "single_point_failure_road_rail_edges_economic_losses.csv"
+            output_dir, "single_point_failure_road_rail_edges_economic_losses.csv"
         ),
         index=False,
+    )
+    all_failures_geometry = gpd.GeoDataFrame(
+        all_failures.merge(network_edges.loc[:, ["edge_id", "geometry"]], on="edge_id")
+    )
+    all_failures_geometry.to_file(
+        os.path.join(
+            output_dir, "single_point_failure_road_rail_edges_economic_losses.gpkg"
+        )
     )
 
 

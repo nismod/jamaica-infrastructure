@@ -166,16 +166,18 @@ rule transport_accumulate_flows_to_edges:
 
 rule transport_failure_flow_allocation_combine_results:
     """
-    Gather step to combine chunked failured analysis.
+    Gather step: combine chunked failure analyses, write out economic losses per network edge.
     Test with:
-    snakemake -c1 results/transport_failures/single_point_failure_road_rail_edges_economic_losses.csv
+    snakemake -c1 results/economic_losses/single_point_failure_road_rail_edges_economic_losses.csv
     """
     input:
         script = "scripts/transport_model/transport_failure_results_combine.py",
         edge_flows = f"{OUTPUT}/flow_mapping/labour_trips_and_activity.pq",
         transport_failures_scenarios = f"{OUTPUT}/transport_failures/scenario_results",
+        multi_modal_network = f"{DATA}/networks/transport/multi_modal_network.gpkg",
     output:
-        road_and_rail_losses = f"{OUTPUT}/transport_failures/single_point_failure_road_rail_edges_economic_losses.csv",
+        road_and_rail_losses = f"{OUTPUT}/economic_losses/single_point_failure_road_rail_edges_economic_losses.csv",
+        road_and_rail_losses_geometry = f"{OUTPUT}/economic_losses/single_point_failure_road_rail_edges_economic_losses.gpkg",
     shell:
         """
         python {input.script}
