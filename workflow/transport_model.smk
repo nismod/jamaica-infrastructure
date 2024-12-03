@@ -1,3 +1,61 @@
+"""
+Rules for creating and analysing multi-modal transport networks.
+"""
+
+
+rule preprocess_road_network:
+    """
+    Preprocess road network data.
+    Test with:
+    snakemake -c1 processed_data/networks/transport/roads.gpkg
+    """
+    input:
+        raw_roads = f"{RAW}/networks/transport/roads.gpkg",
+    output:
+        processed_roads = f"{DATA}/networks/transport/roads.gpkg",
+    run:
+        import logging
+
+        import geopandas as gpd
+        import snkit
+
+        logging.basicConfig(format="%(asctime)s %(process)d %(filename)s %(message)s", level=logging.INFO)
+
+        logging.info("Read raw road network data")
+        edges = gpd.read_file(input.raw_roads, layer="edges")
+        edges = edges.drop(columns=["from_node", "to_node", "edge_id"])
+        logging.info(f"{len(edges)} edges")
+        # cast multi-linestrings to linestrings
+        exploded_geometry = edges.geometry.explode(index_parts=False)
+        if len(edges == len(exploded_geometry)):
+            edges.geometry = exploded_geometry
+        else:
+            raise ValueError("Multi-part geometries in raw road edges")
+
+        logging.info("Remove edges with missing geometry")
+        edges = edges[~edges.geometry.isna()]
+        logging.info(f"{len(edges)} edges remain")
+
+        nodes = gpd.read_file(input.raw_roads, layer="nodes")
+        nodes = nodes.drop(columns=["node_id"])
+        logging.info(f"{len(nodes)} nodes")
+
+        logging.info("Label road network with topology")
+        network = snkit.Network(nodes=nodes, edges=edges)
+        network = snkit.network.add_ids(network, edge_prefix="roade", node_prefix="roadn")
+        network = snkit.network.add_topology(network, id_col="id")
+        logging.info("Label road network with components")
+        network = snkit.network.add_component_ids(network)
+        network.edges = network.edges.rename(
+            columns={"from_id": "from_node", "to_id": "to_node", "id": "edge_id"},
+        )
+        network.nodes = network.nodes.rename(columns={"id": "node_id"})
+
+        logging.info("Write processed road network to disk")
+        network.edges.to_file(output.processed_roads, layer="edges", driver="GPKG")
+        network.nodes.to_file(output.processed_roads, layer="nodes", driver="GPKG")
+
+
 rule create_multi_modal_network:
     """
     Create a multi-modal transport network.
