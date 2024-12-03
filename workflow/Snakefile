@@ -1,6 +1,7 @@
 configfile: "config.json"
 
 # assign globals to these paths, they're used frequently
+RAW = config["paths"]["incoming_data"]
 DATA = config["paths"]["data"]
 OUTPUT = config["paths"]["output"]
 
