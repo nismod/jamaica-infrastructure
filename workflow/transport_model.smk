@@ -167,8 +167,9 @@ rule transport_failure_flow_allocation:
         collated_input_data = f"{OUTPUT}/transport_failures/nominal",
         failure_scenarios = f"{OUTPUT}/transport_failures/parallel_transport_scenario_selection.txt",
     threads:
-        # ideally we'd set memory per cpu here, but snakemake doesn't support that
-        min(workflow.cores, 8)
+        # ideally we'd set this based on required memory per cpu (16GB) and available memory, but snakemake doesn't support that
+        # i do have a hacky function that uses inspect to get the memory requirements of the rule, but it's not great
+        min(workflow.cores, 6)
     resources:
         mem_gb=lambda wildcards, threads: 16 * threads
     output:
@@ -183,7 +184,7 @@ rule transport_failure_flow_allocation:
             "1",
             "--lb",
             "-j",
-            str(workflow.cores),
+            str(threads),
             "--colsep",
             ",",
             "-a",
