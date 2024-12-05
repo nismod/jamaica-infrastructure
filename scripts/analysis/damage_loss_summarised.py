@@ -2,6 +2,7 @@
 
 """
 
+import datetime
 import sys
 import os
 
@@ -40,11 +41,10 @@ def main(
     processed_data_path = config["paths"]["data"]
     output_data_path = config["paths"]["output"]
 
-    direct_damages_results = os.path.join(output_data_path, direct_damages_folder)
+    direct_damages_results = direct_damages_folder
 
-    summary_results = os.path.join(output_data_path, summary_results_folder)
-    if os.path.exists(summary_results) == False:
-        os.mkdir(summary_results)
+    if not os.path.exists(summary_results_folder):
+        os.mkdir(summary_results_folder)
 
     asset_data_details = pd.read_csv(network_csv)
     param_values = open(parameter_txt_file)
@@ -107,7 +107,7 @@ def main(
             )
             exposures.to_parquet(
                 os.path.join(
-                    summary_results,
+                    summary_results_folder,
                     f"{asset_info.asset_gpkg}_{asset_info.asset_layer}_exposures.parquet",
                 ),
                 index=False,
@@ -179,7 +179,7 @@ def main(
                 )
                 damages.to_parquet(
                     os.path.join(
-                        summary_results,
+                        summary_results_folder,
                         f"{asset_info.asset_gpkg}_{asset_info.asset_layer}_damages.parquet",
                     ),
                     index=False,
@@ -195,7 +195,7 @@ def main(
                     )
                     losses.to_parquet(
                         os.path.join(
-                            summary_results,
+                            summary_results_folder,
                             f"{asset_info.asset_gpkg}_{asset_info.asset_layer}_losses.parquet",
                         ),
                         index=False,
@@ -272,7 +272,7 @@ def main(
             )
             summarised_damages.to_csv(
                 os.path.join(
-                    summary_results,
+                    summary_results_folder,
                     f"{asset_info.asset_gpkg}_{asset_info.asset_layer}_EAD_EAEL.csv",
                 ),
                 index=False,
@@ -280,6 +280,10 @@ def main(
             # print (len(summarised_damages.index))
             del summarised_damages
         print(f"* Done with {asset_info.asset_gpkg} {asset_info.asset_layer}")
+
+    # signal to snakemake that the job is complete
+    with open(os.path.join(summary_results_folder, "summary.flag"), "w") as fp:
+        fp.write(f"{datetime.datetime.now()}")
 
 
 if __name__ == "__main__":

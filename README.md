@@ -14,27 +14,19 @@ Clone or download this repository from
 
     git clone git@github.com:nismod/jamaica-infrastructure.git
 
-Install required python packages - several options are possible, depending on
-your system and preference.
+Next, install required python packages:
 
-If you can install system libraries relatively easily (e.g. on a Linux system
-with admin rights), `pip` will install Python packages and warn if any system
-libraries are not available:
-
-    pip install -r requirements.txt
-
-Otherwise, consider using
-[`miniconda`](https://docs.conda.io/en/latest/miniconda.html) to install the
-packages and manage installing libraries into a conda environment, usually
-handling non-Python dependencies well.
+We recommend using [`micromamba`](https://mamba.readthedocs.io/en/latest/user_guide/micromamba.html)
+to install the packages and manage installing libraries into a conda
+environment, usually handling non-Python dependencies well.
 
 Create a conda environment once (per machine/user):
 
-    conda create --name jsrat --file requirements.txt
+    micromamba create --file environment.yml
 
 Activate the environment each time you open a shell:
 
-    conda activate jsrat
+    micormamba activate jsrat
 
 ## High-level analysis steps
 

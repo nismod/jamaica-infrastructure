@@ -1,11 +1,8 @@
 """Functions for preprocessing data
 """
 
-import sys
 import os
 import json
-
-import subprocess
 
 # import rasterio
 # import rioxarray
@@ -17,7 +14,6 @@ from shapely.geometry import Polygon, shape, LineString
 
 # workaround for geopandas >0.9 until snkit #37 and geopandas #1977 are fixed
 gpd._compat.USE_PYGEOS = False
-import fiona
 import numpy as np
 from scipy.spatial import cKDTree
 import snkit
@@ -29,7 +25,7 @@ epsg_jamaica = 3448
 
 def load_config():
     """Read config.json"""
-    config_path = os.path.join(os.path.dirname(__file__), "..", "..", "config.json")
+    config_path = os.path.join(os.path.dirname(__file__), "..", "..", "..", "config.json")
     with open(config_path, "r") as config_fh:
         config = json.load(config_fh)
     return config
