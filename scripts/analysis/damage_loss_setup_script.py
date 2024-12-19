@@ -7,7 +7,7 @@ from analysis_utils import *
 import subprocess
 
 
-def main(config, network_csv, hazard_csv):
+def main(config, network_csv, hazard_csv, n_cpu):
     processed_data_path = config["paths"]["data"]
     results_path = config["paths"]["output"]
 
@@ -27,6 +27,9 @@ def main(config, network_csv, hazard_csv):
     summary_folder = os.path.join(results_path, "direct_damages_summary")
     timeseries_results_folder = os.path.join(results_path, "loss_damage_timeseries")
     discounted_results_folder = os.path.join(results_path, "loss_damage_npvs")
+    for folder in (damage_results_folder, summary_folder, timeseries_results_folder, discounted_results_folder):
+        if not os.path.exists(folder):
+            os.makedirs(folder)
 
     flood_protection_column = "None"
 
@@ -60,21 +63,20 @@ def main(config, network_csv, hazard_csv):
                     f"{damage_results_folder},{network_csv},{hazard_csv},{damage_curves_csv},{hazard_damage_parameters_csv},{pv[0]},{pv[1]},{pv[2]}\n"
                 )
 
-    num_blocks = 1  # len(param_values)
-    """Next we call the failure analysis script and loop through the failure scenarios
-    """
+    """Call the failure analysis script and loop through the failure scenarios"""
     args = [
         "parallel",
         "--halt",
         "now,fail=1",
+        "--lb",
         "-j",
-        str(num_blocks),
+        str(n_cpu),
         "--colsep",
         ",",
         "-a",
         damage_results_fname,
         "python",
-        "damage_calculations.py",
+        "scripts/analysis/damage_calculations.py",
         "{}",
     ]
     print("* Start the processing of damage calculations")
@@ -87,57 +89,11 @@ def main(config, network_csv, hazard_csv):
             for p in r:
                 pv = p.split(",")
                 f.write(
-                    f"{damage_results_folder},{network_csv},{hazard_csv},{flood_protection_column},{pv[0]},{pv[1]},{pv[2]}\n"
+                    f"{damage_results_folder},{network_csv},{hazard_csv},{flood_protection_column},{pv[0]},{pv[1]},{pv[2]}"
                 )
-
-    """Next we call the EAD and EAEL analysis script and loop through the failure results
-    """
-    args = [
-        "parallel",
-        "-j",
-        str(num_blocks),
-        "--colsep",
-        ",",
-        "-a",
-        ead_eael_results_fname,
-        "python",
-        "ead_eael_calculations.py",
-        "{}",
-    ]
-    print("* Start the processing of EAD and EAEL calculations")
-    print(args)
-    subprocess.check_output(args)
-
-    """Next we call the summary scripts
-    """
-    args = [
-        "python",
-        "damage_loss_summarised.py",
-        f"{damage_results_folder}",
-        f"{summary_folder}",
-        f"{network_csv}",
-        f"{parameter_combinations_file}",
-    ]
-    print("* Start the processing of summarising damage results")
-    print(args)
-    subprocess.check_output(args)
-
-    """Next we call the timeseries and NPV scripts
-    """
-    args = [
-        "python",
-        "damage_loss_timeseries_and_npv.py",
-        f"{summary_folder}",
-        f"{timeseries_results_folder}",
-        f"{discounted_results_folder}",
-        f"{network_csv}",
-    ]
-    print("* Start the processing of timeseries and NPV calculations")
-    print(args)
-    subprocess.check_output(args)
 
 
 if __name__ == "__main__":
     CONFIG = load_config()
-    network_csv, hazard_csv = sys.argv[1:]
-    main(CONFIG, network_csv, hazard_csv)
+    network_csv, hazard_csv, n_cpu = sys.argv[1:]
+    main(CONFIG, network_csv, hazard_csv, int(n_cpu))

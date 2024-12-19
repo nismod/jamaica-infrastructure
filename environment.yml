@@ -1,0 +1,12 @@
+# to install this environment:
+# micromamba create -f environment.yml -y
+name: jsrat
+channels:
+  - conda-forge  # majority of dependencies
+  - defaults
+dependencies:
+  - python=3.10
+  - pip:
+    - --editable .
+    - -r requirements.txt
+  - bioconda::snakemake~=7.32.4

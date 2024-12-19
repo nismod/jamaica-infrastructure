@@ -1,15 +1,20 @@
 """Map import and export trade activites to Ports in Jamaica
 """
 
-import sys
 import os
 
 import pandas as pd
 import geopandas as gpd
 import numpy as np
 import igraph as ig
-from utils import *
 from tqdm import tqdm
+
+from jamaica_infrastructure.transport.utils import (
+    get_flow_on_edges,
+    load_config,
+    map_nearest_locations_and_create_lines,
+    network_od_paths_assembly,
+)
 
 tqdm.pandas()
 epsg_jamaica = 3448
@@ -172,7 +177,6 @@ def filter_sector_from_buildings(buildings_dataframe, sector_code, subsector_cod
 
 
 def main(config):
-    incoming_data_path = config["paths"]["incoming_data"]
     processed_data_path = config["paths"]["data"]
     results_path = config["paths"]["output"]
 
@@ -351,7 +355,7 @@ def main(config):
         if trade_details.sector_type == "Agriculture":
             gdp_areas = gpd.read_file(
                 os.path.join(
-                    processed_data_path, "agriculture_data", "agricuture_gdp.gpkg"
+                    processed_data_path, "agriculture_data", "agriculture_gdp.gpkg"
                 ),
                 layer="areas",
             )
@@ -441,8 +445,14 @@ def main(config):
         flow_network.append(edge_flows)
 
         print(f"* Done with {trade_details.sector_type} {trade_details.trade_type}")
-    pd.concat(sector_flows, axis=0, ignore_index=True).to_csv(
-        os.path.join(results_path, "flow_mapping", f"sector_to_ports_flow_paths.csv"),
+
+    sector_flows = pd.concat(sector_flows, axis=0, ignore_index=True)
+    sector_flows.to_csv(
+        os.path.join(results_path, "flow_mapping", "sector_to_ports_flow_paths.csv"),
+        index=False,
+    )
+    sector_flows.to_parquet(
+        os.path.join(results_path, "flow_mapping", "sector_to_ports_flow_paths.pq"),
         index=False,
     )
     sector_network = pd.concat(sector_network, axis=0, ignore_index=True)[columns]
@@ -468,14 +478,14 @@ def main(config):
     # edge_flows["total_trade"] = edge_flows[[f"{s}_trade" for s in list(set([sc["sector"] for sc in sector_details]))]].sum(axis=1)
     edge_flows.to_file(
         os.path.join(
-            results_path, "flow_mapping", f"sector_imports_exports_to_ports_flows.gpkg"
+            results_path, "flow_mapping", "sector_imports_exports_to_ports_flows.gpkg"
         ),
         layer="edges",
         driver="GPKG",
     )
 
     flow_paths = pd.read_csv(
-        os.path.join(results_path, "flow_mapping", f"sector_to_ports_flow_paths.csv")
+        os.path.join(results_path, "flow_mapping", "sector_to_ports_flow_paths.csv")
     ).fillna(0)
     trade_columns = [c for c in flow_paths.columns.values.tolist() if "_trade" in c]
     common_nodes = flow_paths[flow_paths["origin_id"] == flow_paths["destination_id"]]

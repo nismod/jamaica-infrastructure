@@ -2,22 +2,20 @@
 
 """
 
-import sys
+import datetime
 import os
-
+import sys
 import warnings
 
 warnings.simplefilter(action="ignore", category=FutureWarning)
 import pandas as pd
-
 pd.options.mode.chained_assignment = None  # default='warn'
 warnings.simplefilter(action="ignore", category=pd.errors.PerformanceWarning)
-
 import geopandas as gpd
 import numpy as np
+from tqdm import tqdm
 
 from analysis_utils import *
-from tqdm import tqdm
 
 tqdm.pandas()
 
@@ -238,6 +236,10 @@ def main(
             )
 
             print(f"* Done with {asset_info.asset_gpkg} discounted values")
+
+    # signal to snakemake that the job is complete
+    with open(os.path.join(summary_results, "losses_npv.flag"), "w") as fp:
+        fp.write(f"{datetime.datetime.now()}")
 
 
 if __name__ == "__main__":
