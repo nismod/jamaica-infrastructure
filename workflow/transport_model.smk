@@ -14,16 +14,34 @@ rule preprocess_road_network:
     output:
         processed_roads = f"{DATA}/networks/transport/roads.gpkg",
     run:
+        """
+        Take an open-gira (or otherwise produced) road network and process it
+        prior to inclusion in the multi-modal network.
+
+        - Project to EPSG 3448
+        - Explode multilinestrings
+        - Calculate edge lengths
+        - Gap-fill speed limit data
+        - Add topology and component labels
+
+        TODO: Add government road categorisation data (could spatial join
+        against NWA as Raghav did in scripts/preprocess/updated_road_network.py)
+        """
+
         import logging
 
         import geopandas as gpd
+        import pandas as pd
         import snkit
 
         logging.basicConfig(format="%(asctime)s %(process)d %(filename)s %(message)s", level=logging.INFO)
 
         logging.info("Read raw road network data")
         edges = gpd.read_file(input.raw_roads, layer="edges")
-        edges = edges.drop(columns=["from_node", "to_node", "edge_id"])
+        edges = edges.to_crs(epsg=3448)
+        for col_name in ("from_node", "to_node", "edge_id"):
+            if col_name in edges.columns:
+                edges = edges.drop(columns=[col_name])
         logging.info(f"{len(edges)} edges")
         # cast multi-linestrings to linestrings
         exploded_geometry = edges.geometry.explode(index_parts=False)
@@ -36,8 +54,21 @@ rule preprocess_road_network:
         edges = edges[~edges.geometry.isna()]
         logging.info(f"{len(edges)} edges remain")
 
+        logging.info("Calculate edge lengths in meters")
+        edges["length_m"] = edges.geometry.length
+
+        logging.info("Gap-filling speed limits with road classification modal value")
+        class_to_speed_kph = edges.loc[:, ["tag_highway", "tag_maxspeed"]].groupby("tag_highway").agg(pd.Series.mode)
+        edges["speed_kph"] = edges["tag_maxspeed"].copy()
+        for road_class, modal_limit_kph in class_to_speed_kph.itertuples():
+            if not 30 < modal_limit_kph < 130:
+                raise ValueError(f"Suspicious speed limit: {modal_limit_kph} km/h for {road_class}")
+            edges.loc[(edges.tag_highway == road_class) & edges.tag_maxspeed.isna(), "speed_kph"] = modal_limit_kph
+
         nodes = gpd.read_file(input.raw_roads, layer="nodes")
-        nodes = nodes.drop(columns=["node_id"])
+        nodes = nodes.to_crs(epsg=3448)
+        if "node_id" in nodes.columns:
+            nodes = nodes.drop(columns=["node_id"])
         logging.info(f"{len(nodes)} nodes")
 
         logging.info("Label road network with topology")
