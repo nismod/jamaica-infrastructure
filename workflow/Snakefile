@@ -8,3 +8,4 @@ OUTPUT = config["paths"]["output"]
 include: "direct_damages.smk"
 include: "losses.smk"
 include: "transport_model.smk"
+include: "hotspots.smk"
