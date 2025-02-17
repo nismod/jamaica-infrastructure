@@ -51,7 +51,7 @@ power flow model of Jamaica's electricity network.
 ### Visualisation tool
 
 The J-SRAT web-based visualisation tool is implemented in
-[`infra-risk-vis`](https://github.com/nismod/infra-risk-vis)
+[`irv-jamaica`](https://github.com/nismod/irv-jamaica)
 
 ### snail
 
@@ -59,6 +59,10 @@ The J-SRAT web-based visualisation tool is implemented in
 for hazard-network intersections, under continuing development to support risk
 analysis.
 
+### open-gira
+
+[`open-gira`](https://github.com/nismod/open-gira) is a supporting library and
+set of workflows, used here for road network generation
 
 ## Acknowledgments
 
