@@ -37,14 +37,18 @@ management system that can be used to break up complex modelling chains and
 improve the reproducibility of analyses. To invoke a rule, call `snakemake`
 followed by the file you want to produce.
 
-First, make available snakemake and other software dependencies by activating
-the environment we previously created.
+### Environment
+
+To make snakemake and other software dependencies available, activate the
+environment we previously created.
 ```shell
 micromamba activate jsrat
 ```
 
-And to, for example, invoke the rule (and all necessary predecessor rules) to
-compute commuter flows across the transport network:
+### Invoke rules
+
+To invoke the rule (and all necessary predecessor rules) to compute commuter
+flows across the transport network:
 ```shell
 snakemake --dry-run --cores 1 -- results/flow_mapping/labour_to_sectors_flow_paths.csv
 ```
@@ -58,7 +62,7 @@ the rules. If rules do not depend on one another and enough processors are
 available, they may execute simultaneously. Also, some rules invoke scripts that
 are parallelised and can make use more than one processor themselves.
 
-### Rules
+### Available rules
 
 See the following files within `workflow/` for available rules and their input
 and output files:
@@ -66,6 +70,13 @@ and output files:
 - `losses.smk`
 - `transport_model.smk`
 - `hotspots.smk`
+
+### Required data
+
+To run any rules you will need the `processed_data/` folder which contains data
+that has been cleaned and can be consumed by the rules. Contact the maintainers
+for access to this folder. Outputs are written to the `results/` folder. These
+paths can be configured by editing the `config.json` file.
 
 ## Related repositories
 
