@@ -1,8 +1,0 @@
-{
-    "comment": "Copy this file to `config.json` and edit for your local setup. `incoming_data` is the path to the directory of input data, as provided - e.g. `~/data/argentina-transport/C Incoming Data/`. `data` is the path to the directory of working data, input/output by these scripts. `figures` is the path to output figures.",
-    "paths": {
-        "incoming_data": "./incoming_data",
-        "data": "./data",
-        "figures": "./figures"
-    }
-}

@@ -21,25 +21,62 @@ to install the packages and manage installing libraries into a conda
 environment, usually handling non-Python dependencies well.
 
 Create a conda environment once (per machine/user):
-
-    micromamba create --file environment.yml
-
-Activate the environment each time you open a shell:
-
-    micormamba activate jsrat
-
-## High-level analysis steps
-
-Run hazard-network intersections.
-
-```bash
-python scripts/exposure/split_networks.py \
-    workflow/network_layers.csv \
-    workflow/hazard_layers.csv \
-    ./extract/processed_data/
+```shell
+micromamba create --file environment.yml
 ```
 
+## Usage
 
+The principal goal of this repository is to produce analysis results, (damages,
+losses and adaptation options) that can be ingested by the ETL pipeline in
+[irv-jamaica](https://github.com/nismod/irv-jamaica/blob/main/etl/README.md).
+
+The analysis is comprised of Python scripts wrapped in
+[snakemake](https://snakemake.readthedocs.io/) rules. Snakemake is a workflow
+management system that can be used to break up complex modelling chains and
+improve the reproducibility of analyses. To invoke a rule, call `snakemake`
+followed by the file you want to produce.
+
+### Environment
+
+To make snakemake and other software dependencies available, activate the
+environment we previously created.
+```shell
+micromamba activate jsrat
+```
+
+### Invoke rules
+
+To invoke the rule (and all necessary predecessor rules) to compute commuter
+flows across the transport network:
+```shell
+snakemake --dry-run --cores 1 -- results/flow_mapping/labour_to_sectors_flow_paths.csv
+```
+
+Note that the `--dry-run` flag asks `snakemake` to report on what work (if any)
+is necessary. As jobs can be long running, this is useful to check beforehand.
+To actually run the rules, remove the dry run flag.
+
+The `--cores` flag indicates how many processors `snakemake` will use to execute
+the rules. If rules do not depend on one another and enough processors are
+available, they may execute simultaneously. Also, some rules invoke scripts that
+are parallelised and can make use more than one processor themselves.
+
+### Available rules
+
+See the following files within `workflow/` for available rules and their input
+and output files:
+- `direct_damages.smk`
+- `losses.smk`
+- `transport_model.smk`
+- `hotspots.smk`
+
+### Required data
+
+To run any rules you will need the `processed_data/` folder which contains data
+that has been cleaned and can be consumed by the rules. Contact the maintainers
+for access to this folder. Outputs are written to the `results/` folder. These
+paths can be configured by editing the `config.json` file.
 
 ## Related repositories
 

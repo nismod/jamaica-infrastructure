@@ -1,0 +1,15 @@
+{
+    "paths": {
+        "incoming_data": "incoming_data",
+        "data": "processed_data",
+        "output": "results",
+        "network_layers": "workflow/network_layers.csv",
+        "hazard_layers": "workflow/hazard_layers.csv"
+    },
+    "extract_bbox": {
+        "left": 760000,
+        "bottom": 640000,
+        "right": 780000,
+        "top": 660000
+    }
+}
