@@ -13,7 +13,6 @@ scripts/preprocess/TC_event_generation/Output/*
 scripts/preprocess/TC_event_generation/data/*.DS_store
 
 # Ignore config file
-config.json
 config_local.yml
 
 # Workflow
