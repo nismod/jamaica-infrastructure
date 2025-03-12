@@ -5,7 +5,15 @@ RAW = config["paths"]["incoming_data"]
 DATA = config["paths"]["data"]
 OUTPUT = config["paths"]["output"]
 
-include: "direct_damages.smk"
-include: "losses.smk"
-include: "transport_model.smk"
-include: "hotspots.smk"
+# Wildcards can't have slash or underscore
+wildcard_constraints:
+    hazard="[^_/]+",
+    gpkg="[^_/]+",
+    layer="[^_/]+",
+    # threshold="^\d+(p\d+)?$",
+
+include: "damage.smk"
+# include: "direct_damages.smk"
+# include: "losses.smk"
+# include: "transport_model.smk"
+# include: "hotspots.smk"
