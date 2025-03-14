@@ -11,5 +11,6 @@
         "bottom": 640000,
         "right": 780000,
         "top": 660000
-    }
+    },
+    "single_link_failure_chunk_count": 128
 }

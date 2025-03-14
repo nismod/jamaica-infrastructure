@@ -5,11 +5,10 @@ RAW = config["paths"]["incoming_data"]
 DATA = config["paths"]["data"]
 OUTPUT = config["paths"]["output"]
 
-# Wildcards can't have slash or underscore
 wildcard_constraints:
-    hazard="[^_/]+",
-    gpkg="[^_/]+",
-    layer="[^_/]+",
+    hazard="[^_/]+",  # no slash or underscore
+    gpkg="[^/]+",  # no slash in filename
+    layer="(nodes|edges|areas)",
     # threshold="^\d+(p\d+)?$",
 
 include: "damage.smk"

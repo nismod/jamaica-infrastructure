@@ -1,89 +1,183 @@
 """
-The Snakemake workflow eventually needs to generate the files that are referenced
-in CSVs from the irv-jamaica repository's etl folder.
+This file runs the snakemake workflow for each target and checks whether it succeeds.
 
-Those CSVs are:
-
-- adaptation_files.csv
-- damage_exp_files.csv
-- damage_rp_files.csv
-- damage_rp_files_with_buildings.csv
-- hazard_layers.csv
-- network_layers.csv
-- network_tilelayers.csv
-- network_tilelayers_with_buildings.csv
-- other_tilelayers.csv
-- hotspot_layers.csv
-- storm_layers.csv
-
+Don't use it if the rules do anything more than touch files because it will take forever.
 """
-
-import os
 import subprocess
-import pandas
+import re
 
-# Check the files that we need to generate
-csv_path_refs = {
-    "adaptation_files": ["avoided_risk"],
-    "damage_exp_files": ["expected"],
-    "damage_rp_files": ["damage", "exposure", "loss"],
-    "damage_rp_files_with_buildings": ["damage", "exposure", "loss"],
-    # "hazard_layers": ["path"],
-    # "hotspot_layers": ["path"],
-    # "network_layers": ["path", "single_failure_scenarios"],
-    # "network_tilelayers": [],
-    # "network_tilelayers_with_buildings": [],
-    # "other_tilelayers": [],
-    # "storm_layers": ["path"],
-}
+TARGETS = [
+    "results/direct_damages_summary_uids/airport_polygon_areas_EAD_EAEL.parquet",
+    "results/direct_damages_summary_uids/airport_polygon_areas_damages.parquet",
+    "results/direct_damages_summary_uids/airport_polygon_areas_exposures.parquet",
+    "results/direct_damages_summary_uids/airport_polygon_areas_losses.parquet",
+    "results/direct_damages_summary_uids/buildings_assigned_economic_activity_areas_EAD_EAEL.parquet",
+    "results/direct_damages_summary_uids/buildings_assigned_economic_activity_areas_coastal__rcp_2.6__epoch_2050__damages.parquet",
+    "results/direct_damages_summary_uids/buildings_assigned_economic_activity_areas_coastal__rcp_2.6__epoch_2050__exposures.parquet",
+    "results/direct_damages_summary_uids/buildings_assigned_economic_activity_areas_coastal__rcp_2.6__epoch_2050__losses.parquet",
+    "results/direct_damages_summary_uids/buildings_assigned_economic_activity_areas_coastal__rcp_2.6__epoch_2100__damages.parquet",
+    "results/direct_damages_summary_uids/buildings_assigned_economic_activity_areas_coastal__rcp_2.6__epoch_2100__exposures.parquet",
+    "results/direct_damages_summary_uids/buildings_assigned_economic_activity_areas_coastal__rcp_2.6__epoch_2100__losses.parquet",
+    "results/direct_damages_summary_uids/buildings_assigned_economic_activity_areas_coastal__rcp_4.5__epoch_2030__damages.parquet",
+    "results/direct_damages_summary_uids/buildings_assigned_economic_activity_areas_coastal__rcp_4.5__epoch_2030__exposures.parquet",
+    "results/direct_damages_summary_uids/buildings_assigned_economic_activity_areas_coastal__rcp_4.5__epoch_2030__losses.parquet",
+    "results/direct_damages_summary_uids/buildings_assigned_economic_activity_areas_coastal__rcp_4.5__epoch_2050__damages.parquet",
+    "results/direct_damages_summary_uids/buildings_assigned_economic_activity_areas_coastal__rcp_4.5__epoch_2050__exposures.parquet",
+    "results/direct_damages_summary_uids/buildings_assigned_economic_activity_areas_coastal__rcp_4.5__epoch_2050__losses.parquet",
+    "results/direct_damages_summary_uids/buildings_assigned_economic_activity_areas_coastal__rcp_4.5__epoch_2070__damages.parquet",
+    "results/direct_damages_summary_uids/buildings_assigned_economic_activity_areas_coastal__rcp_4.5__epoch_2070__exposures.parquet",
+    "results/direct_damages_summary_uids/buildings_assigned_economic_activity_areas_coastal__rcp_4.5__epoch_2070__losses.parquet",
+    "results/direct_damages_summary_uids/buildings_assigned_economic_activity_areas_coastal__rcp_4.5__epoch_2100__damages.parquet",
+    "results/direct_damages_summary_uids/buildings_assigned_economic_activity_areas_coastal__rcp_4.5__epoch_2100__exposures.parquet",
+    "results/direct_damages_summary_uids/buildings_assigned_economic_activity_areas_coastal__rcp_4.5__epoch_2100__losses.parquet",
+    "results/direct_damages_summary_uids/buildings_assigned_economic_activity_areas_coastal__rcp_8.5__epoch_2030__damages.parquet",
+    "results/direct_damages_summary_uids/buildings_assigned_economic_activity_areas_coastal__rcp_8.5__epoch_2030__exposures.parquet",
+    "results/direct_damages_summary_uids/buildings_assigned_economic_activity_areas_coastal__rcp_8.5__epoch_2030__losses.parquet",
+    "results/direct_damages_summary_uids/buildings_assigned_economic_activity_areas_coastal__rcp_8.5__epoch_2050__damages.parquet",
+    "results/direct_damages_summary_uids/buildings_assigned_economic_activity_areas_coastal__rcp_8.5__epoch_2050__exposures.parquet",
+    "results/direct_damages_summary_uids/buildings_assigned_economic_activity_areas_coastal__rcp_8.5__epoch_2050__losses.parquet",
+    "results/direct_damages_summary_uids/buildings_assigned_economic_activity_areas_coastal__rcp_8.5__epoch_2070__damages.parquet",
+    "results/direct_damages_summary_uids/buildings_assigned_economic_activity_areas_coastal__rcp_8.5__epoch_2070__exposures.parquet",
+    "results/direct_damages_summary_uids/buildings_assigned_economic_activity_areas_coastal__rcp_8.5__epoch_2070__losses.parquet",
+    "results/direct_damages_summary_uids/buildings_assigned_economic_activity_areas_coastal__rcp_8.5__epoch_2100__damages.parquet",
+    "results/direct_damages_summary_uids/buildings_assigned_economic_activity_areas_coastal__rcp_8.5__epoch_2100__exposures.parquet",
+    "results/direct_damages_summary_uids/buildings_assigned_economic_activity_areas_coastal__rcp_8.5__epoch_2100__losses.parquet",
+    "results/direct_damages_summary_uids/buildings_assigned_economic_activity_areas_coastal__rcp_baseline__epoch_2010__damages.parquet",
+    "results/direct_damages_summary_uids/buildings_assigned_economic_activity_areas_coastal__rcp_baseline__epoch_2010__exposures.parquet",
+    "results/direct_damages_summary_uids/buildings_assigned_economic_activity_areas_coastal__rcp_baseline__epoch_2010__losses.parquet",
+    "results/direct_damages_summary_uids/buildings_assigned_economic_activity_areas_cyclone__rcp_4.5__epoch_2050__damages.parquet",
+    "results/direct_damages_summary_uids/buildings_assigned_economic_activity_areas_cyclone__rcp_4.5__epoch_2050__exposures.parquet",
+    "results/direct_damages_summary_uids/buildings_assigned_economic_activity_areas_cyclone__rcp_4.5__epoch_2050__losses.parquet",
+    "results/direct_damages_summary_uids/buildings_assigned_economic_activity_areas_cyclone__rcp_4.5__epoch_2100__damages.parquet",
+    "results/direct_damages_summary_uids/buildings_assigned_economic_activity_areas_cyclone__rcp_4.5__epoch_2100__exposures.parquet",
+    "results/direct_damages_summary_uids/buildings_assigned_economic_activity_areas_cyclone__rcp_4.5__epoch_2100__losses.parquet",
+    "results/direct_damages_summary_uids/buildings_assigned_economic_activity_areas_cyclone__rcp_8.5__epoch_2050__damages.parquet",
+    "results/direct_damages_summary_uids/buildings_assigned_economic_activity_areas_cyclone__rcp_8.5__epoch_2050__exposures.parquet",
+    "results/direct_damages_summary_uids/buildings_assigned_economic_activity_areas_cyclone__rcp_8.5__epoch_2050__losses.parquet",
+    "results/direct_damages_summary_uids/buildings_assigned_economic_activity_areas_cyclone__rcp_8.5__epoch_2100__damages.parquet",
+    "results/direct_damages_summary_uids/buildings_assigned_economic_activity_areas_cyclone__rcp_8.5__epoch_2100__exposures.parquet",
+    "results/direct_damages_summary_uids/buildings_assigned_economic_activity_areas_cyclone__rcp_8.5__epoch_2100__losses.parquet",
+    "results/direct_damages_summary_uids/buildings_assigned_economic_activity_areas_cyclone__rcp_baseline__epoch_2010__damages.parquet",
+    "results/direct_damages_summary_uids/buildings_assigned_economic_activity_areas_cyclone__rcp_baseline__epoch_2010__exposures.parquet",
+    "results/direct_damages_summary_uids/buildings_assigned_economic_activity_areas_cyclone__rcp_baseline__epoch_2010__losses.parquet",
+    "results/direct_damages_summary_uids/buildings_assigned_economic_activity_areas_fluvial__rcp_2.6__epoch_2050__damages.parquet",
+    "results/direct_damages_summary_uids/buildings_assigned_economic_activity_areas_fluvial__rcp_2.6__epoch_2050__exposures.parquet",
+    "results/direct_damages_summary_uids/buildings_assigned_economic_activity_areas_fluvial__rcp_2.6__epoch_2050__losses.parquet",
+    "results/direct_damages_summary_uids/buildings_assigned_economic_activity_areas_fluvial__rcp_2.6__epoch_2080__damages.parquet",
+    "results/direct_damages_summary_uids/buildings_assigned_economic_activity_areas_fluvial__rcp_2.6__epoch_2080__exposures.parquet",
+    "results/direct_damages_summary_uids/buildings_assigned_economic_activity_areas_fluvial__rcp_2.6__epoch_2080__losses.parquet",
+    "results/direct_damages_summary_uids/buildings_assigned_economic_activity_areas_fluvial__rcp_4.5__epoch_2050__damages.parquet",
+    "results/direct_damages_summary_uids/buildings_assigned_economic_activity_areas_fluvial__rcp_4.5__epoch_2050__exposures.parquet",
+    "results/direct_damages_summary_uids/buildings_assigned_economic_activity_areas_fluvial__rcp_4.5__epoch_2050__losses.parquet",
+    "results/direct_damages_summary_uids/buildings_assigned_economic_activity_areas_fluvial__rcp_4.5__epoch_2080__damages.parquet",
+    "results/direct_damages_summary_uids/buildings_assigned_economic_activity_areas_fluvial__rcp_4.5__epoch_2080__exposures.parquet",
+    "results/direct_damages_summary_uids/buildings_assigned_economic_activity_areas_fluvial__rcp_4.5__epoch_2080__losses.parquet",
+    "results/direct_damages_summary_uids/buildings_assigned_economic_activity_areas_fluvial__rcp_8.5__epoch_2050__damages.parquet",
+    "results/direct_damages_summary_uids/buildings_assigned_economic_activity_areas_fluvial__rcp_8.5__epoch_2050__exposures.parquet",
+    "results/direct_damages_summary_uids/buildings_assigned_economic_activity_areas_fluvial__rcp_8.5__epoch_2050__losses.parquet",
+    "results/direct_damages_summary_uids/buildings_assigned_economic_activity_areas_fluvial__rcp_8.5__epoch_2080__damages.parquet",
+    "results/direct_damages_summary_uids/buildings_assigned_economic_activity_areas_fluvial__rcp_8.5__epoch_2080__exposures.parquet",
+    "results/direct_damages_summary_uids/buildings_assigned_economic_activity_areas_fluvial__rcp_8.5__epoch_2080__losses.parquet",
+    "results/direct_damages_summary_uids/buildings_assigned_economic_activity_areas_fluvial__rcp_baseline__epoch_2010__damages.parquet",
+    "results/direct_damages_summary_uids/buildings_assigned_economic_activity_areas_fluvial__rcp_baseline__epoch_2010__exposures.parquet",
+    "results/direct_damages_summary_uids/buildings_assigned_economic_activity_areas_fluvial__rcp_baseline__epoch_2010__losses.parquet",
+    "results/direct_damages_summary_uids/buildings_assigned_economic_activity_areas_surface__rcp_2.6__epoch_2050__damages.parquet",
+    "results/direct_damages_summary_uids/buildings_assigned_economic_activity_areas_surface__rcp_2.6__epoch_2050__exposures.parquet",
+    "results/direct_damages_summary_uids/buildings_assigned_economic_activity_areas_surface__rcp_2.6__epoch_2050__losses.parquet",
+    "results/direct_damages_summary_uids/buildings_assigned_economic_activity_areas_surface__rcp_2.6__epoch_2080__damages.parquet",
+    "results/direct_damages_summary_uids/buildings_assigned_economic_activity_areas_surface__rcp_2.6__epoch_2080__exposures.parquet",
+    "results/direct_damages_summary_uids/buildings_assigned_economic_activity_areas_surface__rcp_2.6__epoch_2080__losses.parquet",
+    "results/direct_damages_summary_uids/buildings_assigned_economic_activity_areas_surface__rcp_4.5__epoch_2050__damages.parquet",
+    "results/direct_damages_summary_uids/buildings_assigned_economic_activity_areas_surface__rcp_4.5__epoch_2050__exposures.parquet",
+    "results/direct_damages_summary_uids/buildings_assigned_economic_activity_areas_surface__rcp_4.5__epoch_2050__losses.parquet",
+    "results/direct_damages_summary_uids/buildings_assigned_economic_activity_areas_surface__rcp_4.5__epoch_2080__damages.parquet",
+    "results/direct_damages_summary_uids/buildings_assigned_economic_activity_areas_surface__rcp_4.5__epoch_2080__exposures.parquet",
+    "results/direct_damages_summary_uids/buildings_assigned_economic_activity_areas_surface__rcp_4.5__epoch_2080__losses.parquet",
+    "results/direct_damages_summary_uids/buildings_assigned_economic_activity_areas_surface__rcp_8.5__epoch_2050__damages.parquet",
+    "results/direct_damages_summary_uids/buildings_assigned_economic_activity_areas_surface__rcp_8.5__epoch_2050__exposures.parquet",
+    "results/direct_damages_summary_uids/buildings_assigned_economic_activity_areas_surface__rcp_8.5__epoch_2050__losses.parquet",
+    "results/direct_damages_summary_uids/buildings_assigned_economic_activity_areas_surface__rcp_8.5__epoch_2080__damages.parquet",
+    "results/direct_damages_summary_uids/buildings_assigned_economic_activity_areas_surface__rcp_8.5__epoch_2080__exposures.parquet",
+    "results/direct_damages_summary_uids/buildings_assigned_economic_activity_areas_surface__rcp_8.5__epoch_2080__losses.parquet",
+    "results/direct_damages_summary_uids/buildings_assigned_economic_activity_areas_surface__rcp_baseline__epoch_2010__damages.parquet",
+    "results/direct_damages_summary_uids/buildings_assigned_economic_activity_areas_surface__rcp_baseline__epoch_2010__exposures.parquet",
+    "results/direct_damages_summary_uids/buildings_assigned_economic_activity_areas_surface__rcp_baseline__epoch_2010__losses.parquet",
+    "results/direct_damages_summary_uids/electricity_network_v3.1_edges_EAD_EAEL.parquet",
+    "results/direct_damages_summary_uids/electricity_network_v3.1_edges_damages.parquet",
+    "results/direct_damages_summary_uids/electricity_network_v3.1_edges_exposures.parquet",
+    "results/direct_damages_summary_uids/electricity_network_v3.1_edges_losses.parquet",
+    "results/direct_damages_summary_uids/electricity_network_v3.1_nodes_EAD_EAEL.parquet",
+    "results/direct_damages_summary_uids/electricity_network_v3.1_nodes_damages.parquet",
+    "results/direct_damages_summary_uids/electricity_network_v3.1_nodes_exposures.parquet",
+    "results/direct_damages_summary_uids/electricity_network_v3.1_nodes_losses.parquet",
+    "results/direct_damages_summary_uids/irrigation_assets_NIC_edges_EAD_EAEL.parquet",
+    "results/direct_damages_summary_uids/irrigation_assets_NIC_edges_damages.parquet",
+    "results/direct_damages_summary_uids/irrigation_assets_NIC_edges_exposures.parquet",
+    "results/direct_damages_summary_uids/irrigation_assets_NIC_edges_losses.parquet",
+    "results/direct_damages_summary_uids/irrigation_assets_NIC_nodes_EAD_EAEL.parquet",
+    "results/direct_damages_summary_uids/irrigation_assets_NIC_nodes_damages.parquet",
+    "results/direct_damages_summary_uids/irrigation_assets_NIC_nodes_exposures.parquet",
+    "results/direct_damages_summary_uids/irrigation_assets_NIC_nodes_losses.parquet",
+    "results/direct_damages_summary_uids/pipelines_NWC_edges_EAD_EAEL.parquet",
+    "results/direct_damages_summary_uids/pipelines_NWC_edges_damages.parquet",
+    "results/direct_damages_summary_uids/pipelines_NWC_edges_exposures.parquet",
+    "results/direct_damages_summary_uids/pipelines_NWC_edges_losses.parquet",
+    "results/direct_damages_summary_uids/port_polygon_areas_EAD_EAEL.parquet",
+    "results/direct_damages_summary_uids/port_polygon_areas_damages.parquet",
+    "results/direct_damages_summary_uids/port_polygon_areas_exposures.parquet",
+    "results/direct_damages_summary_uids/port_polygon_areas_losses.parquet",
+    "results/direct_damages_summary_uids/potable_facilities_NWC_nodes_EAD_EAEL.parquet",
+    "results/direct_damages_summary_uids/potable_facilities_NWC_nodes_damages.parquet",
+    "results/direct_damages_summary_uids/potable_facilities_NWC_nodes_exposures.parquet",
+    "results/direct_damages_summary_uids/potable_facilities_NWC_nodes_losses.parquet",
+    "results/direct_damages_summary_uids/rail_edges_EAD_EAEL.parquet",
+    "results/direct_damages_summary_uids/rail_edges_damages.parquet",
+    "results/direct_damages_summary_uids/rail_edges_exposures.parquet",
+    "results/direct_damages_summary_uids/rail_edges_losses.parquet",
+    "results/direct_damages_summary_uids/rail_nodes_EAD_EAEL.parquet",
+    "results/direct_damages_summary_uids/rail_nodes_damages.parquet",
+    "results/direct_damages_summary_uids/rail_nodes_exposures.parquet",
+    "results/direct_damages_summary_uids/rail_nodes_losses.parquet",
+    "results/direct_damages_summary_uids/roads_edges_EAD_EAEL.parquet",
+    "results/direct_damages_summary_uids/roads_edges_damages.parquet",
+    "results/direct_damages_summary_uids/roads_edges_exposures.parquet",
+    "results/direct_damages_summary_uids/roads_edges_losses.parquet",
+    "results/direct_damages_summary_uids/roads_nodes_EAD_EAEL.parquet",
+    "results/direct_damages_summary_uids/roads_nodes_damages.parquet",
+    "results/direct_damages_summary_uids/roads_nodes_exposures.parquet",
+    "results/direct_damages_summary_uids/roads_nodes_losses.parquet",
+    "results/direct_damages_summary_uids/waste_water_facilities_NWC_nodes_EAD_EAEL.parquet",
+    "results/direct_damages_summary_uids/waste_water_facilities_NWC_nodes_damages.parquet",
+    "results/direct_damages_summary_uids/waste_water_facilities_NWC_nodes_exposures.parquet",
+    "results/direct_damages_summary_uids/waste_water_facilities_NWC_nodes_losses.parquet",
+]
 
-required_files = set()
-for f, cols in csv_path_refs.items():
-    csv_file = pandas.read_csv(f"https://github.com/nismod/irv-jamaica/raw/refs/heads/main/etl/{f}.csv")
-    for col in cols:
-        required_files.update(csv_file[col].dropna().values)
-
-# alphabetize the files for ease of comparison
-required_files = sorted(required_files)
-
-processed_data = "../processed_data"
-
-missing_files = []
-ambiguous_files = []
-
-for f in required_files:
-    matches = subprocess.run(
-        ["bash", "-c", f"find {processed_data} -iwholename *{f}"],
+n_okay = 0
+n_warn = 0
+for target in TARGETS:
+    # run snakemake and print the output if it fails
+    print(f"Checking {target}... ", end="")
+    run = subprocess.run(
+        ["snakemake", "--cores", "1", "--directory", "..", target],
         capture_output=True,
-        text=True,
+        text=True
     )
-    count = subprocess.run(
-        ["bash", "-c", "wc -l"],
-        input=matches.stdout,
-        capture_output=True,
-        text=True,
-    )
-    try:
-        n = int(count.stdout.strip())
-    except ValueError:
-        print(f"Error finding {f}: {count.stdout}")
-        continue
 
-    if n == 0:
-        missing_files.append(f)
-    elif n > 1:
-        ambiguous_files.append({"search": f, "matches": matches.stdout})
+    if run.returncode == 0:
+        n_okay += 1
+        matches = re.findall("(Warning: .+)", run.stdout, re.IGNORECASE)
+        if len(matches) > 0:
+            print(f"{len(matches)} warnings:")
+            print("\n".join(matches))
+            n_warn += 1
+        else:
+            print("OK")
+    else:
+        print("FAILED:")
+        print(run.stdout)
+        print(run.stderr)
 
-if missing_files:
-    print("The following files are missing:")
-    print("\n".join(missing_files))
-
-if ambiguous_files:
-    print("The following files are ambiguous:")
-    for f in ambiguous_files:
-        print(f['search'] + ":")
-        print(f['matches'])
-
-print(f"{len(required_files) - len(missing_files)} files present in {processed_data}.")
-print(f"{len(ambiguous_files)} files matched multiple paths in {processed_data}.")
-print(f"{len(missing_files)} files need to be generated by the workflow.")
+if n_okay == len(TARGETS):
+    print("All targets pass dry-run test.")
+else:
+    print(f"{n_okay}/{len(TARGETS)} targets pass dry-run test.")
