@@ -2,11 +2,47 @@
 Generate the files required by irv-jamaica/etl/damage_*_files.csv
 
 REQUIRES:
-- f"{DATA}/networks/network_layers_hazard_intersections_details.csv" to be present and populated
+- f"{DATA}/networks/network_layers_hazard_intersections_details[_#].csv" to be present and populated
+- f"{DATA}/networks/transport/multi_modal_network.gpkg" to be present and populated
 
 """
 
 import pandas
+
+def get_asset_row(wildcards) -> pandas.Series:
+    """
+    Get the path of an asset by its gpkg and layer strings.
+    """
+    df = pandas.read_csv(f"{DATA}/networks/network_layers_hazard_intersections_details.csv")
+    row = df[(df['asset_gpkg'] == wildcards.gpkg) & (df['asset_layer'] == wildcards.layer)]
+    if len(row) == 0:
+        # Try the other files, and raise a warning if the value is in them
+        for f in [
+            f"{DATA}/networks/network_layers_hazard_intersections_details_0.csv",
+            f"{DATA}/networks/network_layers_hazard_intersections_details_1.csv",
+        ]:
+            df = pandas.read_csv(f)
+            row = df[(df['asset_gpkg'] == wildcards.gpkg) & (df['asset_layer'] == wildcards.layer)]
+            if len(row) > 0:
+                # print(f"WARNING: Found asset in {f}")
+                break
+        else:
+            raise ValueError(f"Multiple assets found for gpkg={wildcards.gpkg} and layer={wildcards.layer}")
+    return row.squeeze()
+
+hazard_types = [
+    "TC",
+    "flooding",
+]
+
+def get_single_failure_scenarios(wildcards):
+    sfs = get_asset_row(wildcards).single_failure_scenarios
+    if sfs == "None" or sfs == "none":
+        return []
+    return f"{wildcards.output_path}/{sfs}"
+
+parameter_set_ids = range(13)
+
 
 rule add_uids:
     """
@@ -20,9 +56,9 @@ rule add_uids:
     wildcard_constraints:
         dir = r"[\w_]+",
     input:
-        f"{OUTPUT}/{{dir}}/{{path}}"
+        "{output_path}/{dir}/{path}"
     output:
-        f"{OUTPUT}/{{dir}}_uids/{{path}}"
+        "{output_path}/{dir}_uids/{path}"
     shell:
         """
         touch {output}
@@ -31,15 +67,15 @@ rule add_uids:
 rule RENAME_EAD_EAEL_FILE:
     """
     There's a potential mismatch between 
-    {OUTPUT}/direct_damages_summary/{{gpkg}}_{{layer}}_EAD_EAEL.csv created in loss_summary and
-    {OUTPUT}/direct_damages_summary/{{gpkg}}_{{layer}}_EAD_EAEL.parquet required as output targets
+    {{output_path}}/direct_damages_summary/{{gpkg}}_{{layer}}_EAD_EAEL.csv created in loss_summary and
+    {{output_path}}/direct_damages_summary/{{gpkg}}_{{layer}}_EAD_EAEL.parquet required as output targets
     
     This rule renames the former to the latter.
     """
     input:
-        f"{OUTPUT}/direct_damages_summary/{{gpkg}}_{{layer}}_EAD_EAEL.csv",
+        "{output_path}/direct_damages_summary/{gpkg}_{layer}_EAD_EAEL.csv",
     output:
-        f"{OUTPUT}/direct_damages_summary/{{gpkg}}_{{layer}}_EAD_EAEL.parquet",
+        "{output_path}/direct_damages_summary/{gpkg}_{layer}_EAD_EAEL.parquet",
     shell:
         """
         if [ ! -s "{output}" ]; then
@@ -61,48 +97,22 @@ rule loss_summary:
         network_csv = config["paths"]["network_layers"],
         parameter_combinations = f"{DATA}/parameter_combinations.csv",
         direct_damage_results = expand(
-            f"{OUTPUT}/direct_damages/{{{{gpkg}}}}_{{{{layer}}}}/{{{{gpkg}}}}_{{{{layer}}}}_direct_damages_parameter_set_{{parameters}}.parquet",
-            parameters=range(13),
+            "{{output_path}}/direct_damages/{{gpkg}}_{{layer}}/{{gpkg}}_{{layer}}_direct_damages_parameter_set_{parameters}.parquet",
+            parameters=parameter_set_ids,
         ),
         EAD_EAEL_damage_results = expand(
-            f"{OUTPUT}/direct_damages/{{{{gpkg}}}}_{{{{layer}}}}/{{{{gpkg}}}}_{{{{layer}}}}_EAD_EAEL_parameter_set_{{parameters}}.csv",
-            parameters=range(13),
+            "{{output_path}}/direct_damages/{{gpkg}}_{{layer}}/{{gpkg}}_{{layer}}_EAD_EAEL_parameter_set_{parameters}.csv",
+            parameters=parameter_set_ids,
         ),
     output:
-        f"{OUTPUT}/direct_damages_summary/{{gpkg}}_{{layer}}_losses.parquet",
-        f"{OUTPUT}/direct_damages_summary/{{gpkg}}_{{layer}}_exposures.parquet",
-        f"{OUTPUT}/direct_damages_summary/{{gpkg}}_{{layer}}_damages.parquet",
-        f"{OUTPUT}/direct_damages_summary/{{gpkg}}_{{layer}}_EAD_EAEL.csv",
+        "{output_path}/direct_damages_summary/{gpkg}_{layer}_losses.parquet",
+        "{output_path}/direct_damages_summary/{gpkg}_{layer}_exposures.parquet",
+        "{output_path}/direct_damages_summary/{gpkg}_{layer}_damages.parquet",
+        "{output_path}/direct_damages_summary/{gpkg}_{layer}_EAD_EAEL.csv",
     shell:
         """
         touch {output}
         """
-
-def get_asset_row(wildcards) -> pandas.Series:
-    """
-    Get the path of an asset by its gpkg and layer strings.
-    """
-    df = pandas.read_csv(f"{DATA}/networks/network_layers_hazard_intersections_details.csv")
-    row = df[(df['asset_gpkg'] == wildcards.gpkg) & (df['asset_layer'] == wildcards.layer)]
-    if len(row) == 0:
-        # Try the other files, and raise a warning if the value is in them
-        for f in [
-            f"{DATA}/networks/network_layers_hazard_intersections_details_0.csv",
-            f"{DATA}/networks/network_layers_hazard_intersections_details_1.csv",
-        ]:
-            df = pandas.read_csv(f)
-            row = df[(df['asset_gpkg'] == wildcards.gpkg) & (df['asset_layer'] == wildcards.layer)]
-            if len(row) > 0:
-                print(f"WARNING: Found asset in {f}")
-                break
-        else:
-            raise ValueError(f"Multiple assets found for gpkg={wildcards.gpkg} and layer={wildcards.layer}")
-    return row.squeeze()
-
-hazard_types = [
-    "TC",
-    "flooding",
-]
 
 rule direct_damage_results:
     """
@@ -132,9 +142,9 @@ rule direct_damage_results:
             f"{DATA}/damage_curves/damage_curves_{get_asset_row(wildcards).sector}_{{hazard_type}}.xlsx",
             hazard_type = hazard_types
         ),
-        hazard_intersection_file = f"{OUTPUT}/hazard_asset_intersection/{{gpkg}}_splits__hazard_layers__{{layer}}.geoparquet",
+        hazard_intersection_file = "{output_path}/hazard_asset_intersection/{gpkg}_splits__hazard_layers__{layer}.geoparquet",
     output:
-        f"{OUTPUT}/direct_damages/{{gpkg}}_{{layer}}/{{gpkg}}_{{layer}}_direct_damages_parameter_set_{{parameter_set}}.parquet",
+        "{output_path}/direct_damages/{gpkg}_{layer}/{gpkg}_{layer}_direct_damages_parameter_set_{parameter_set}.parquet",
     shell:
         """
         touch {output}
@@ -159,17 +169,11 @@ rule extract_network_layer:
         gpkg = lambda wildcards: f"{DATA}/{get_asset_row(wildcards).path}",
     output:
         # hazard_with_transforms = config["paths"]["hazard_layers"].replace(".csv", "__with_transforms.csv"),
-        geoparquet = f"{OUTPUT}/hazard_asset_intersection/{{gpkg}}_splits__hazard_layers__{{layer}}.geoparquet",
+        geoparquet = "{output_path}/hazard_asset_intersection/{gpkg}_splits__hazard_layers__{layer}.geoparquet",
     shell:
         """
         touch {output[geoparquet]}
         """
-
-def get_single_failure_scenarios(wildcards):
-    sfs = get_asset_row(wildcards).single_failure_scenarios
-    if sfs == "None" or sfs == "none":
-        return []
-    return f"{OUTPUT}/{sfs}"
 
 rule EAD_EAEL_results:
     """
@@ -193,11 +197,11 @@ rule EAD_EAEL_results:
 
         # internal reads
         gpkg = lambda wildcards: f"{DATA}/{get_asset_row(wildcards).path}",
-        damage_file = f"{OUTPUT}/direct_damages/{{gpkg}}_{{layer}}/{{gpkg}}_{{layer}}_direct_damages_parameter_set_{{parameter_set}}.parquet",
+        damage_file = "{output_path}/direct_damages/{gpkg}_{layer}/{gpkg}_{layer}_direct_damages_parameter_set_{parameter_set}.parquet",
         # damage_curves is required in create_damage_curves
         single_failure_scenarios = get_single_failure_scenarios,
     output:
-        f"{OUTPUT}/direct_damages/{{gpkg}}_{{layer}}/{{gpkg}}_{{layer}}_EAD_EAEL_parameter_set_{{parameter_set}}.csv",
+        "{output_path}/direct_damages/{gpkg}_{layer}/{gpkg}_{layer}_EAD_EAEL_parameter_set_{parameter_set}.csv",
     shell:
         """
         touch {output}
@@ -240,19 +244,19 @@ rule single_point_failure_electricity_water:
         irrigation_economic_activity = f"{DATA}/networks_economic_activity/irrigation_nodes_dependent_economic_activity.csv",
         irrigation_edges_economic_activity = f"{DATA}/networks_economic_activity/irrigation_edges_dependent_economic_activity.csv",
         electricity_economic_activity = f"{DATA}/networks_economic_activity/electricity_dependent_economic_activity.csv",
-        electricity_nodes_failure_results = f"{OUTPUT}/electricity_failures/single_point_failure_results_nodes.csv",
-        electricity_edges_failure_results = f"{OUTPUT}/electricity_failures/single_point_failure_results_edges.csv",
+        electricity_nodes_failure_results = "{output_path}/electricity_failures/single_point_failure_results_nodes.csv",
+        electricity_edges_failure_results = "{output_path}/electricity_failures/single_point_failure_results_edges.csv",
         electricity_water_mapping = f"{DATA}/networks/energy/mapping_water_to_electricity.csv",
         electricity_economic_activity_buildings = f"{DATA}/networks_economic_activity/electricity_buildings_economic_activity_mapping.csv",
     output:
-        potable_facilities = f"{OUTPUT}/economic_losses/single_failure_scenarios/single_point_failure_potable_facilities_economic_losses.csv",
-        potable_pipelines = f"{OUTPUT}/economic_losses/single_failure_scenarios/single_point_failure_potable_pipelines_economic_losses.csv",
-        irrigation_nodes = f"{OUTPUT}/economic_losses/single_failure_scenarios/single_point_failure_irrigation_nodes_economic_losses.csv",
-        irrigation_edges = f"{OUTPUT}/economic_losses/single_failure_scenarios/single_point_failure_irrigation_edges_economic_losses.csv",
-        electricity_nodes_no_water = f"{OUTPUT}/economic_losses/single_failure_scenarios/single_point_failure_electricity_nodes_no_water.csv",
-        electricity_edges_no_water = f"{OUTPUT}/economic_losses/single_failure_scenarios/single_point_failure_electricity_edges_no_water.csv",
-        electricity_nodes = f"{OUTPUT}/economic_losses/single_failure_scenarios/single_point_failure_electricity_nodes_economic_losses.csv",
-        electricity_edges = f"{OUTPUT}/economic_losses/single_failure_scenarios/single_point_failure_electricity_edges_economic_losses.csv",
+        potable_facilities = "{output_path}/economic_losses/single_failure_scenarios/single_point_failure_potable_facilities_economic_losses.csv",
+        potable_pipelines = "{output_path}/economic_losses/single_failure_scenarios/single_point_failure_potable_pipelines_economic_losses.csv",
+        irrigation_nodes = "{output_path}/economic_losses/single_failure_scenarios/single_point_failure_irrigation_nodes_economic_losses.csv",
+        irrigation_edges = "{output_path}/economic_losses/single_failure_scenarios/single_point_failure_irrigation_edges_economic_losses.csv",
+        electricity_nodes_no_water = "{output_path}/economic_losses/single_failure_scenarios/single_point_failure_electricity_nodes_no_water.csv",
+        electricity_edges_no_water = "{output_path}/economic_losses/single_failure_scenarios/single_point_failure_electricity_edges_no_water.csv",
+        electricity_nodes = "{output_path}/economic_losses/single_failure_scenarios/single_point_failure_electricity_nodes_economic_losses.csv",
+        electricity_edges = "{output_path}/economic_losses/single_failure_scenarios/single_point_failure_electricity_edges_economic_losses.csv",
     shell:
         """
         touch {output.potable_facilities}
@@ -281,22 +285,22 @@ rule single_point_failure_road_rail:
     input:
         # single_link_failures are read into all_failures in the walk through scenario_results/ directory
         single_link_failures = expand(
-            f"{OUTPUT}/transport_failures/scenario_results/single_link_failure_{{chunk}}.csv",
+            "{{output_path}}/transport_failures/scenario_results/single_link_failure_{chunk}.csv",
             chunk=range(config["single_link_failure_chunk_count"]),
         ),
-        labour_flows = f"{OUTPUT}/flow_mapping/labour_trips_and_activity.pq",
+        labour_flows = "{output_path}/flow_mapping/labour_trips_and_activity.pq",
         bridges = f"{DATA}/networks/transport/roads.gpkg",  # bridges are a layer in the roads network
         edges = f"{DATA}/networks/transport/multi_modal_network.gpkg",
-        bridge_labour_trips = f"{OUTPUT}/flow_mapping/origins_destinations_labour_economic_activity.csv",
-        od_losses = f"{OUTPUT}/flow_mapping/origins_destinations_trade_economic_activity.csv",
+        bridge_labour_trips = "{output_path}/flow_mapping/origins_destinations_labour_economic_activity.csv",
+        od_losses = "{output_path}/flow_mapping/origins_destinations_trade_economic_activity.csv",
         ports = f"{DATA}/networks/transport/port_polygon.gpkg",
     output:
         [
-            f"{OUTPUT}/economic_losses/single_failure_scenarios/single_point_failure_road_rail_edges_economic_losses.csv",
-            f"{OUTPUT}/economic_losses/single_failure_scenarios/single_point_failure_road_bridges_economic_losses.csv",
-            f"{OUTPUT}/economic_losses/single_failure_scenarios/single_point_failure_ports_economic_losses.csv",
-            f"{OUTPUT}/economic_losses/single_failure_scenarios/single_point_failure_rail_stations_economic_losses.csv",
-            f"{OUTPUT}/economic_losses/single_failure_scenarios/single_point_failure_airports_economic_losses.csv",
+            "{output_path}/economic_losses/single_failure_scenarios/single_point_failure_road_rail_edges_economic_losses.csv",
+            "{output_path}/economic_losses/single_failure_scenarios/single_point_failure_road_bridges_economic_losses.csv",
+            "{output_path}/economic_losses/single_failure_scenarios/single_point_failure_ports_economic_losses.csv",
+            "{output_path}/economic_losses/single_failure_scenarios/single_point_failure_rail_stations_economic_losses.csv",
+            "{output_path}/economic_losses/single_failure_scenarios/single_point_failure_airports_economic_losses.csv",
         ]
     shell:
         """
@@ -315,22 +319,22 @@ rule single_link_failures:
     snakemake -c1 results/single_point_failures/roads_edges_single_point_failures.csv
     """
     input:
-        edge_split_map = f"{OUTPUT}/transport_failures/transport_scenario_edge_map.csv",
+        edge_split_map = "{output_path}/transport_failures/transport_scenario_edge_map.csv",
         edges = f"{DATA}/networks/transport/multi_modal_network.gpkg",
 
         read_flow_data = [
-            f"{OUTPUT}/transport_failures/nominal/labour/network.gpq",
-            f"{OUTPUT}/transport_failures/nominal/trade/network.gpq",
-            f"{OUTPUT}/transport_failures/nominal/labour/flows.pq",
-            f"{OUTPUT}/transport_failures/nominal/trade/flows.pq",
-            f"{OUTPUT}/transport_failures/nominal/labour/edges.pq",
-            f"{OUTPUT}/transport_failures/nominal/trade/edges.pq",
-            f"{OUTPUT}/transport_failures/nominal/all_flows.pq",
-            f"{OUTPUT}/transport_failures/nominal/trade/trade_sectors.json",
+            "{output_path}/transport_failures/nominal/labour/network.gpq",
+            "{output_path}/transport_failures/nominal/trade/network.gpq",
+            "{output_path}/transport_failures/nominal/labour/flows.pq",
+            "{output_path}/transport_failures/nominal/trade/flows.pq",
+            "{output_path}/transport_failures/nominal/labour/edges.pq",
+            "{output_path}/transport_failures/nominal/trade/edges.pq",
+            "{output_path}/transport_failures/nominal/all_flows.pq",
+            "{output_path}/transport_failures/nominal/trade/trade_sectors.json",
         ]
     output:
         single_link_failures = expand(
-            f"{OUTPUT}/transport_failures/scenario_results/single_link_failure_{{chunk}}.csv",
+            "{{output_path}}/transport_failures/scenario_results/single_link_failure_{chunk}.csv",
             chunk=range(config["single_link_failure_chunk_count"]),
         ),
     shell:
@@ -354,7 +358,7 @@ rule transport_scenario_edge_map:
     input:
         edges = f"{DATA}/networks/transport/multi_modal_network.gpkg",
     output:
-        edge_split_map = "{OUTPUT}/transport_failures/transport_scenario_edge_map.csv",
+        edge_split_map = "{output_path}/transport_failures/transport_scenario_edge_map.csv",
     run:
         # Adapted from scripts/transport_model/transport_failure_scenario_setup.py
         import geopandas
@@ -385,19 +389,19 @@ rule collate_flow_data:
     """
     input:
         labour_flow_edges = f"{DATA}/networks/transport/multi_modal_network.gpkg",
-        trade_flow_edges = f"{OUTPUT}/flow_mapping/sector_imports_exports_to_ports_flows.gpkg",
-        trade_flows = f"{OUTPUT}/flow_mapping/sector_to_ports_flow_paths.pq",
-        labour_flows = f"{OUTPUT}/flow_mapping/labour_to_sectors_trips_and_activity.pq",
+        trade_flow_edges = "{output_path}/flow_mapping/sector_imports_exports_to_ports_flows.gpkg",
+        trade_flows = "{output_path}/flow_mapping/sector_to_ports_flow_paths.pq",
+        labour_flows = "{output_path}/flow_mapping/labour_to_sectors_trips_and_activity.pq",
     output:
         [
-            f"{OUTPUT}/transport_failures/nominal/labour/network.gpq",
-            f"{OUTPUT}/transport_failures/nominal/trade/network.gpq",
-            f"{OUTPUT}/transport_failures/nominal/labour/flows.pq",
-            f"{OUTPUT}/transport_failures/nominal/trade/flows.pq",
-            f"{OUTPUT}/transport_failures/nominal/labour/edges.pq",
-            f"{OUTPUT}/transport_failures/nominal/trade/edges.pq",
-            f"{OUTPUT}/transport_failures/nominal/all_flows.pq",
-            f"{OUTPUT}/transport_failures/nominal/trade/trade_sectors.json",
+            "{output_path}/transport_failures/nominal/labour/network.gpq",
+            "{output_path}/transport_failures/nominal/trade/network.gpq",
+            "{output_path}/transport_failures/nominal/labour/flows.pq",
+            "{output_path}/transport_failures/nominal/trade/flows.pq",
+            "{output_path}/transport_failures/nominal/labour/edges.pq",
+            "{output_path}/transport_failures/nominal/trade/edges.pq",
+            "{output_path}/transport_failures/nominal/all_flows.pq",
+            "{output_path}/transport_failures/nominal/trade/trade_sectors.json",
         ]
     shell:
         """
@@ -419,8 +423,8 @@ rule trade_activity_flow_mapping:
         jam_ports = f"{DATA}/networks/transport/port_polygon.gpkg",
         nodes = f"{DATA}/networks/transport/multi_modal_network.gpkg",
         # edges = same file as nodes
-        exports = f"{OUTPUT}/macroeconomic_data/domestic_export_by_sector.xlsx",
-        imports = f"{OUTPUT}/macroeconomic_data/import_by_industry.xlsx",
+        exports = "{output_path}/macroeconomic_data/domestic_export_by_sector.xlsx",
+        imports = "{output_path}/macroeconomic_data/import_by_industry.xlsx",
         # fuel_shares reads same file
         buildings = f"{DATA}/buildings/buildings_assigned_economic_activity.gpkg",
         # Files read in the trade_details loop
@@ -428,10 +432,10 @@ rule trade_activity_flow_mapping:
         trade_mining = f"{DATA}/mining_data/mining_gdp.gpkg",
     output:
         [
-            f"{OUTPUT}/flow_mapping/sector_to_ports_flow_paths.csv",
-            f"{OUTPUT}/flow_mapping/sector_to_ports_flow_paths.pq",
-            f"{OUTPUT}/flow_mapping/sector_imports_exports_to_ports_flows.gpkg",
-            f"{OUTPUT}/flow_mapping/origins_destinations_trade_economic_activity.csv"
+            "{output_path}/flow_mapping/sector_to_ports_flow_paths.csv",
+            "{output_path}/flow_mapping/sector_to_ports_flow_paths.pq",
+            "{output_path}/flow_mapping/sector_imports_exports_to_ports_flows.gpkg",
+            "{output_path}/flow_mapping/origins_destinations_trade_economic_activity.csv"
         ]
     shell:
         """
@@ -455,11 +459,11 @@ rule labour_to_work_flow_mapping:
         population = f"{DATA}/population/population_projections.gpkg",
     output:
         [
-            f"{OUTPUT}/flow_mapping/road_nodes_labour_economic_activity_aggregations.gpkg",
-            f"{OUTPUT}/flow_mapping/labour_to_sectors_flow_paths.csv",
-            f"{OUTPUT}/flow_mapping/labour_to_sectors_trips_and_activity.csv",
-            f"{OUTPUT}/flow_mapping/labour_to_sectors_trips_and_activity.pq",
-            f"{OUTPUT}/flow_mapping/origins_destinations_labour_economic_activity.csv",
+            "{output_path}/flow_mapping/road_nodes_labour_economic_activity_aggregations.gpkg",
+            "{output_path}/flow_mapping/labour_to_sectors_flow_paths.csv",
+            "{output_path}/flow_mapping/labour_to_sectors_trips_and_activity.csv",
+            "{output_path}/flow_mapping/labour_to_sectors_trips_and_activity.pq",
+            "{output_path}/flow_mapping/origins_destinations_labour_economic_activity.csv",
         ]
     shell:
         """
@@ -471,15 +475,15 @@ rule labour_to_work_flow_mapping:
 rule RENAME_LABOUR_FILE:
     """
     There's a potential mismatch between 
-    {OUTPUT}/flow_mapping/labour_to_sectors_trips_and_activity.pq created in labour_to_work_flow_mapping and
-    {OUTPUT}/flow_mapping/labour_trips_and_activity.pq required by single_point_failure_road_rail
+    {{output_path}}/flow_mapping/labour_to_sectors_trips_and_activity.pq created in labour_to_work_flow_mapping and
+    {{output_path}}/flow_mapping/labour_trips_and_activity.pq required by single_point_failure_road_rail
     
     This rule renames the former to the latter.
     """
     input:
-        f"{OUTPUT}/flow_mapping/labour_to_sectors_trips_and_activity.pq",
+        "{output_path}/flow_mapping/labour_to_sectors_trips_and_activity.pq",
     output:
-        f"{OUTPUT}/flow_mapping/labour_trips_and_activity.pq",
+        "{output_path}/flow_mapping/labour_trips_and_activity.pq",
     shell:
         """
         if [ ! -s "{output}" ]; then
@@ -499,8 +503,8 @@ rule FAKE_MACROECONOMIC_FILES:
     """
     output:
         [
-            f"{OUTPUT}/macroeconomic_data/domestic_export_by_sector.xlsx",
-            f"{OUTPUT}/macroeconomic_data/import_by_industry.xlsx",
+            "{output_path}/macroeconomic_data/domestic_export_by_sector.xlsx",
+            "{output_path}/macroeconomic_data/import_by_industry.xlsx",
         ]
     shell:
         """
@@ -518,8 +522,8 @@ rule FAKE_ELECTRICTY_SINGLE_POINT_FAILURES:
     """
     output:
         [
-            f"{OUTPUT}/electricity_failures/single_point_failure_results_nodes.csv",
-            f"{OUTPUT}/electricity_failures/single_point_failure_results_edges.csv",
+            "{output_path}/electricity_failures/single_point_failure_results_nodes.csv",
+            "{output_path}/electricity_failures/single_point_failure_results_edges.csv",
         ]
     shell:
         """
@@ -543,7 +547,7 @@ rule FAKE_BUILDINGS_ECONOMIC_ACTIVITY:
         but not results/buildings/buildings_assigned_economic_activity.gpkg
     """
     output:
-        f"{OUTPUT}/buildings/buildings_assigned_economic_activity.gpkg"
+        "{output_path}/buildings/buildings_assigned_economic_activity.gpkg"
     shell:
         """
         if [ ! -s "{output}" ]; then
@@ -555,7 +559,7 @@ rule FAKE_BUILDINGS_ECONOMIC_ACTIVITY:
 rule FAKE_BUILD_RCP_EPOCH:
     """
     Several target files are in the pattern
-    results/direct_damages_summary_uids/buildings_assigned_economic_activity_areas_{hazard}__rcp_{rcp}__epoch_{epoch}__{output}.parquet
+    results/direct_damages_summary_uids/buildings_assigned_economic_activity_areas_{hazard}__rcp_{rcp}__epoch_{epoch}__{output_path}.parquet
     
     Nowhere generates the underlying results/direct_damages_summary/buildings_assigned_economic_activity_areas_{hazard}__rcp_{rcp}__epoch_{epoch}__{dimension}.parquet
         files.
@@ -563,7 +567,7 @@ rule FAKE_BUILD_RCP_EPOCH:
     scripts/preprocess/hazard_metadata.py generates similar files, but not the ones required here, and outputs them to processed_data/ not results/
     """
     output:
-        f"{OUTPUT}/direct_damages_summary_uids/buildings_assigned_economic_activity_areas_{{hazard}}__rcp_{{rcp}}__epoch_{{epoch}}__{{dimension}}.parquet"
+        "{output_path}/direct_damages_summary_uids/buildings_assigned_economic_activity_areas_{hazard}__rcp_{rcp}__epoch_{epoch}__{dimension}.parquet"
     shell:
         """
         if [ ! -s "{output}" ]; then

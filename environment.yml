@@ -3,7 +3,8 @@
 name: jsrat
 channels:
   - conda-forge  # majority of dependencies
-  - defaults
+  - bioconda  # snakemake
+  - nodefaults  # avoid anaconda license issues
 dependencies:
   - python=3.10
   - pip:

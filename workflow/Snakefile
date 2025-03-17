@@ -3,16 +3,27 @@ configfile: "config.json"
 # assign globals to these paths, they're used frequently
 RAW = config["paths"]["incoming_data"]
 DATA = config["paths"]["data"]
-OUTPUT = config["paths"]["output"]
+OUTPUT = config["paths"]["output"]  # We use a wildcard for this instead
 
 wildcard_constraints:
     hazard="[^_/]+",  # no slash or underscore
     gpkg="[^/]+",  # no slash in filename
+    protection_type="[^/]+",  # no slash
     layer="(nodes|edges|areas)",
-    # threshold="^\d+(p\d+)?$",
+    threshold="\d+(p\d+)?",
+    output_path=f"{OUTPUT}(/.+[^/])?"
+
+# container: "docker://nismod/jamaica-infrastructure"
+# container: "docker://geo-test"
 
 include: "damage.smk"
+include: "adaptation.smk"
 # include: "direct_damages.smk"
 # include: "losses.smk"
 # include: "transport_model.smk"
 # include: "hotspots.smk"
+
+from check_targets import TARGETS
+
+rule all_targets:
+    input: TARGETS

@@ -24,10 +24,10 @@ import pandas
 
 # Check the files that we need to generate
 csv_path_refs = {
-    # "adaptation_files": ["avoided_risk"],
-    "damage_exp_files": ["expected"],
-    "damage_rp_files": ["damage", "exposure", "loss"],
-    "damage_rp_files_with_buildings": ["damage", "exposure", "loss"],
+    "adaptation_files": ["avoided_risk"],
+    # "damage_exp_files": ["expected"],
+    # "damage_rp_files": ["damage", "exposure", "loss"],
+    # "damage_rp_files_with_buildings": ["damage", "exposure", "loss"],
     # "hazard_layers": ["path"],
     # "hotspot_layers": ["path"],
     # "network_layers": ["path", "single_failure_scenarios"],
