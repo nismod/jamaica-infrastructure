@@ -31,6 +31,7 @@ rule preprocess_road_network:
         import logging
 
         import geopandas as gpd
+        import numpy as np
         import pandas as pd
         import snkit
 
@@ -64,6 +65,27 @@ rule preprocess_road_network:
             if not 30 < modal_limit_kph < 130:
                 raise ValueError(f"Suspicious speed limit: {modal_limit_kph} km/h for {road_class}")
             edges.loc[(edges.tag_highway == road_class) & edges.tag_maxspeed.isna(), "speed_kph"] = modal_limit_kph
+
+        logging.info("Gap-filling # lanes")
+        edges.lanes = edges.lanes.astype(int)
+        edges[edges.lanes == 0] = 1
+
+        logging.info("Assign rebuild costs")
+        USD_per_JMD = 0.0064  # TODO: factor out cost assumptions
+        # From NWA - Cost of two lane road reconstruction is US$ 1.5 million/km
+        road_cost_USD_per_lane_per_km = 0.75E6
+        bridge_cost_USD_per_meter = 1.5E6
+
+        road_cost_JMD_per_lane_per_meter = (road_cost_USD_per_lane_per_km / 1.0e3) / USD_per_JMD
+        bridge_cost_JMD_per_meter = bridge_cost_USD_per_meter / USD_per_JMD
+        edges["cost_unit"] = "J$/m"
+        edges["mean_damage_cost"] = np.where(
+            edges["asset_type"] == "road_bridge",
+            bridge_cost_JMD_per_meter * edges["length_m"],
+            road_cost_JMD_per_lane_per_meter * edges["length_m"] * edges["lanes"],
+        )
+        edges["min_damage_cost"] = 0.8 * edges["mean_damage_cost"]
+        edges["max_damage_cost"] = 1.2 * edges["mean_damage_cost"]
 
         nodes = gpd.read_file(input.raw_roads, layer="nodes")
         nodes = nodes.to_crs(epsg=3448)
