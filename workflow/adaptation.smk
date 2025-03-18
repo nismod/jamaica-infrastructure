@@ -28,7 +28,9 @@ def get_asset_row(wildcards) -> pandas.Series:
                 # print(f"WARNING: Found asset in {f}")
                 break
         else:
-            raise ValueError(f"Multiple assets found for gpkg={wildcards.gpkg} and layer={wildcards.layer}")
+            raise ValueError(f"No asset found for gpkg={wildcards.gpkg} and layer={wildcards.layer}")
+    elif len(row) > 1:
+        raise ValueError(f"Multiple assets found for gpkg={wildcards.gpkg} and layer={wildcards.layer}")
     return row.squeeze()
 
 def get_hazard_thresholds(hazard: str) -> List[str]:

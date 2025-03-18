@@ -27,7 +27,9 @@ def get_asset_row(wildcards) -> pandas.Series:
                 # print(f"WARNING: Found asset in {f}")
                 break
         else:
-            raise ValueError(f"Multiple assets found for gpkg={wildcards.gpkg} and layer={wildcards.layer}")
+            raise ValueError(f"No asset found for gpkg={wildcards.gpkg} and layer={wildcards.layer}")
+    elif len(row) > 1:
+        raise ValueError(f"Multiple assets found for gpkg={wildcards.gpkg} and layer={wildcards.layer}")
     return row.squeeze()
 
 hazard_types = [
@@ -36,9 +38,12 @@ hazard_types = [
 ]
 
 def get_single_failure_scenarios(wildcards):
-    sfs = get_asset_row(wildcards).single_failure_scenarios
+    row = get_asset_row(wildcards)
+    sfs = row.single_failure_scenarios
     if sfs == "None" or sfs == "none":
         return []
+    if row.sector == "buildings":
+        return f"{DATA}/{sfs}"
     return f"{wildcards.output_path}/{sfs}"
 
 parameter_set_ids = range(13)
@@ -47,8 +52,6 @@ parameter_set_ids = range(13)
 rule add_uids:
     """
     Add UIDs to a file.
-    
-    TODO: identify script that does it - think it's a Jupyter notebook
     
     Test with:
     snakemake -c1 results/direct_damages_summary_uids/roads_edges_losses.parquet
@@ -61,7 +64,7 @@ rule add_uids:
         "{output_path}/{dir}_uids/{path}"
     shell:
         """
-        touch {output}
+        cp {input} {output}
         """
 
 rule RENAME_EAD_EAEL_FILE:
@@ -104,6 +107,7 @@ rule loss_summary:
             "{{output_path}}/direct_damages/{{gpkg}}_{{layer}}/{{gpkg}}_{{layer}}_EAD_EAEL_parameter_set_{parameters}.csv",
             parameters=parameter_set_ids,
         ),
+        single_failure_scenarios = get_single_failure_scenarios,
     output:
         "{output_path}/direct_damages_summary/{gpkg}_{layer}_losses.parquet",
         "{output_path}/direct_damages_summary/{gpkg}_{layer}_exposures.parquet",
@@ -111,7 +115,15 @@ rule loss_summary:
         "{output_path}/direct_damages_summary/{gpkg}_{layer}_EAD_EAEL.csv",
     shell:
         """
-        touch {output}
+        python scripts/smk-analysis/damage_loss_summarised.py \
+            --network_csv {input.network_csv} \
+            --parameter_combinations {input.parameter_combinations} \
+            --direct_damage_results {input.direct_damage_results} \
+            --EAD_EAEL_damage_results {input.EAD_EAEL_damage_results} \
+            --single_failure_scenarios {input.single_failure_scenarios} \
+            --output_path {wildcards.output_path}/direct_damages_summary \
+            --gpkg {wildcards.gpkg} \
+            --layer {wildcards.layer}
         """
 
 rule direct_damage_results:
@@ -439,9 +451,15 @@ rule trade_activity_flow_mapping:
         ]
     shell:
         """
-        for f in {output}; do
-            touch $f
-        done
+        python scripts/smk-analysis/trade_activity_flow_mapping.py \
+            --jam_ports {input.jam_ports} \
+            --nodes {input.nodes} \
+            --exports {input.exports} \
+            --imports {input.imports} \
+            --buildings {input.buildings} \
+            --trade_agriculture {input.trade_agriculture} \
+            --trade_mining {input.trade_mining} \
+            --output_path {wildcards.output_path}/flow_mapping
         """
 
 rule labour_to_work_flow_mapping:
@@ -467,9 +485,11 @@ rule labour_to_work_flow_mapping:
         ]
     shell:
         """
-        for f in {output}; do
-            touch $f
-        done
+        python scripts/smk-analysis/labour_to_work_flow_mapping.py \
+            --nodes {input.nodes} \
+            --buildings {input.buildings} \
+            --population {input.population} \
+            --output_path {wildcards.output_path}/flow_mapping
         """
 
 rule RENAME_LABOUR_FILE:
