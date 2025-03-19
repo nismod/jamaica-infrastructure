@@ -157,8 +157,10 @@ def main(
 
     """Step 1: Get all the damage curves into a dataframe
     """
+    logging.info("Read damage curves")
     damage_curves = []
     for idx, hazard in hazard_attributes.iterrows():
+
         damage_curve_df = damage_curve_lookup[
             damage_curve_lookup["hazard_type"] == hazard["hazard_type"]
         ]
@@ -177,6 +179,7 @@ def main(
 
     """Step 2: Loop through the assets and estimate the damages
     """
+    logging.info("Calculate damages per asset class")
     for asset_info in asset_data_details.itertuples():
         asset_sector = asset_info.sector
         asset_id = asset_info.asset_id_column
@@ -188,6 +191,9 @@ def main(
             os.path.join(processed_data_path, asset_info.path),
             layer=asset_info.asset_layer,
         )
+
+        logging.info(f"{asset_sector=} {asset_info.asset_layer=}")
+
         if asset_df.empty:
             continue
         asset_df[asset_min_cost] = asset_df.apply(
@@ -230,7 +236,9 @@ def main(
             hazard_df = add_exposure_dimensions(
                 hazard_df, dataframe_type=asset_info.asset_layer, epsg=epsg_jamaica
             )
+            
             for hazard_info in hazard_attributes.itertuples():
+
                 if (
                     getattr(
                         asset_info, f"{hazard_info.hazard}_asset_damage_lookup_column"
@@ -263,6 +271,7 @@ def main(
                     affected_assets = list(
                         set(affected_assets_df[asset_id].values.tolist())
                     )
+
                     hazard_effect_df["hazard_threshold"] = hazard_info.hazard_threshold
                     if hazard_info.hazard in flood_hazards:
                         hazard_effect_df[hazard_keys] = (
@@ -302,7 +311,7 @@ def main(
                             how="left",
                             on=[asset_id],
                         )
-                        # print (hazard_info.key)
+
                         for damage_info in damages_df.itertuples():
                             hazard_asset_effect_df = hazard_effect_df[
                                 hazard_effect_df[asset_hazard] == damage_info.asset_name
@@ -357,7 +366,9 @@ def main(
                     )
         else:
             raise RuntimeError(f"Missing necessary {hazard_intersection_file}...")
+
         if len(hazard_damages) > 0:
+
             asset_damages_results = os.path.join(
                 direct_damages_results,
                 f"{asset_info.asset_gpkg}_{asset_info.asset_layer}",
@@ -367,13 +378,13 @@ def main(
             hazard_damages = pd.concat(
                 hazard_damages, axis=0, ignore_index=True
             ).fillna(0)
-            hazard_damages.to_parquet(
-                os.path.join(
-                    asset_damages_results,
-                    f"{asset_info.asset_gpkg}_{asset_info.asset_layer}_direct_damages_parameter_set_{set_count}.parquet",
-                ),
-                index=False,
+
+            damage_output_filepath = os.path.join(
+                asset_damages_results,
+                f"{asset_info.asset_gpkg}_{asset_info.asset_layer}_direct_damages_parameter_set_{set_count}.parquet",
             )
+            logging.info(f"Writing to {damage_output_filepath}\n")
+            hazard_damages.to_parquet(damage_output_filepath, index=False)
 
 
 if __name__ == "__main__":
@@ -390,6 +401,8 @@ if __name__ == "__main__":
     except IndexError:
         print("Got arguments", sys.argv)
         exit()
+
+    logging.basicConfig(format="%(asctime)s %(process)d %(filename)s %(message)s", level=logging.INFO)
 
     main(
         CONFIG,
