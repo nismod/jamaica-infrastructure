@@ -49,9 +49,9 @@ def main(config):
         asset_damages_results = os.path.join(
             direct_damages_results, f"{asset_info.asset_gpkg}_{asset_info.asset_layer}"
         )
-        param_values = open("parameter_combinations.txt", "r")
-        for param in param_values:
-            parameter_set = param.split(",")[0]
+        param_values = pd.read_csv(f"{processed_data_path}/sensitivity_parameters.csv")
+        for param in param_values.itertuples():
+            parameter_set = param.set_id
             damage_file = os.path.join(
                 asset_damages_results,
                 f"{asset_info.asset_gpkg}_{asset_info.asset_layer}_direct_damages_parameter_set_{parameter_set}.parquet",
@@ -267,7 +267,6 @@ def main(config):
                     ),
                     index=False,
                 )
-        param_values.close()
         print(f"* Done with {asset_info.asset_gpkg} {asset_info.asset_layer}")
 
 

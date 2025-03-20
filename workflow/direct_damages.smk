@@ -47,7 +47,7 @@ rule direct_damages:
     threads:
         workflow.cores
     output:
-        sensitivity_parameter_set = f"{DATA}/parameter_combinations.txt",
+        sensitivity_parameter_set = f"{DATA}/sensitivity_parameters.csv",
         problem_specification = f"{OUTPUT}/direct_damages/ead_eael_results.txt",
     shell:
         f"python {{input.script_driver}} {{input.networks}} {{input.hazards}} {{threads}}"
@@ -61,7 +61,7 @@ rule summarise_direct_damages:
     snakemake -c1 results/direct_damages_summary/
     """
     input:
-        sensitivity_parameter_set = f"{DATA}/parameter_combinations.txt",
+        sensitivity_parameter_set = f"{DATA}/sensitivity_parameters.csv",
         network_layers_intersections = f"{DATA}/networks/network_layers_hazard_intersections_details.csv",
         script_summarise = "scripts/analysis/direct_damage_summarise.py",
     output:

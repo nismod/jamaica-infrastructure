@@ -51,7 +51,7 @@ def main(config):
         "--colsep",
         ",",
         "-a",
-        "parameter_combinations.txt",
+        "sensitivity_parameters.csv",
         "python",
         "expected_damages_losses_calculations_parallel.py",
         "{}",

@@ -41,13 +41,13 @@ rule summarise_damages_and_losses:
         eal_eael_flag = f"{OUTPUT}/direct_damages/EAD_EAEL.flag",
         damage_results = f"{OUTPUT}/direct_damages",
         networks = config["paths"]["network_layers"],
-        parameter_combinations = f"{DATA}/parameter_combinations.txt"
+        sensitivity_parameters = f"{DATA}/sensitivity_parameters.csv"
     output:
         summary_flag = f"{OUTPUT}/direct_damages_summary/summary.flag"
     shell:
         f"""
         python {{input.script_loss_summary}} {{input.damage_results}} {OUTPUT}/direct_damages_summary \
-            {{input.networks}} {{input.parameter_combinations}}
+            {{input.networks}} {{input.sensitivity_parameters}}
         """
 
 

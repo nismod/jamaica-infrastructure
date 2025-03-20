@@ -60,30 +60,7 @@ def main(config):
         hazards.to_csv(hazard_damage_parameters_csv, index=False)
         del hazards
 
-        parameter_combinations_file = "parameter_combinations.txt"
-        generate_new_parameters = False
-        if generate_new_parameters is True:
-            # Set up problem for sensitivity analysis
-            problem = {
-                "num_vars": 2,
-                "names": ["cost_uncertainty_parameter", "damage_uncertainty_parameter"],
-                "bounds": [[0.0, 1.0], [0.0, 1.0]],
-            }
-
-            # And create parameter values
-            param_values = morris.sample(
-                problem,
-                10,
-                num_levels=4,
-                optimal_trajectories=8,
-                local_optimization=False,
-            )
-            param_values = list(set([(p[0], p[1]) for p in param_values]))
-            with open(parameter_combinations_file, "w+") as f:
-                for p in range(len(param_values)):
-                    f.write(f"{p},{param_values[p][0]},{param_values[p][1]}\n")
-
-            f.close()
+        parameter_combinations_file = "sensitivity_parameters.csv"
 
         with open("damage_results.txt", "w+") as f:
             with open(parameter_combinations_file, "r") as r:

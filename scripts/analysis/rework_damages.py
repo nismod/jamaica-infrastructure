@@ -180,28 +180,7 @@ def main(config):
     # # print (hazard_data_files)
     hazard_data_files = ["hazard_layers.csv"]
 
-    # Set up problem for sensitivity analysis
-    problem = {
-        "num_vars": 2,
-        "names": ["cost_uncertainty_parameter", "damage_uncertainty_parameter"],
-        "bounds": [[0.0, 1.0], [0.0, 1.0]],
-    }
-
-    # And create parameter values
-    param_values = morris.sample(
-        problem, 10, num_levels=4, optimal_trajectories=8, local_optimization=False
-    )
-    param_values = list(set([(p[0], p[1]) for p in param_values]))
-    with open("parameter_combinations.txt", "w+") as f:
-        f.write(
-            "parameter_set cost_uncertainty_parameter damage_uncertainty_parameter\n"
-        )
-        for p in range(len(param_values)):
-            f.write(f"{p} {param_values[p][0]} {param_values[p][1]}\n")
-
-    f.close()
-
-    param_values = pd.read_csv("parameter_combinations.txt", sep=" ")
+    param_values = pd.read_csv("sensitivity_parameters.csv")
 
     """Step 1: Get all the damage curves into a dataframe
     """
@@ -235,7 +214,7 @@ def main(config):
     flood_hazards = ["coastal", "fluvial", "surface"]
     hazard_attributes = pd.DataFrame(hazard_attributes)
     for param in param_values.itertuples():
-        set_count = param.parameter_set
+        set_count = param.set_id
         cost_uncertainty_parameter = param.cost_uncertainty_parameter
         damage_uncertainty_parameter = param.damage_uncertainty_parameter
 

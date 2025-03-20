@@ -98,7 +98,7 @@ rule loss_summary:
     """
     input:
         network_csv = config["paths"]["network_layers"],
-        parameter_combinations = f"{DATA}/parameter_combinations.csv",
+        sensitivity_parameters = f"{DATA}/sensitivity_parameters.csv",
         direct_damage_results = expand(
             "{{output_path}}/direct_damages/{{gpkg}}_{{layer}}/{{gpkg}}_{{layer}}_direct_damages_parameter_set_{parameters}.parquet",
             parameters=parameter_set_ids,
@@ -117,7 +117,7 @@ rule loss_summary:
         """
         python scripts/smk-analysis/damage_loss_summarised.py \
             --network_csv {input.network_csv} \
-            --parameter_combinations {input.parameter_combinations} \
+            --sensitivity_parameters {input.sensitivity_parameters} \
             --direct_damage_results {input.direct_damage_results} \
             --EAD_EAEL_damage_results {input.EAD_EAEL_damage_results} \
             --single_failure_scenarios {input.single_failure_scenarios} \
@@ -145,7 +145,7 @@ rule direct_damage_results:
         hazard_csv = config["paths"]["hazard_layers"],
         damage_curves_csv = f"{DATA}/damage_curves/asset_damage_curve_mapping.csv",
         hazard_damage_parameters_csv = f"{DATA}/damage_curves/hazard_damage_parameters.csv",
-        parameter_combinations = f"{DATA}/parameter_combinations.csv",
+        sensitivity_parameters = f"{DATA}/sensitivity_parameters.csv",
 
         # internal reads
         gpkg = lambda wildcards: f"{DATA}/{get_asset_row(wildcards).path}",
@@ -205,7 +205,7 @@ rule EAD_EAEL_results:
         # script args
         network_csv = f"{DATA}/networks/network_layers_hazard_intersections_details.csv",
         hazard_csv = config["paths"]["hazard_layers"],
-        parameter_combinations = f"{DATA}/parameter_combinations.csv",
+        sensitivity_parameters = f"{DATA}/sensitivity_parameters.csv",
 
         # internal reads
         gpkg = lambda wildcards: f"{DATA}/{get_asset_row(wildcards).path}",
@@ -219,25 +219,49 @@ rule EAD_EAEL_results:
         touch {output}
         """
 
-rule parameter_combinations:
+rule sensitivity_parameters:
     """
-    Generate parameter combinations for the damage calculations.
+    Generate sensitivity parameter combinations for the damage calculations.
     
-    The original parameter_combinations.txt file is created by half a dozen or so scripts.
+    The original sensitivity_parameters.txt file is created by half a dozen or so scripts.
     They all seem to set the same combinations.
     See scripts/analysis/damage_scripts_setup.py for an example.
     
-    Here we'll create one canonical version called parameter_combinations.csv.
+    Here we'll create one canonical version called sensitivity_parameters.csv.
     
     Test with:
-    snakemake -c1 results/direct_damages_summary/parameter_combinations.txt
+    snakemake -c1 processed_data/sensitivity_parameters.csv
     """
+    input:
+        config = "config.json"
     output:
-        f"{DATA}/parameter_combinations.csv"
-    shell:
-        """
-        touch {output}
-        """
+        sensitivity_parameters = f"{DATA}/sensitivity_parameters.csv"
+    run:
+        import pandas as pd
+        from SALib.sample import morris
+
+        variables = ("cost_uncertainty_parameter", "damage_uncertainty_parameter")
+
+        if config["sensitivity_analysis"] == True:
+            problem = {
+                "num_vars": len(variables),
+                "names": variables,
+                "bounds": [[0, 1.0] for var in variables],
+            }
+            values = morris.sample(
+                problem, 10, num_levels=4, optimal_trajectories=8, local_optimization=False
+            )
+
+        elif config["sensitivity_analysis"] == False:
+            values = [(1.0, 1.0)]  # one sample, no variation
+
+        else:
+            raise ValueError("config['sensitivity_analysis'] must be boolean")
+
+        df = pd.DataFrame(values, columns=variables)
+        df.index.name = "set_id"
+        df.to_csv(output.sensitivity_parameters, float_format='%.3f')
+
 
 rule single_point_failure_electricity_water:
     """

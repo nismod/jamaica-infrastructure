@@ -34,25 +34,8 @@ def main(config, network_csv, hazard_csv, n_cpu):
     flood_protection_column = "None"
 
     parameter_combinations_file = os.path.join(
-        processed_data_path, "parameter_combinations.txt"
+        processed_data_path, "sensitivity_parameters.csv"
     )
-    generate_new_parameters = True
-    if generate_new_parameters is True:
-        # Set up problem for sensitivity analysis
-        problem = {
-            "num_vars": 2,
-            "names": ["cost_uncertainty_parameter", "damage_uncertainty_parameter"],
-            "bounds": [[0.0, 1.0], [0.0, 1.0]],
-        }
-
-        # And create parameter values
-        param_values = morris.sample(
-            problem, 10, num_levels=4, optimal_trajectories=8, local_optimization=False
-        )
-        param_values = list(set([(p[0], p[1]) for p in param_values]))
-        with open(parameter_combinations_file, "w+") as f:
-            for p in range(len(param_values)):
-                f.write(f"{p},{param_values[p][0]},{param_values[p][1]}\n")
 
     damage_results_fname = os.path.join(damage_results_folder, "damage_results.txt")
     with open(damage_results_fname, "w+") as f:
@@ -85,12 +68,11 @@ def main(config, network_csv, hazard_csv, n_cpu):
 
     ead_eael_results_fname = os.path.join(damage_results_folder, "ead_eael_results.txt")
     with open(ead_eael_results_fname, "w+") as f:
-        with open(parameter_combinations_file, "r") as r:
-            for p in r:
-                pv = p.split(",")
-                f.write(
-                    f"{damage_results_folder},{network_csv},{hazard_csv},{flood_protection_column},{pv[0]},{pv[1]},{pv[2]}"
-                )
+        sensitivity_parameters = pd.read_csv(parameter_combinations_file)
+        for params in sensitivity_parameters.iterrows():
+            f.write(
+                f"{damage_results_folder},{network_csv},{hazard_csv},{flood_protection_column},{params.set_id},{params.cost_uncertainity_parameter},{damage_uncertainity_parameter}"
+            )
 
 
 if __name__ == "__main__":

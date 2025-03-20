@@ -79,7 +79,7 @@ def main(config):
     # asset_data_details = asset_data_details[(asset_data_details["sector"] == "energy") & (asset_data_details["asset_layer"] == "edges")]
     # print (asset_data_details)
 
-    param_values = open(os.path.join(processed_data_path, "parameter_combinations.txt"))
+    param_values = open(os.path.join(processed_data_path, "sensitivity_parameters.csv"))
     param_values = [tuple(line.split(",")) for line in param_values.readlines()]
     param_values = pd.DataFrame(
         param_values,
