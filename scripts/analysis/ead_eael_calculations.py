@@ -62,7 +62,7 @@ def main(
                 for c in df.columns.values.tolist()
                 if c not in [asset_id, "damage_cost_unit", "exposure"]
             ]
-            breakpoint()
+
             df = (
                 df.groupby([asset_id, "damage_cost_unit"])[hazard_columns]
                 .sum()
