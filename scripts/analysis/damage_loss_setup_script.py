@@ -7,7 +7,7 @@ from analysis_utils import *
 import subprocess
 
 
-def main(config, network_csv, hazard_csv, n_cpu):
+def main(config, network_csv, hazard_csv, n_cpu, sensitivity_analysis):
     processed_data_path = config["paths"]["data"]
     results_path = config["paths"]["output"]
 
@@ -36,8 +36,8 @@ def main(config, network_csv, hazard_csv, n_cpu):
     parameter_combinations_file = os.path.join(
         processed_data_path, "parameter_combinations.txt"
     )
-    generate_new_parameters = True
-    if generate_new_parameters is True:
+
+    if sensitivity_analysis:
         # Set up problem for sensitivity analysis
         problem = {
             "num_vars": 2,
@@ -50,9 +50,13 @@ def main(config, network_csv, hazard_csv, n_cpu):
             problem, 10, num_levels=4, optimal_trajectories=8, local_optimization=False
         )
         param_values = list(set([(p[0], p[1]) for p in param_values]))
-        with open(parameter_combinations_file, "w+") as f:
-            for p in range(len(param_values)):
-                f.write(f"{p},{param_values[p][0]},{param_values[p][1]}\n")
+
+    else:
+        param_values = [(1.0, 1.0)]  # one sample, no variation
+
+    with open(parameter_combinations_file, "w+") as f:
+        for p in range(len(param_values)):
+            f.write(f"{p},{param_values[p][0]},{param_values[p][1]}\n")
 
     damage_results_fname = os.path.join(damage_results_folder, "damage_results.txt")
     with open(damage_results_fname, "w+") as f:
@@ -95,5 +99,5 @@ def main(config, network_csv, hazard_csv, n_cpu):
 
 if __name__ == "__main__":
     CONFIG = load_config()
-    network_csv, hazard_csv, n_cpu = sys.argv[1:]
-    main(CONFIG, network_csv, hazard_csv, int(n_cpu))
+    network_csv, hazard_csv, n_cpu, sensitivity_analysis = sys.argv[1:]
+    main(CONFIG, network_csv, hazard_csv, int(n_cpu), bool(int(sensitivity_analysis)))

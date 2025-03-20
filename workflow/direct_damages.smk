@@ -46,11 +46,13 @@ rule direct_damages:
         script_core = "scripts/analysis/damage_calculations.py",
     threads:
         workflow.cores
+    params:
+        sensitivity_analysis = 0  # 0 (a single sample with no variation in damage/cost) or 1 (run sensitivity analysis)
     output:
         sensitivity_parameter_set = f"{DATA}/parameter_combinations.txt",
         problem_specification = f"{OUTPUT}/direct_damages/ead_eael_results.txt",
     shell:
-        f"python {{input.script_driver}} {{input.networks}} {{input.hazards}} {{threads}}"
+        f"python {{input.script_driver}} {{input.networks}} {{input.hazards}} {{threads}} {{params.sensitivity_analysis}}"
 
 
 rule summarise_direct_damages:
