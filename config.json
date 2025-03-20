@@ -3,7 +3,7 @@
         "incoming_data": "incoming_data",
         "data": "processed_data",
         "output": "results",
-        "network_layers": "workflow/network_layers.csv",
+        "network_layers": "processed_data/networks/network_layers_hazard_intersections_details.csv",
         "hazard_layers": "workflow/hazard_layers.csv"
     },
     "sensitivity_analysis": false,

@@ -4,220 +4,74 @@ Generate the files required by irv-jamaica/etl/damage_*_files.csv
 REQUIRES:
 - f"{DATA}/networks/network_layers_hazard_intersections_details[_#].csv" to be present and populated
 - f"{DATA}/networks/transport/multi_modal_network.gpkg" to be present and populated
-
 """
 
 import pandas
+
+PARAMETER_SET_IDS = range(13)
+HAZARD_TYPES = [
+    "TC",
+    "flooding",
+]
+
 
 def get_asset_row(wildcards) -> pandas.Series:
     """
     Get the path of an asset by its gpkg and layer strings.
     """
-    df = pandas.read_csv(f"{DATA}/networks/network_layers_hazard_intersections_details.csv")
+    df = pandas.read_csv(f"workflow/network_layers.csv")
     row = df[(df['asset_gpkg'] == wildcards.gpkg) & (df['asset_layer'] == wildcards.layer)]
-    if len(row) == 0:
-        # Try the other files, and raise a warning if the value is in them
-        for f in [
-            f"{DATA}/networks/network_layers_hazard_intersections_details_0.csv",
-            f"{DATA}/networks/network_layers_hazard_intersections_details_1.csv",
-        ]:
-            df = pandas.read_csv(f)
-            row = df[(df['asset_gpkg'] == wildcards.gpkg) & (df['asset_layer'] == wildcards.layer)]
-            if len(row) > 0:
-                # print(f"WARNING: Found asset in {f}")
-                break
-        else:
-            raise ValueError(f"No asset found for gpkg={wildcards.gpkg} and layer={wildcards.layer}")
-    elif len(row) > 1:
+    if len(row) > 1:
         raise ValueError(f"Multiple assets found for gpkg={wildcards.gpkg} and layer={wildcards.layer}")
     return row.squeeze()
 
-hazard_types = [
-    "TC",
-    "flooding",
-]
 
-def get_single_failure_scenarios(wildcards):
-    row = get_asset_row(wildcards)
-    sfs = row.single_failure_scenarios
-    if sfs == "None" or sfs == "none":
-        return []
-    if row.sector == "buildings":
-        return f"{DATA}/{sfs}"
-    return f"{wildcards.output_path}/{sfs}"
-
-parameter_set_ids = range(13)
-
-
-rule add_uids:
+rule write_hazard_transforms:
     """
-    Add UIDs to a file.
-    
+    Write hazard transforms to disk alongside hazard metadata. I don't think
+    this is actually used?
+
     Test with:
-    snakemake -c1 results/direct_damages_summary_uids/roads_edges_losses.parquet
-    """
-    wildcard_constraints:
-        dir = r"[\w_]+",
-    input:
-        "{output_path}/{dir}/{path}"
-    output:
-        "{output_path}/{dir}_uids/{path}"
-    shell:
-        """
-        cp {input} {output}
-        """
-
-rule RENAME_EAD_EAEL_FILE:
-    """
-    There's a potential mismatch between 
-    {{output_path}}/direct_damages_summary/{{gpkg}}_{{layer}}_EAD_EAEL.csv created in loss_summary and
-    {{output_path}}/direct_damages_summary/{{gpkg}}_{{layer}}_EAD_EAEL.parquet required as output targets
-    
-    This rule renames the former to the latter.
+    snakemake -c1 processed_data/hazards/hazard_layers__with_transforms.csv
     """
     input:
-        "{output_path}/direct_damages_summary/{gpkg}_{layer}_EAD_EAEL.csv",
+        hazard_csv = lambda wildcards: wildcards.hazard_csv + ".csv",
+        data_dir = DATA,
     output:
-        "{output_path}/direct_damages_summary/{gpkg}_{layer}_EAD_EAEL.parquet",
-    shell:
-        """
-        if [ ! -s "{output}" ]; then
-            echo "WARNING: Renaming {input} to {output}"
-            cp {input} {output}
-        fi
-        """
+        hazard_transforms_csv = "{hazard_csv}__with_transforms.csv"
+    run:
+        from jamaica_infrastructure.transform import read_transforms
 
-rule loss_summary:
-    """
-    Summarise all the loss files for an asset.
-    
-    scripts/analysis/damage_loss_summarised.py
-    
-    Test with:
-    snakemake -c1 results/direct_damages_summary/roads_edges_losses.parquet
-    """
-    input:
-        network_csv = config["paths"]["network_layers"],
-        sensitivity_parameters = f"{DATA}/sensitivity_parameters.csv",
-        direct_damage_results = expand(
-            "{{output_path}}/direct_damages/{{gpkg}}_{{layer}}/{{gpkg}}_{{layer}}_direct_damages_parameter_set_{parameters}.parquet",
-            parameters=parameter_set_ids,
-        ),
-        EAD_EAEL_damage_results = expand(
-            "{{output_path}}/direct_damages/{{gpkg}}_{{layer}}/{{gpkg}}_{{layer}}_EAD_EAEL_parameter_set_{parameters}.csv",
-            parameters=parameter_set_ids,
-        ),
-        single_failure_scenarios = get_single_failure_scenarios,
-    output:
-        "{output_path}/direct_damages_summary/{gpkg}_{layer}_losses.parquet",
-        "{output_path}/direct_damages_summary/{gpkg}_{layer}_exposures.parquet",
-        "{output_path}/direct_damages_summary/{gpkg}_{layer}_damages.parquet",
-        "{output_path}/direct_damages_summary/{gpkg}_{layer}_EAD_EAEL.csv",
-    shell:
-        """
-        python scripts/smk-analysis/damage_loss_summarised.py \
-            --network_csv {input.network_csv} \
-            --sensitivity_parameters {input.sensitivity_parameters} \
-            --direct_damage_results {input.direct_damage_results} \
-            --EAD_EAEL_damage_results {input.EAD_EAEL_damage_results} \
-            --single_failure_scenarios {input.single_failure_scenarios} \
-            --output_path {wildcards.output_path}/direct_damages_summary \
-            --gpkg {wildcards.gpkg} \
-            --layer {wildcards.layer}
-        """
+        hazards = pandas.read_csv(input.hazard_csv)
+        hazard_transforms, transforms = read_transforms(hazards, input.data_dir)
+        hazard_transforms.to_csv(output.hazard_transforms_csv, index=False)
 
-rule direct_damage_results:
-    """
-    Calculate direct damages for an asset across all hazards with a given parameter set.
-    
-    scripts/analysis/damage_calculations.py
-    
-    This script is called by scripts/analysis/damage_loss_setup_script.py which assigns different input args to it for each run.
-    
-    TODO: Update the script to accept parameter set id rather than parameter set values directly.
-    
-    Test with:
-    snakemake -c1 results/direct_damages/roads_edges_direct_damages_parameter_set_0.parquet
-    """
-    input:
-        # script args
-        network_csv = f"{DATA}/networks/network_layers_hazard_intersections_details.csv",
-        hazard_csv = config["paths"]["hazard_layers"],
-        damage_curves_csv = f"{DATA}/damage_curves/asset_damage_curve_mapping.csv",
-        hazard_damage_parameters_csv = f"{DATA}/damage_curves/hazard_damage_parameters.csv",
-        sensitivity_parameters = f"{DATA}/sensitivity_parameters.csv",
 
-        # internal reads
-        gpkg = lambda wildcards: f"{DATA}/{get_asset_row(wildcards).path}",
-        # damage_curves is required in create_damage_curves
-        damage_curves = lambda wildcards: expand(
-            f"{DATA}/damage_curves/damage_curves_{get_asset_row(wildcards).sector}_{{hazard_type}}.xlsx",
-            hazard_type = hazard_types
-        ),
-        hazard_intersection_file = "{output_path}/hazard_asset_intersection/{gpkg}_splits__hazard_layers__{layer}.geoparquet",
-    output:
-        "{output_path}/direct_damages/{gpkg}_{layer}/{gpkg}_{layer}_direct_damages_parameter_set_{parameter_set}.parquet",
-    shell:
-        """
-        touch {output}
-        """
-
-rule extract_network_layer:
+rule rasterise_asset_layer:
     """
     Split networks into nodes, edges, and areas.
-    
-    scripts/exposure/split_networks.py
-    
-    TODO: The script must be split to support layer as a wildcard
-    TODO: Check the functions below the script to see if they require other files
     
     Test with:
     snakemake -c1 results/hazard_asset_intersection/roads_splits__hazard_layers__edges.geoparquet
     """
     input:
-        network_csv = f"{DATA}/networks/network_layers_hazard_intersections_details.csv",
-        hazard_csv = config["paths"]["hazard_layers"],
-
+        script = "scripts/smk-analysis/split_networks.py",
+        networks = config["paths"]["network_layers"],
+        hazards = config["paths"]["hazard_layers"],
         gpkg = lambda wildcards: f"{DATA}/{get_asset_row(wildcards).path}",
     output:
-        # hazard_with_transforms = config["paths"]["hazard_layers"].replace(".csv", "__with_transforms.csv"),
-        geoparquet = "{output_path}/hazard_asset_intersection/{gpkg}_splits__hazard_layers__{layer}.geoparquet",
+        splits = "{output_path}/hazard_asset_intersection/{gpkg}_splits__hazard_layers__{layer}.geoparquet",
     shell:
-        """
-        touch {output[geoparquet]}
+        f"""
+        python {{input.script}} \
+            --network-csv {{input.networks}} \
+            --hazard-csv {{input.hazards}} \
+            --data-dir {{DATA}} \
+            --asset-gpkg {{wildcards.gpkg}} \
+            --asset-layer {{wildcards.layer}} \
+            --output-path {{output.splits}}
         """
 
-rule EAD_EAEL_results:
-    """
-    Calculate Estimated Annual Damages for an asset across all hazards with a given parameter set.
-    
-    scripts/analysis/ead_eael_calculations.py
-    
-    This script is called by scripts/analysis/flood_changes_setup.py which assigns different input args to it for each run.
-    
-    TODO: Update the script to accept parameter set id rather than parameter set values directly.
-    TODO: Script should default flood_protection_name to None
-    
-    Test with:
-    snakemake -c1 results/direct_damages/roads_edges_EAD_EAEL_parameter_set_0.csv
-    """
-    input:
-        # script args
-        network_csv = f"{DATA}/networks/network_layers_hazard_intersections_details.csv",
-        hazard_csv = config["paths"]["hazard_layers"],
-        sensitivity_parameters = f"{DATA}/sensitivity_parameters.csv",
-
-        # internal reads
-        gpkg = lambda wildcards: f"{DATA}/{get_asset_row(wildcards).path}",
-        damage_file = "{output_path}/direct_damages/{gpkg}_{layer}/{gpkg}_{layer}_direct_damages_parameter_set_{parameter_set}.parquet",
-        # damage_curves is required in create_damage_curves
-        single_failure_scenarios = get_single_failure_scenarios,
-    output:
-        "{output_path}/direct_damages/{gpkg}_{layer}/{gpkg}_{layer}_EAD_EAEL_parameter_set_{parameter_set}.csv",
-    shell:
-        """
-        touch {output}
-        """
 
 rule sensitivity_parameters:
     """
@@ -263,6 +117,53 @@ rule sensitivity_parameters:
         df.to_csv(output.sensitivity_parameters, float_format='%.3f')
 
 
+rule direct_damage_results:
+    """
+    Calculate direct damages for an asset across all hazards with a given parameter set.
+    
+    scripts/analysis/damage_calculations.py
+    
+    This script is called by scripts/analysis/damage_loss_setup_script.py which assigns different input args to it for each run.
+    
+    TODO: Update the script to accept parameter set id rather than parameter set values directly.
+    
+    Test with:
+    snakemake -c1 results/direct_damages/roads_edges_direct_damages_parameter_set_0.parquet
+    """
+    input:
+        # script args
+        network_csv = f"{DATA}/networks/network_layers_hazard_intersections_details.csv",
+        hazard_csv = config["paths"]["hazard_layers"],
+        damage_curves_csv = f"{DATA}/damage_curves/asset_damage_curve_mapping.csv",
+        hazard_damage_parameters_csv = f"{DATA}/damage_curves/hazard_damage_parameters.csv",
+        sensitivity_parameters = f"{DATA}/sensitivity_parameters.csv",
+
+        # internal reads
+        gpkg = lambda wildcards: f"{DATA}/{get_asset_row(wildcards).path}",
+        # damage_curves is required in create_damage_curves
+        damage_curves = lambda wildcards: expand(
+            f"{DATA}/damage_curves/damage_curves_{get_asset_row(wildcards).sector}_{{hazard_type}}.xlsx",
+            hazard_type = HAZARD_TYPES
+        ),
+        hazard_intersection_file = "{output_path}/hazard_asset_intersection/{gpkg}_splits__hazard_layers__{layer}.geoparquet",
+    output:
+        "{output_path}/direct_damages/{gpkg}_{layer}/{gpkg}_{layer}_direct_damages_parameter_set_{parameter_set}.parquet",
+    shell:
+        """
+        touch {output}
+        """
+
+
+def get_single_failure_scenarios(wildcards):
+    row = get_asset_row(wildcards)
+    sfs = row.single_failure_scenarios
+    if sfs == "None" or sfs == "none":
+        return []
+    if row.sector == "buildings":
+        return f"{DATA}/{sfs}"
+    return f"{wildcards.output_path}/{sfs}"
+
+
 rule single_point_failure_electricity_water:
     """
     Create a single point failure file for electricity and water assets.
@@ -305,6 +206,7 @@ rule single_point_failure_electricity_water:
         touch {output.electricity_edges}
         """
 
+
 rule single_point_failure_road_rail:
     """
     Create a single point failure file for road and rail assets.
@@ -345,6 +247,7 @@ rule single_point_failure_road_rail:
         done
         """
 
+
 rule single_link_failures:
     """
     Create single link failure results.
@@ -380,6 +283,7 @@ rule single_link_failures:
         done
         """
 
+
 rule transport_scenario_edge_map:
     """
     We split the transport maps into chunks for parallel processing.
@@ -399,6 +303,7 @@ rule transport_scenario_edge_map:
         # Adapted from scripts/transport_model/transport_failure_scenario_setup.py
         import geopandas
         import numpy
+
         edges = geopandas.read_file(input.edges, layer="edges")
         rail_edges = edges[(edges["from_mode"] == "rail") & (edges["to_mode"] == "rail")][
             "edge_id"
@@ -516,6 +421,99 @@ rule labour_to_work_flow_mapping:
             --output_path {wildcards.output_path}/flow_mapping
         """
 
+
+rule loss_summary:
+    """
+    Summarise all the loss files for an asset.
+    
+    scripts/analysis/damage_loss_summarised.py
+    
+    Test with:
+    snakemake -c1 results/direct_damages_summary/roads_edges_losses.parquet
+    """
+    input:
+        network_csv = config["paths"]["network_layers"],
+        sensitivity_parameters = f"{DATA}/sensitivity_parameters.csv",
+        direct_damage_results = expand(
+            "{{output_path}}/direct_damages/{{gpkg}}_{{layer}}/{{gpkg}}_{{layer}}_direct_damages_parameter_set_{parameters}.parquet",
+            parameters=PARAMETER_SET_IDS,
+        ),
+        EAD_EAEL_damage_results = expand(
+            "{{output_path}}/direct_damages/{{gpkg}}_{{layer}}/{{gpkg}}_{{layer}}_EAD_EAEL_parameter_set_{parameters}.csv",
+            parameters=PARAMETER_SET_IDS,
+        ),
+        single_failure_scenarios = get_single_failure_scenarios,
+    output:
+        "{output_path}/direct_damages_summary/{gpkg}_{layer}_losses.parquet",
+        "{output_path}/direct_damages_summary/{gpkg}_{layer}_exposures.parquet",
+        "{output_path}/direct_damages_summary/{gpkg}_{layer}_damages.parquet",
+        "{output_path}/direct_damages_summary/{gpkg}_{layer}_EAD_EAEL.csv",
+    shell:
+        """
+        python scripts/smk-analysis/damage_loss_summarised.py \
+            --network_csv {input.network_csv} \
+            --sensitivity_parameters {input.sensitivity_parameters} \
+            --direct_damage_results {input.direct_damage_results} \
+            --EAD_EAEL_damage_results {input.EAD_EAEL_damage_results} \
+            --single_failure_scenarios {input.single_failure_scenarios} \
+            --output_path {wildcards.output_path}/direct_damages_summary \
+            --gpkg {wildcards.gpkg} \
+            --layer {wildcards.layer}
+        """
+
+
+rule EAD_EAEL_results:
+    """
+    Calculate Estimated Annual Damages for an asset across all hazards with a given parameter set.
+    
+    scripts/analysis/ead_eael_calculations.py
+    
+    This script is called by scripts/analysis/flood_changes_setup.py which assigns different input args to it for each run.
+    
+    TODO: Update the script to accept parameter set id rather than parameter set values directly.
+    TODO: Script should default flood_protection_name to None
+    
+    Test with:
+    snakemake -c1 results/direct_damages/roads_edges_EAD_EAEL_parameter_set_0.csv
+    """
+    input:
+        # script args
+        network_csv = f"{DATA}/networks/network_layers_hazard_intersections_details.csv",
+        hazard_csv = config["paths"]["hazard_layers"],
+        sensitivity_parameters = f"{DATA}/sensitivity_parameters.csv",
+
+        # internal reads
+        gpkg = lambda wildcards: f"{DATA}/{get_asset_row(wildcards).path}",
+        damage_file = "{output_path}/direct_damages/{gpkg}_{layer}/{gpkg}_{layer}_direct_damages_parameter_set_{parameter_set}.parquet",
+        # damage_curves is required in create_damage_curves
+        single_failure_scenarios = get_single_failure_scenarios,
+    output:
+        "{output_path}/direct_damages/{gpkg}_{layer}/{gpkg}_{layer}_EAD_EAEL_parameter_set_{parameter_set}.csv",
+    shell:
+        """
+        touch {output}
+        """
+
+
+rule add_uids:
+    """
+    Add UIDs to a file.
+    
+    Test with:
+    snakemake -c1 results/direct_damages_summary_uids/roads_edges_losses.parquet
+    """
+    wildcard_constraints:
+        dir = r"[\w_]+",
+    input:
+        "{output_path}/{dir}/{path}"
+    output:
+        "{output_path}/{dir}_uids/{path}"
+    shell:
+        """
+        cp {input} {output}
+        """
+
+
 rule RENAME_LABOUR_FILE:
     """
     There's a potential mismatch between 
@@ -535,6 +533,7 @@ rule RENAME_LABOUR_FILE:
             cp {input} {output}
         fi
         """
+
 
 rule FAKE_MACROECONOMIC_FILES:
     """
@@ -559,6 +558,7 @@ rule FAKE_MACROECONOMIC_FILES:
             fi
         done
         """
+
 
 rule FAKE_ELECTRICTY_SINGLE_POINT_FAILURES:
     """
@@ -600,6 +600,7 @@ rule FAKE_BUILDINGS_ECONOMIC_ACTIVITY:
         fi
         """
 
+
 rule FAKE_BUILD_RCP_EPOCH:
     """
     Several target files are in the pattern
@@ -617,5 +618,26 @@ rule FAKE_BUILD_RCP_EPOCH:
         if [ ! -s "{output}" ]; then
             echo "WARNING: Faking buildings economic activity file {output}"
             touch {output}
+        fi
+        """
+
+
+rule RENAME_EAD_EAEL_FILE:
+    """
+    There's a potential mismatch between 
+    {{output_path}}/direct_damages_summary/{{gpkg}}_{{layer}}_EAD_EAEL.csv created in loss_summary and
+    {{output_path}}/direct_damages_summary/{{gpkg}}_{{layer}}_EAD_EAEL.parquet required as output targets
+    
+    This rule renames the former to the latter.
+    """
+    input:
+        "{output_path}/direct_damages_summary/{gpkg}_{layer}_EAD_EAEL.csv",
+    output:
+        "{output_path}/direct_damages_summary/{gpkg}_{layer}_EAD_EAEL.parquet",
+    shell:
+        """
+        if [ ! -s "{output}" ]; then
+            echo "WARNING: Renaming {input} to {output}"
+            cp {input} {output}
         fi
         """
