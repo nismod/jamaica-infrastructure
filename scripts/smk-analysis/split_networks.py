@@ -122,10 +122,10 @@ def split_assets(network_csv, hazard_csv, data_dir, asset_gpkg, asset_layer, out
             areas.to_parquet(pq_fname_areas)
 
 
-def associate_raster(df, key, fname, cell_index_col="cell_index", band_number=1):
+def associate_raster(df, fname, cell_index_col="cell_index", band_number=1):
     with rasterio.open(fname) as dataset:
         band_data = dataset.read(band_number)
-        df[key] = df[cell_index_col].apply(lambda i: band_data[i[1], i[0]])
+        return df[cell_index_col].apply(lambda i: band_data[i[1], i[0]])
 
 
 def process_nodes(nodes, transforms, hazard_transforms, data_dir):
@@ -141,11 +141,13 @@ def process_nodes(nodes, transforms, hazard_transforms, data_dir):
         nodes = crs_df.to_crs(nodes.crs)
 
     # associate hazard values
+    hazard_series: dict[str, pandas.Series] = {}
     for hazard in hazard_transforms.itertuples():
         logging.info("Hazard %s transform %s", hazard.key, hazard.transform_id)
         fname = os.path.join(data_dir, hazard.path)
         cell_index_col = f"cell_index_{hazard.transform_id}"
-        associate_raster(nodes, hazard.key, fname, cell_index_col)
+        hazard_series[hazard.key] = associate_raster(nodes, fname, cell_index_col)
+    nodes = pandas.concat([nodes, pandas.DataFrame(hazard_series)], axis=1)
 
     # split and drop tuple columns so GPKG can save
     for i, t in enumerate(transforms):
@@ -180,11 +182,13 @@ def process_edges(edges, transforms, hazard_transforms, data_dir):
         edges = crs_df.to_crs(edges.crs)
 
     # associate hazard values
+    hazard_series: dict[str, pandas.Series] = {}
     for hazard in hazard_transforms.itertuples():
         logging.info("Hazard %s transform %s", hazard.key, hazard.transform_id)
         fname = os.path.join(data_dir, hazard.path)
         cell_index_col = f"cell_index_{hazard.transform_id}"
-        associate_raster(edges, hazard.key, fname, cell_index_col)
+        hazard_series[hazard.key] = associate_raster(edges, fname, cell_index_col)
+    edges = pandas.concat([edges, pandas.DataFrame(hazard_series)], axis=1)
 
     # split and drop tuple columns so GPKG can save
     for i, t in enumerate(transforms):
@@ -225,11 +229,13 @@ def process_areas(areas, transforms, hazard_transforms, data_dir):
         areas = crs_df.to_crs(areas.crs)
 
     # associate hazard values
+    hazard_series: dict[str, pandas.Series] = {}
     for hazard in hazard_transforms.itertuples():
         logging.info("Hazard %s transform %s", hazard.key, hazard.transform_id)
         fname = os.path.join(data_dir, hazard.path)
         cell_index_col = f"cell_index_{hazard.transform_id}"
-        associate_raster(areas, hazard.key, fname, cell_index_col)
+        hazard_series[hazard.key] = associate_raster(areas, fname, cell_index_col)
+    areas = pandas.concat([areas, pandas.DataFrame(hazard_series)], axis=1)
 
     # split and drop tuple columns so GPKG can save
     for i, t in enumerate(transforms):
