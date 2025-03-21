@@ -122,9 +122,9 @@ def split_assets(network_csv, hazard_csv, data_dir, asset_gpkg, asset_layer, out
             areas.to_parquet(pq_fname_areas)
 
 
-def associate_raster(df, fname, cell_index_col="cell_index", band_number=1):
+def associate_raster(df, fname, cell_index_col="cell_index", band_number=1, min_val=0, max_val=None):
     with rasterio.open(fname) as dataset:
-        band_data = dataset.read(band_number)
+        band_data = numpy.clip(dataset.read(band_number), a_min=min_val, a_max=max_val)
         return df[cell_index_col].apply(lambda i: band_data[i[1], i[0]])
 
 
