@@ -23,7 +23,19 @@ include: "adaptation.smk"
 # include: "transport_model.smk"
 # include: "hotspots.smk"
 
-from check_targets import TARGETS
+from check_targets import EXPOSURE, DAMAGES, LOSSES, EAD_EAEL, TARGETS
+
+rule all_exposure:
+    input: EXPOSURE
+
+rule all_damages:
+    input: DAMAGES
+
+rule all_losses:
+    input: LOSSES
+
+rule all_ead_eael:
+    input: EAD_EAEL
 
 rule all_targets:
     input: TARGETS
