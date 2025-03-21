@@ -295,4 +295,3 @@ rule transport_failure_flow_allocation_combine_results:
         """
         python {input.script}
         """
-

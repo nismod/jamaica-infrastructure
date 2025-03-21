@@ -1,5 +1,15 @@
 configfile: "config.json"
 
+import pandas as pd
+import geopandas as gpd
+import os
+
+HAZARD_TYPES = (
+    "TC",
+    "flooding",
+)
+PARAMETER_SET_IDS = range(13)
+
 # assign globals to these paths, they're used frequently
 RAW = config["paths"]["incoming_data"]
 DATA = config["paths"]["data"]
@@ -17,10 +27,14 @@ wildcard_constraints:
 # container: "docker://nismod/jamaica-infrastructure"
 # container: "docker://geo-test"
 
-include: "damage.smk"
-include: "adaptation.smk"
-# include: "direct_damages.smk"
+include: "_damage.smk"
+include: "_criticality.smk"
+include: "_losses.smk"
+include: "_adaptation.smk"
+include: "_etl.smk"
+
 # include: "losses.smk"
+# include: "direct_damages.smk"
 # include: "transport_model.smk"
 # include: "hotspots.smk"
 
