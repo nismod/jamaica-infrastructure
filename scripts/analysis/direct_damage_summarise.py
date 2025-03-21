@@ -14,16 +14,8 @@ from tqdm import tqdm
 
 def quantiles(dataframe, grouping_by_columns, grouped_columns):
     # quantiles_list = ['mean','min','max','median','q5','q95']
-    grouped = (
-        dataframe.groupby(grouping_by_columns, dropna=False)[grouped_columns]
-        .agg(["min", "mean", "max"])
-        .reset_index()
-    )
-    grouped.columns = grouping_by_columns + [
-        f"{prefix}_{agg_name}"
-        for prefix, agg_name in grouped.columns
-        if prefix not in grouping_by_columns
-    ]
+    grouped = dataframe.groupby(grouping_by_columns, dropna=False)[grouped_columns].agg(["min", "mean", "max"]).reset_index()
+    grouped.columns = grouping_by_columns + [f"{prefix}_{agg_name}" for prefix, agg_name in grouped.columns if prefix not in grouping_by_columns]
 
     return grouped
 
@@ -93,10 +85,7 @@ def collapse_sensitivity(
     param_values = pd.read_csv(sensitivity_csv)
     uncertainty_columns = ("cost_uncertainty_parameter", "damage_uncertainty_parameter")
 
-    asset_info = asset_data_details.loc[
-        (asset_data_details.asset_gpkg == asset_gpkg) 
-        & (asset_data_details.asset_layer == asset_layer)
-    ].squeeze()
+    asset_info = asset_data_details.loc[(asset_data_details.asset_gpkg == asset_gpkg) & (asset_data_details.asset_layer == asset_layer)].squeeze()
     asset_id = asset_info.asset_id_column
 
     logging.info("Reading damage data")
@@ -120,16 +109,10 @@ def collapse_sensitivity(
         ]
         # for hz in hazard_columns:
         #     exposures[hz] = exposures["exposure"]*np.where(exposures[hz] > 0,1,0)
-        exposures[hazard_columns] = exposures["exposure"].to_numpy()[
-            :, None
-        ] * np.where(exposures[hazard_columns] > 0, 1, 0)
+        exposures[hazard_columns] = exposures["exposure"].to_numpy()[:, None] * np.where(exposures[hazard_columns] > 0, 1, 0)
 
         sum_dict = dict([(hk, "sum") for hk in hazard_columns])
-        exposures = (
-            exposures.groupby([asset_id, "exposure_unit"], dropna=False)
-            .agg(sum_dict)
-            .reset_index()
-        )
+        exposures = exposures.groupby([asset_id, "exposure_unit"], dropna=False).agg(sum_dict).reset_index()
         exposures.to_csv(output_exposure_path, index=False)
         del exposures
 
@@ -149,9 +132,7 @@ def collapse_sensitivity(
 
         damages = pd.concat(damages, axis=0, ignore_index=True)
         if len(damages.index) > 0:
-            damages = quantiles(
-                damages, [asset_id, "damage_cost_unit"], hazard_columns
-            )
+            damages = quantiles(damages, [asset_id, "damage_cost_unit"], hazard_columns)
             # damages.to_parquet(os.path.join(summary_results,
             #             f"{asset_info.asset_gpkg}_{asset_info.asset_layer}_damages.parquet"),index=False)
             damages.to_csv(output_damages_path, index=False)
@@ -165,54 +146,29 @@ def collapse_sensitivity(
         )
         for param in param_values.itertuples()
     ]
-    damage_results = [
-        pd.read_csv(file) for file in damage_files if os.path.isfile(file) is True
-    ]
+    damage_results = [pd.read_csv(file) for file in damage_files if os.path.isfile(file) is True]
 
     if damage_results:
         print([len(df.index) for df in damage_results])
         for df in damage_results:
             df["rcp"] = df["rcp"].astype(str)
             df["epoch"] = df["epoch"].astype(str)
-        haz_rcp_epochs = list(
-            set(
-                damage_results[0]
-                .set_index(["hazard", "rcp", "epoch"])
-                .index.values.tolist()
-            )
-        )
+        haz_rcp_epochs = list(set(damage_results[0].set_index(["hazard", "rcp", "epoch"]).index.values.tolist()))
         print(haz_rcp_epochs)
         summarised_damages = []
         for i, (haz, rcp, epoch) in enumerate(haz_rcp_epochs):
-            damages = [
-                df[(df.hazard == haz) & (df.rcp == rcp) & (df.epoch == epoch)]
-                for df in damage_results
-            ]
+            damages = [df[(df.hazard == haz) & (df.rcp == rcp) & (df.epoch == epoch)] for df in damage_results]
             damages = pd.concat(damages, axis=0, ignore_index=True)
             print("* Done with concatinating all dataframes")
             damages.drop("confidence", axis=1, inplace=True)
 
-            index_columns = [
-                c
-                for c in damages.columns.values.tolist()
-                if ("EAD_" not in c) and ("EAEL_" not in c)
-            ]
-            index_columns = [
-                i for i in index_columns if i not in uncertainty_columns
-            ]
-            damage_columns = [
-                c
-                for c in damages.columns.values.tolist()
-                if ("EAD_" in c) or ("EAEL_" in c)
-            ]
+            index_columns = [c for c in damages.columns.values.tolist() if ("EAD_" not in c) and ("EAEL_" not in c)]
+            index_columns = [i for i in index_columns if i not in uncertainty_columns]
+            damage_columns = [c for c in damages.columns.values.tolist() if ("EAD_" in c) or ("EAEL_" in c)]
 
             if len(damages.index) > 0:
-                summarised_damages.append(
-                    quantiles(damages, index_columns, damage_columns)
-                )
-        summarised_damages = pd.concat(
-            summarised_damages, axis=0, ignore_index=True
-        )
+                summarised_damages.append(quantiles(damages, index_columns, damage_columns))
+        summarised_damages = pd.concat(summarised_damages, axis=0, ignore_index=True)
         summarised_damages.to_csv(
             os.path.join(
                 summary_results,
