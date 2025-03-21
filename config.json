@@ -6,7 +6,7 @@
         "network_layers": "processed_data/networks/network_layers_hazard_intersections_details.csv",
         "hazard_layers": "workflow/hazard_layers.csv"
     },
-    "sensitivity_analysis": false,
+    "sensitivity_analysis": true,
     "extract_bbox": {
         "left": 760000,
         "bottom": 640000,

@@ -11,7 +11,8 @@ wildcard_constraints:
     protection_type="[^/]+",  # no slash
     layer="(nodes|edges|areas)",
     threshold="\d+(p\d+)?",
-    output_path=f"{OUTPUT}(/.+[^/])?"
+    output_path=f"{OUTPUT}(/.+[^/])?",
+    parameter_set="parameter_set_\d+",
 
 # container: "docker://nismod/jamaica-infrastructure"
 # container: "docker://geo-test"

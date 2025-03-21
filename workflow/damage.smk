@@ -6,20 +6,20 @@ REQUIRES:
 - f"{DATA}/networks/transport/multi_modal_network.gpkg" to be present and populated
 """
 
-import pandas
+import pandas as pd
 
 PARAMETER_SET_IDS = range(13)
-HAZARD_TYPES = [
+HAZARD_TYPES = (
     "TC",
     "flooding",
-]
+)
 
 
-def get_asset_row(wildcards) -> pandas.Series:
+def get_asset_row(wildcards) -> pd.Series:
     """
     Get the path of an asset by its gpkg and layer strings.
     """
-    df = pandas.read_csv(f"workflow/network_layers.csv")
+    df = pd.read_csv(f"workflow/network_layers.csv")
     row = df[(df['asset_gpkg'] == wildcards.gpkg) & (df['asset_layer'] == wildcards.layer)]
     if len(row) > 1:
         raise ValueError(f"Multiple assets found for gpkg={wildcards.gpkg} and layer={wildcards.layer}")
@@ -42,7 +42,7 @@ rule write_hazard_transforms:
     run:
         from jamaica_infrastructure.transform import read_transforms
 
-        hazards = pandas.read_csv(input.hazard_csv)
+        hazards = pd.read_csv(input.hazard_csv)
         hazard_transforms, transforms = read_transforms(hazards, input.data_dir)
         hazard_transforms.to_csv(output.hazard_transforms_csv, index=False)
 
@@ -73,7 +73,7 @@ rule rasterise_asset_layer:
         """
 
 
-rule sensitivity_parameters:
+checkpoint sensitivity_parameters:
     """
     Generate sensitivity parameter combinations for the damage calculations.
     
@@ -103,7 +103,7 @@ rule sensitivity_parameters:
                 "bounds": [[0, 1.0] for var in variables],
             }
             values = morris.sample(
-                problem, 10, num_levels=4, optimal_trajectories=8, local_optimization=False
+                problem, 4, num_levels=4, optimal_trajectories=2, local_optimization=False
             )
 
         elif config["sensitivity_analysis"] == False:
@@ -116,6 +116,9 @@ rule sensitivity_parameters:
         df.index.name = "set_id"
         df.to_csv(output.sensitivity_parameters, float_format='%.3f')
 
+
+def sensitivity_id_from_slug(wildcards):
+    return wildcards.parameter_set.replace("parameter_set_", "")
 
 rule direct_damage:
     """
@@ -138,15 +141,17 @@ rule direct_damage:
             hazard_type = HAZARD_TYPES
         ),
         hazard_intersection_file = "{output_path}/hazard_asset_intersection/{gpkg}_splits__hazard_layers__{layer}.geoparquet",
+    params:
+        sensitivity_id = sensitivity_id_from_slug,
     output:
-        damages = "{output_path}/direct_damages/{gpkg}_{layer}/{gpkg}_{layer}_direct_damages_parameter_set_{parameter_set}.parquet",
+        damages = "{output_path}/direct_damages/{gpkg}_{layer}/{gpkg}_{layer}_direct_damages_{parameter_set}.parquet",
     shell:
         f"""
         python {{input.script}} \
             --network-csv {{input.network_csv}} \
             --hazard-csv {{input.hazard_csv}} \
             --sensitivity-csv {{input.sensitivity_parameters}} \
-            --sensitivity-id {{wildcards.parameter_set}} \
+            --sensitivity-id {{params.sensitivity_id}} \
             --asset-gpkg-file {{input.asset_gpkg}} \
             --asset-gpkg-label {{wildcards.gpkg}} \
             --asset-layer {{wildcards.layer}} \
@@ -155,6 +160,50 @@ rule direct_damage:
             --damage-curves-dir {{input.damage_curves_dir}} \
             --intersection {{input.hazard_intersection_file}} \
             --output-path {{output.damages}}
+        """
+
+
+def damage_ensemble_files(wildcards):
+    # wait for ensemble parameters to be generated, then read the length of the list
+    filepath = checkpoints.sensitivity_parameters.get(**wildcards).output.sensitivity_parameters
+    n_ensemble = len(pd.read_csv(filepath))
+    return expand(
+        "{{output_path}}/direct_damages/{{gpkg}}_{{layer}}/{{gpkg}}_{{layer}}_direct_damages_parameter_set_{parameter_set}.parquet",
+        parameter_set=range(n_ensemble)
+    )
+
+rule collapse_sensitivity:
+    """
+    Summarise direct damage results (aggregate over sensitivity analysis)
+
+    Test with:
+    snakemake -c1 results/direct_damages_summary/roads_edges_damages.csv
+    """
+    input:
+        script = "scripts/analysis/direct_damage_summarise.py",
+        network_csv = f"{DATA}/networks/network_layers_hazard_intersections_details.csv",
+        sensitivity_parameters = f"{DATA}/sensitivity_parameters.csv",
+        damages = damage_ensemble_files
+        # EAD_and_EAEL_files
+    output:
+        damages = "{output_path}/direct_damages_summary/{gpkg}_{layer}_damages.csv",
+        exposure = "{output_path}/direct_damages_summary/{gpkg}_{layer}_exposure.csv",
+    shell:
+        f"""
+        # build list of input damage files: --damage <damage_file>
+        DAMAGE_FILES=""
+        for FILE in {{input.damages}}; do
+            DAMAGE_FILES="$DAMAGE_FILES --damages $FILE"
+        done
+
+        python {{input.script}} \
+            --network-csv {{input.network_csv}} \
+            --sensitivity-csv {{input.sensitivity_parameters}} \
+            --asset-gpkg {{wildcards.gpkg}} \
+            --asset-layer {{wildcards.layer}} \
+            $DAMAGE_FILES \
+            --output-damages-path {{output.damages}} \
+            --output-exposure-path {{output.exposure}}
         """
 
 

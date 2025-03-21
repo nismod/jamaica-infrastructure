@@ -308,7 +308,7 @@ def direct_damages(
     
     logging.info("Calculating direct damages")
     for hazard_info in hazard_attributes.itertuples():
-        logging.info(f"{hazard_info.hazard=}")
+        logging.info(hazard_info.hazard)
 
         if (
             getattr(
@@ -430,6 +430,7 @@ def direct_damages(
                         hazard_damages.append(hazard_asset_effect_df)
 
                     del hazard_asset_effect_df
+                logging.info(f"\n{hazard_effect_df.iloc[:, ::5].sum(numeric_only=True)}")
                 del hazard_effect_df
         else:
             print(
