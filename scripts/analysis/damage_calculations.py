@@ -339,7 +339,7 @@ def direct_damages(
                         hazard_damages.append(hazard_asset_effect_df)
 
                     del hazard_asset_effect_df
-                logging.info(f"\n{hazard_effect_df.iloc[:, ::5].sum(numeric_only=True)}")
+
                 del hazard_effect_df
         else:
             logging.info(f"{asset_info.asset_gpkg} {asset_info.asset_layer} not affected by {hazard_info.hazard}")
