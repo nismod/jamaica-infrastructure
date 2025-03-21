@@ -117,40 +117,44 @@ rule sensitivity_parameters:
         df.to_csv(output.sensitivity_parameters, float_format='%.3f')
 
 
-rule direct_damage_results:
+rule direct_damage:
     """
     Calculate direct damages for an asset across all hazards with a given parameter set.
     
-    scripts/analysis/damage_calculations.py
-    
-    This script is called by scripts/analysis/damage_loss_setup_script.py which assigns different input args to it for each run.
-    
-    TODO: Update the script to accept parameter set id rather than parameter set values directly.
-    
     Test with:
-    snakemake -c1 results/direct_damages/roads_edges_direct_damages_parameter_set_0.parquet
+    snakemake -c1 results/direct_damages/roads_edges/roads_edges_direct_damages_parameter_set_0.parquet
     """
     input:
-        # script args
+        script = "scripts/analysis/damage_calculations.py",
         network_csv = f"{DATA}/networks/network_layers_hazard_intersections_details.csv",
         hazard_csv = config["paths"]["hazard_layers"],
-        damage_curves_csv = f"{DATA}/damage_curves/asset_damage_curve_mapping.csv",
-        hazard_damage_parameters_csv = f"{DATA}/damage_curves/hazard_damage_parameters.csv",
         sensitivity_parameters = f"{DATA}/sensitivity_parameters.csv",
-
-        # internal reads
-        gpkg = lambda wildcards: f"{DATA}/{get_asset_row(wildcards).path}",
-        # damage_curves is required in create_damage_curves
+        asset_gpkg = lambda wildcards: f"{DATA}/{get_asset_row(wildcards).path}",
+        damage_curve_mapping = f"{DATA}/damage_curves/asset_damage_curve_mapping.csv",
+        damage_threshold_uplift = f"{DATA}/damage_curves/hazard_damage_parameters.csv",
+        damage_curves_dir = f"{DATA}/damage_curves",
         damage_curves = lambda wildcards: expand(
             f"{DATA}/damage_curves/damage_curves_{get_asset_row(wildcards).sector}_{{hazard_type}}.xlsx",
             hazard_type = HAZARD_TYPES
         ),
         hazard_intersection_file = "{output_path}/hazard_asset_intersection/{gpkg}_splits__hazard_layers__{layer}.geoparquet",
     output:
-        "{output_path}/direct_damages/{gpkg}_{layer}/{gpkg}_{layer}_direct_damages_parameter_set_{parameter_set}.parquet",
+        damages = "{output_path}/direct_damages/{gpkg}_{layer}/{gpkg}_{layer}_direct_damages_parameter_set_{parameter_set}.parquet",
     shell:
-        """
-        touch {output}
+        f"""
+        python {{input.script}} \
+            --network-csv {{input.network_csv}} \
+            --hazard-csv {{input.hazard_csv}} \
+            --sensitivity-csv {{input.sensitivity_parameters}} \
+            --sensitivity-id {{wildcards.parameter_set}} \
+            --asset-gpkg-file {{input.asset_gpkg}} \
+            --asset-gpkg-label {{wildcards.gpkg}} \
+            --asset-layer {{wildcards.layer}} \
+            --damage-curve-mapping-csv {{input.damage_curve_mapping}} \
+            --damage-threshold-uplift-csv {{input.damage_threshold_uplift}} \
+            --damage-curves-dir {{input.damage_curves_dir}} \
+            --intersection {{input.hazard_intersection_file}} \
+            --output-path {{output.damages}}
         """
 
 
