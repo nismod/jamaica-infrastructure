@@ -46,7 +46,7 @@ rule collapse_sensitivity:
         """
 
 
-def get_single_failure_scenarios(wildcards):
+def get_single_failure_scenario_file(wildcards):
     row = get_asset_metadata(wildcards)
     sfs = row.single_failure_scenarios
     if sfs.lower() == "none":
@@ -75,7 +75,7 @@ rule EAD_EAEL_results:
         sensitivity_parameters = f"{DATA}/sensitivity_parameters.csv",
         gpkg = lambda wildcards: f"{DATA}/{get_asset_metadata(wildcards).path}",
         damage_file = "{output_path}/direct_damages/{gpkg}_{layer}/{gpkg}_{layer}_direct_damages_{parameter_set}.parquet",
-        single_failure_scenarios = get_single_failure_scenarios,
+        single_failure_scenarios = get_single_failure_scenario_file,
     params:
         sensitivity_id = sensitivity_id_from_slug,
     output:
@@ -126,26 +126,37 @@ rule loss_summary:
     input:
         script = "scripts/smk-analysis/damage_loss_summarised.py",
         network_csv = config["paths"]["network_layers"],
-        sensitivity_parameters = f"{DATA}/sensitivity_parameters.csv",
         direct_damages = damage_ensemble_files,
-        EAD_EAEL_damage_results = EAD_EAEL_ensemble_files,
-        single_failure_scenarios = get_single_failure_scenarios,
+        EAD_EAEL = EAD_EAEL_ensemble_files,
+        single_failure_scenarios = get_single_failure_scenario_file,
     output:
-        "{output_path}/direct_damages_summary/{gpkg}_{layer}_losses.parquet",
-        "{output_path}/direct_damages_summary/{gpkg}_{layer}_exposures.parquet",
-        "{output_path}/direct_damages_summary/{gpkg}_{layer}_damages.parquet",
-        "{output_path}/direct_damages_summary/{gpkg}_{layer}_EAD_EAEL.csv",
+        losses = "{output_path}/direct_damages_summary/{gpkg}_{layer}_losses.parquet",
+        exposures = "{output_path}/direct_damages_summary/{gpkg}_{layer}_exposures.parquet",
+        damages = "{output_path}/direct_damages_summary/{gpkg}_{layer}_damages.parquet",
+        EAD_EAEL = "{output_path}/direct_damages_summary/{gpkg}_{layer}_EAD_EAEL.csv",
     shell:
         """
+        DAMAGE_FILES=""
+        for FILE in {input.direct_damages}; do
+            DAMAGE_FILES="$DAMAGE_FILES --damages $FILE"
+        done
+
+        EAD_EAEL_FILES=""
+        for FILE in {input.EAD_EAEL}; do
+            EAD_EAEL_FILES="$EAD_EAEL_FILES --EAD_EAEL $FILE"
+        done
+
         python {input.script} \
-            --network_csv {input.network_csv} \
-            --sensitivity_parameters {input.sensitivity_parameters} \
-            --direct_damage_results {input.direct_damage_results} \
-            --EAD_EAEL_damage_results {input.EAD_EAEL_damage_results} \
+            --network-csv {input.network_csv} \
+            $DAMAGE_FILES \
+            $EAD_EAEL_FILES \
             --single_failure_scenarios {input.single_failure_scenarios} \
-            --output_path {wildcards.output_path}/direct_damages_summary \
-            --gpkg {wildcards.gpkg} \
-            --layer {wildcards.layer}
+            --asset-gpkg {wildcards.gpkg} \
+            --asset-layer {wildcards.layer} \
+            --output_exposures {output.exposures} \
+            --output_damages {output.damages} \
+            --output_losses {output.losses} \
+            --output_EAD_EAEL {output.EAD_EAEL}
         """
 
 

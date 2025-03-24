@@ -2,16 +2,16 @@
 
 """
 
-import os
+import logging
 from pathlib import Path
 
 import click
-import pandas as pd
 import geopandas as gpd
+import pandas as pd
 import numpy as np
+from tqdm import tqdm
 
 from analysis_utils import get_asset
-from tqdm import tqdm
 
 tqdm.pandas()
 
@@ -33,38 +33,6 @@ def quantiles(dataframe, grouping_by_columns, grouped_columns):
 @click.command()
 @click.version_option("1.0")
 @click.option(
-    "--gpkg",
-    "-g",
-    required=True,
-    help="asset_gpkg value in the asset definition CSV",
-)
-@click.option(
-    "--layer",
-    "-l",
-    required=True,
-    help="asset_layer value in the asset definition CSV",
-)
-@click.option(
-    "--out-dir",
-    "-o",
-    required=True,
-    help="Directory to save the results.",
-)
-@click.option(
-    "--damage-dir",
-    "-d",
-    required=True,
-    type=click.Path(exists=True, dir_okay=True, file_okay=False, readable=True),
-    help="Directory containing direct damage and EAD-EAEL damage results",
-)
-@click.option(
-    "--single-failure-scenarios",
-    "-s",
-    required=False,
-    type=click.Path(exists=True, dir_okay=False, file_okay=True, readable=True),
-    help="Path to the single failure scenarios file",
-)
-@click.option(
     "--network-csv",
     "-n",
     required=True,
@@ -72,57 +40,101 @@ def quantiles(dataframe, grouping_by_columns, grouped_columns):
     help="Path to the asset definition file",
 )
 @click.option(
-    "--parameter-file",
-    "-p",
+    "--damages",
+    "-d",
+    required=True,
+    multiple=True,
+    type=click.Path(exists=True, dir_okay=False, file_okay=True, readable=True),
+    help="Damage files",
+)
+@click.option(
+    "--EAD_EAEL",
+    "-ee",
+    required=True,
+    multiple=True,
+    type=click.Path(exists=True, dir_okay=False, file_okay=True, readable=True),
+    help="EAD and EAEL files",
+)
+@click.option(
+    "--single-failure-scenarios",
+    "-s",
     required=True,
     type=click.Path(exists=True, dir_okay=False, file_okay=True, readable=True),
-    help="Path to the parameter set definition file",
+    help="Path to the single failure scenarios file",
+)
+@click.option(
+    "--asset-gpkg",
+    "-g",
+    required=True,
+    help="asset_gpkg value in the asset definition CSV",
+)
+@click.option(
+    "--asset-layer",
+    "-l",
+    required=True,
+    help="asset_layer value in the asset definition CSV",
+)
+@click.option(
+    "--output-exposures",
+    "-oe",
+    required=True,
+    type=click.Path(exists=False, dir_okay=False, file_okay=True, readable=True),
+    help="Path to write output exposures to",
+)
+@click.option(
+    "--output-damages",
+    "-od",
+    required=True,
+    type=click.Path(exists=False, dir_okay=False, file_okay=True, readable=True),
+    help="Path to write output damages to",
+)
+@click.option(
+    "--output-losses",
+    "-ol",
+    required=True,
+    type=click.Path(exists=False, dir_okay=False, file_okay=True, readable=True),
+    help="Path to write output losses to",
+)
+@click.option(
+    "--output-EAD_EAEL",
+    "-oee",
+    required=True,
+    type=click.Path(exists=False, dir_okay=False, file_okay=True, readable=True),
+    help="Path to write output EAD and EAEL to",
 )
 def loss_summary(
-        gpkg,
-        layer,
-        out_dir,
-        damage_dir,
-        single_failure_scenarios,
         network_csv,
-        parameter_file,
+        damage_files,
+        ead_eael_files,
+        single_failure_scenarios,
+        asset_gpkg,
+        asset_layer,
+        output_exposures,
+        output_damages,
+        output_losses,
+        output_EAD_EAEL,
 ):
     """
     Collate direct damages and losses to an asset across all hazards under all parameter sets.
     """
-    if not os.path.exists(out_dir):
-        os.makedirs(out_dir)
 
-    # Read input files
-    asset = get_asset(gpkg, layer, network_csv)
-    parameter_sets = pd.read_csv(
-        parameter_file,
-        header=None,
-        names=["parameter_set", "cost_uncertainty_parameter", "damage_uncertainty_parameter"]
-    )
-    direct_damages = [
-        pd.read_parquet(
-            os.path.join(
-                damage_dir,
-                f"{gpkg}_{layer}_direct_damages_parameter_set_{param.parameter_set}.parquet",
-            )
-        )for param in parameter_sets
-    ]
-    EAD_EAEL_damages = [
-        pd.read_csv(
-            os.path.join(
-                damage_dir,
-                f"{gpkg}_{layer}_EAD_EAEL_parameter_set_{param.parameter_set}.csv",
-            )
-        ) for param in parameter_sets
-    ]
+    logging.info(f"{asset_gpkg=} {asset_layer=}")
+    asset = get_asset(asset_gpkg, asset_layer, network_csv)
+
+    logging.info("Reading exposure and direct damages")
+    direct_damages = [pd.read_parquet(file) for file in damage_files]
+
+    logging.info("Reading EAD and EAEL")
+    EAD_EAEL_damages = [pd.read_csv(file) for file in ead_eael_files]
+
+    logging.info("Reading single failure scenarios")
     if single_failure_scenarios:
         if asset.sector == "buildings":
             single_failure_df = gpd.read_file(single_failure_scenarios, layer="areas")
             single_failure_df = single_failure_df.rename(columns={"total_GDP": "economic_loss"}, inplace=True)
         else:
             single_failure_df = gpd.read_file(single_failure_scenarios)
-            if gpkg == "potable_facilities_NWC":
+            if asset_gpkg == "potable_facilities_NWC":
                 single_failure_df[asset.asset_id_column] = single_failure_df.progress_apply(
                     lambda x: str(x[asset.asset_id_column])
                     .lower()
@@ -133,14 +145,14 @@ def loss_summary(
     else:
         single_failure_df = None
 
-    # Calculate exposures
+    logging.info("Calculating exposures")
     exposures = direct_damages[0].copy()
     hazard_columns = [
         c
         for c in exposures.columns.values.tolist()
         if c
            not in [
-               asset.asset.asset_id_column_column,
+               asset.asset_id_column,
                "exposure_unit",
                "damage_cost_unit",
                "damage_uncertainty_parameter",
@@ -148,9 +160,8 @@ def loss_summary(
                "exposure",
            ]
     ]
-    exposures[hazard_columns] = exposures["exposure"].to_numpy()[
-                                :, None
-                                ] * np.where(exposures[hazard_columns] > 0, 1, 0)
+    exposures[hazard_columns] = exposures["exposure"].to_numpy()[:, None] \
+        * np.where(exposures[hazard_columns] > 0, 1, 0)
 
     sum_dict = dict([(hk, "sum") for hk in hazard_columns])
     exposures = (
@@ -158,15 +169,9 @@ def loss_summary(
         .agg(sum_dict)
         .reset_index()
     )
-    exposures.to_parquet(
-        os.path.join(
-            out_dir,
-            f"{gpkg}_{layer}_exposures.parquet",
-        ),
-        index=False,
-    )
+    exposures.to_parquet(output_exposures, index=False)
     
-    # Collate direct damages
+    logging.info("Collating damages and losses")
     damages = []
     losses = []
     for df in direct_damages:
@@ -198,32 +203,23 @@ def loss_summary(
                 loss[[asset.asset_id_column, "economic_loss_unit"] + hazard_columns]
             )
 
+    logging.info("Writing outputs to disk")
     damages = pd.concat(damages, axis=0, ignore_index=True)
     if len(damages.index) > 0:
-        damages = quantiles(
-            damages, [asset.asset_id_column, "damage_cost_unit"], hazard_columns
-        )
-        damages.to_parquet(
-            os.path.join(out_dir, f"{gpkg}_{layer}_damages.parquet"),
-            index=False,
-        )
+        damages = quantiles(damages, [asset.asset_id_column, "damage_cost_unit"], hazard_columns)
+        damages.to_parquet(output_damages, index=False)
     else:
-        Path(os.path.join(out_dir, f"{gpkg}_{layer}_damages.parquet")).touch()
+        Path(output_damages).touch()
 
     if len(losses) > 0:
         losses = pd.concat(losses, axis=0, ignore_index=True)
         if len(losses.index) > 0:
-            losses = quantiles(
-                losses, [asset.asset_id_column, "economic_loss_unit"], hazard_columns
-            )
-            losses.to_parquet(
-                os.path.join(out_dir, f"{gpkg}_{layer}_losses.parquet"),
-                index=False,
-            )
+            losses = quantiles(losses, [asset.asset_id_column, "economic_loss_unit"], hazard_columns)
+            losses.to_parquet(output_losses, index=False)
         else:
-            Path(os.path.join(out_dir, f"{gpkg}_{layer}_damages.parquet")).touch()
+            Path(output_losses).touch()
     else:
-        Path(os.path.join(out_dir, f"{gpkg}_{layer}_damages.parquet")).touch()
+        Path(output_losses).touch()
 
     # Process the EAD and EAEL results
     for df in EAD_EAEL_damages:
@@ -267,11 +263,9 @@ def loss_summary(
     summarised_damages = pd.concat(
         summarised_damages, axis=0, ignore_index=True
     )
-    summarised_damages.to_csv(
-        os.path.join(out_dir, f"{gpkg}_{layer}_EAD_EAEL.csv"),
-        index=False,
-    )
+    summarised_damages.to_csv(output_EAD_EAEL, index=False)
 
 
 if __name__ == "__main__":
+    logging.basicConfig(format="%(asctime)s %(message)s", level=logging.INFO)
     loss_summary()
