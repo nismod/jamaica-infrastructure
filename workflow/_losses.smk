@@ -1,15 +1,17 @@
+"""
+What are the wider economic losses associated with failure of assets?
+"""
+
 def damage_ensemble_files(wildcards):
-    # wait for ensemble parameters to be generated, then read the length of the list
-    filepath = checkpoints.sensitivity_parameters.get(**wildcards).output.sensitivity_parameters
-    n_ensemble = len(pd.read_csv(filepath))
     return expand(
         "{{output_path}}/direct_damages/{{gpkg}}_{{layer}}/{{gpkg}}_{{layer}}_direct_damages_parameter_set_{parameter_set}.parquet",
-        parameter_set=range(n_ensemble)
+        parameter_set=range(get_n_ensemble(wildcards))
     )
 
 rule collapse_sensitivity:
     """
-    Summarise direct damage results (aggregate over sensitivity analysis)
+    Summarise direct damage and loss results (aggregate over sensitivity
+    analysis) for an asset class.
 
     Test with:
     snakemake -c1 results/direct_damages_summary/roads_edges_damages.csv
@@ -19,10 +21,12 @@ rule collapse_sensitivity:
         network_csv = f"{DATA}/networks/network_layers_hazard_intersections_details.csv",
         sensitivity_parameters = f"{DATA}/sensitivity_parameters.csv",
         damages = damage_ensemble_files
-        # TODO: Need EAD_and_EAEL_parameter_set_\d+ files
+        # TODO: Need EAD_and_EAEL_parameter_set_\d+ files, OR, use loss_summary rule?
     output:
         damages = "{output_path}/direct_damages_summary/{gpkg}_{layer}_damages.csv",
         exposure = "{output_path}/direct_damages_summary/{gpkg}_{layer}_exposure.csv",
+        # EAD_EAEL = "{output_path}/direct_damages_summary/{gpkg}_{layer}_EAD_EAEL.csv",
+        # ! no losses !, unlike loss_summary rule which generates all 4
     shell:
         f"""
         # build list of input damage files: --damage <damage_file_0> --damage <damage_file_1> --damage <damage_file_n>
@@ -43,9 +47,9 @@ rule collapse_sensitivity:
 
 
 def get_single_failure_scenarios(wildcards):
-    row = get_asset_row(wildcards)
+    row = get_asset_metadata(wildcards)
     sfs = row.single_failure_scenarios
-    if sfs == "None" or sfs == "none":
+    if sfs.lower() == "none":
         return []
     if row.sector == "buildings":
         return f"{DATA}/{sfs}"
@@ -53,9 +57,8 @@ def get_single_failure_scenarios(wildcards):
 
 rule EAD_EAEL_results:
     """
-    Calculate Estimated Annual Damages for an asset across all hazards with a given parameter set.
-    
-    scripts/analysis/ead_eael_calculations.py
+    Calculate Estimated Annual Damages and Expected Annual Economic Losses for
+    assets across all hazards with a given parameter set.
     
     This script is called by scripts/analysis/flood_changes_setup.py which assigns different input args to it for each run.
     
@@ -63,21 +66,23 @@ rule EAD_EAEL_results:
     TODO: Script should default flood_protection_name to None
     
     Test with:
-    snakemake -c1 results/direct_damages/roads_edges_EAD_EAEL_parameter_set_0.csv
+    snakemake -c1 results/direct_damages/airport_polygon_areas/airport_polygon_areas_EAD_EAEL_parameter_set_0.csv
     """
     input:
         script = "scripts/analysis/ead_eael_calculations.py",
         network_csv = f"{DATA}/networks/network_layers_hazard_intersections_details.csv",
         hazard_csv = config["paths"]["hazard_layers"],
         sensitivity_parameters = f"{DATA}/sensitivity_parameters.csv",
-        gpkg = lambda wildcards: f"{DATA}/{get_asset_row(wildcards).path}",
-        damage_file = "{output_path}/direct_damages/{gpkg}_{layer}/{gpkg}_{layer}_direct_damages_parameter_set_{parameter_set}.parquet",
+        gpkg = lambda wildcards: f"{DATA}/{get_asset_metadata(wildcards).path}",
+        damage_file = "{output_path}/direct_damages/{gpkg}_{layer}/{gpkg}_{layer}_direct_damages_{parameter_set}.parquet",
         single_failure_scenarios = get_single_failure_scenarios,
+    params:
+        sensitivity_id = sensitivity_id_from_slug,
     output:
-        "{output_path}/direct_damages/{gpkg}_{layer}/{gpkg}_{layer}_EAD_EAEL_parameter_set_{parameter_set}.csv",
+        EAD_EAEL = "{output_path}/direct_damages/{gpkg}_{layer}/{gpkg}_{layer}_EAD_EAEL_{parameter_set}.csv",
     shell:
         """
-        touch {output}
+        touch {output.EAD_EAEL}
         """
 
 
@@ -102,26 +107,28 @@ rule RENAME_EAD_EAEL_FILE:
         """
 
 
+def EAD_EAEL_ensemble_files(wildcards):
+    return expand(
+        "{{output_path}}/direct_damages/{{gpkg}}_{{layer}}/{{gpkg}}_{{layer}}_EAD_EAEL_parameter_set_{parameters}.csv",
+        parameters=range(get_n_ensemble(wildcards))
+    )
+
 rule loss_summary:
     """
     Summarise all the loss files for an asset.
-    
-    scripts/analysis/damage_loss_summarised.py
+
+    TODO: Does this rule need to prooduce damages and exposures? These are
+    created in collapse_sensitivity (albeit as CSV, not parquet).
     
     Test with:
     snakemake -c1 results/direct_damages_summary/roads_edges_losses.parquet
     """
     input:
+        script = "scripts/smk-analysis/damage_loss_summarised.py",
         network_csv = config["paths"]["network_layers"],
         sensitivity_parameters = f"{DATA}/sensitivity_parameters.csv",
-        direct_damage_results = expand(
-            "{{output_path}}/direct_damages/{{gpkg}}_{{layer}}/{{gpkg}}_{{layer}}_direct_damages_parameter_set_{parameters}.parquet",
-            parameters=PARAMETER_SET_IDS,
-        ),
-        EAD_EAEL_damage_results = expand(
-            "{{output_path}}/direct_damages/{{gpkg}}_{{layer}}/{{gpkg}}_{{layer}}_EAD_EAEL_parameter_set_{parameters}.csv",
-            parameters=PARAMETER_SET_IDS,
-        ),
+        direct_damages = damage_ensemble_files,
+        EAD_EAEL_damage_results = EAD_EAEL_ensemble_files,
         single_failure_scenarios = get_single_failure_scenarios,
     output:
         "{output_path}/direct_damages_summary/{gpkg}_{layer}_losses.parquet",
@@ -130,7 +137,7 @@ rule loss_summary:
         "{output_path}/direct_damages_summary/{gpkg}_{layer}_EAD_EAEL.csv",
     shell:
         """
-        python scripts/smk-analysis/damage_loss_summarised.py \
+        python {input.script} \
             --network_csv {input.network_csv} \
             --sensitivity_parameters {input.sensitivity_parameters} \
             --direct_damage_results {input.direct_damage_results} \

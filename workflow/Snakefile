@@ -8,7 +8,6 @@ HAZARD_TYPES = (
     "TC",
     "flooding",
 )
-PARAMETER_SET_IDS = range(13)
 
 # assign globals to these paths, they're used frequently
 RAW = config["paths"]["incoming_data"]
@@ -27,16 +26,12 @@ wildcard_constraints:
 # container: "docker://nismod/jamaica-infrastructure"
 # container: "docker://geo-test"
 
+include: "_utilities.smk"
 include: "_damage.smk"
 include: "_criticality.smk"
 include: "_losses.smk"
 include: "_adaptation.smk"
 include: "_etl.smk"
-
-# include: "losses.smk"
-# include: "direct_damages.smk"
-# include: "transport_model.smk"
-# include: "hotspots.smk"
 
 from check_targets import EXPOSURE, DAMAGES, LOSSES, EAD_EAEL, TARGETS
 

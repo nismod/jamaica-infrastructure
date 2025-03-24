@@ -1,21 +1,6 @@
 """
-Generate the files required by irv-jamaica/etl/damage_*_files.csv
-
-REQUIRES:
-- f"{DATA}/networks/network_layers_hazard_intersections_details[_#].csv" to be present and populated
-- f"{DATA}/networks/transport/multi_modal_network.gpkg" to be present and populated
+What are the costs associated with rebuilding damaged assets?
 """
-
-def get_asset_row(wildcards) -> pd.Series:
-    """
-    Get the path of an asset by its gpkg and layer strings.
-    """
-    df = pd.read_csv(f"workflow/network_layers.csv")
-    row = df[(df['asset_gpkg'] == wildcards.gpkg) & (df['asset_layer'] == wildcards.layer)]
-    if len(row) > 1:
-        raise ValueError(f"Multiple assets found for gpkg={wildcards.gpkg} and layer={wildcards.layer}")
-    return row.squeeze()
-
 
 rule write_hazard_transforms:
     """
@@ -49,7 +34,7 @@ rule rasterise_asset_layer:
         script = "scripts/smk-analysis/split_networks.py",
         networks = config["paths"]["network_layers"],
         hazards = config["paths"]["hazard_layers"],
-        gpkg = lambda wildcards: f"{DATA}/{get_asset_row(wildcards).path}",
+        gpkg = lambda wildcards: f"{DATA}/{get_asset_metadata(wildcards).path}",
     output:
         splits = "{output_path}/hazard_asset_intersection/{gpkg}_splits__hazard_layers__{layer}.geoparquet",
     shell:
@@ -67,12 +52,6 @@ rule rasterise_asset_layer:
 checkpoint sensitivity_parameters:
     """
     Generate sensitivity parameter combinations for the damage calculations.
-    
-    The original sensitivity_parameters.txt file is created by half a dozen or so scripts.
-    They all seem to set the same combinations.
-    See scripts/analysis/damage_scripts_setup.py for an example.
-    
-    Here we'll create one canonical version called sensitivity_parameters.csv.
     
     Test with:
     snakemake -c1 processed_data/sensitivity_parameters.csv
@@ -108,9 +87,6 @@ checkpoint sensitivity_parameters:
         df.to_csv(output.sensitivity_parameters, float_format='%.3f')
 
 
-def sensitivity_id_from_slug(wildcards):
-    return wildcards.parameter_set.replace("parameter_set_", "")
-
 rule direct_damage:
     """
     Calculate direct damages for an asset across all hazards with a given parameter set.
@@ -123,12 +99,12 @@ rule direct_damage:
         network_csv = f"{DATA}/networks/network_layers_hazard_intersections_details.csv",
         hazard_csv = config["paths"]["hazard_layers"],
         sensitivity_parameters = f"{DATA}/sensitivity_parameters.csv",
-        asset_gpkg = lambda wildcards: f"{DATA}/{get_asset_row(wildcards).path}",
+        asset_gpkg = lambda wildcards: f"{DATA}/{get_asset_metadata(wildcards).path}",
         damage_curve_mapping = f"{DATA}/damage_curves/asset_damage_curve_mapping.csv",
         damage_threshold_uplift = f"{DATA}/damage_curves/hazard_damage_parameters.csv",
         damage_curves_dir = f"{DATA}/damage_curves",
         damage_curves = lambda wildcards: expand(
-            f"{DATA}/damage_curves/damage_curves_{get_asset_row(wildcards).sector}_{{hazard_type}}.xlsx",
+            f"{DATA}/damage_curves/damage_curves_{get_asset_metadata(wildcards).sector}_{{hazard_type}}.xlsx",
             hazard_type = HAZARD_TYPES
         ),
         hazard_intersection_file = "{output_path}/hazard_asset_intersection/{gpkg}_splits__hazard_layers__{layer}.geoparquet",

@@ -1,3 +1,7 @@
+"""
+How does a network perform while missing a given link?
+"""
+
 rule transport_scenario_edge_map:
     """
     We split the transport maps into chunks for parallel processing.

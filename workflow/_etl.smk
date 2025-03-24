@@ -1,3 +1,7 @@
+"""
+Prepare data for ingestion by irv-jamaica repository.
+"""
+
 rule add_uids:
     """
     Add UIDs to a file.
