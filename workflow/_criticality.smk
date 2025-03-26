@@ -162,13 +162,11 @@ rule labour_to_work_flow_mapping:
     """
     Create a mapping of labour to work flows.
     
-    scripts/transport_model/labour_to_work_flow_mapping.py
-    
     Test with:
     snakemake -c1 results/flow_mapping/labour_to_sectors_trips_and_activity.pq
     """
     input:
-        nodes = f"{DATA}/networks/transport/multi_modal_network.gpkg",
+        network = f"{DATA}/networks/transport/multi_modal_network.gpkg",
         buildings = f"{DATA}/buildings/buildings_assigned_economic_activity.gpkg",
         population = f"{DATA}/population/population_projections.gpkg",
     output:
@@ -182,14 +180,14 @@ rule labour_to_work_flow_mapping:
     shell:
         """
         python scripts/smk-analysis/labour_to_work_flow_mapping.py \
-            --nodes {input.nodes} \
-            --buildings {input.buildings} \
-            --population {input.population} \
-            --output_path {wildcards.output_path}/flow_mapping
+            --network-file {input.network} \
+            --buildings-file {input.buildings} \
+            --population-file {input.population} \
+            --out-dir {wildcards.output_path}/flow_mapping
         """
 
 
-rule FAKE_ELECTRICTY_SINGLE_POINT_FAILURES:
+rule ELECTRICTY_SINGLE_POINT_FAILURES:
     """
     The electricity single point failures are generated elsewhere.
     """

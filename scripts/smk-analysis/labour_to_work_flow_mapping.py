@@ -1,19 +1,17 @@
+import logging
 import os
 
 import click
 import pandas as pd
 import geopandas as gpd
-import numpy as np
 import igraph as ig
 from tqdm import tqdm
 
 from jamaica_infrastructure.transport.utils import (
     ckdnearest,
-    load_config,
     map_nearest_locations_and_create_lines,
     network_od_paths_assembly,
 )
-import jamaica_infrastructure.transport.flow as tf
 
 tqdm.pandas()
 epsg_jamaica = 3448
@@ -182,18 +180,18 @@ def filter_sector_from_buildings(buildings_dataframe, sector_code, subsector_cod
 @click.command()
 @click.version_option("1.0.0")
 @click.option(
-    "--network", "-n", required=True, type=click.Path(exists=True, dir_okay=False, readable=True),
+    "--network-file", "-n", required=True, type=click.Path(exists=True, dir_okay=False, readable=True),
     help="Jamaican Multimodal Network GeoPackage file"
 )
 @click.option(
-    "--buildings",
+    "--buildings-file",
     "-b",
     type=click.Path(exists=True, file_okay=True, dir_okay=False, readable=True),
     required=True,
     help="Path to the building economic activity GeoPackage file."
 )
 @click.option(
-    "--population",
+    "--population-file",
     "-p",
     type=click.Path(exists=True, file_okay=True, dir_okay=False, readable=True),
     required=True,
@@ -208,7 +206,7 @@ def filter_sector_from_buildings(buildings_dataframe, sector_code, subsector_cod
 def commuter_flow_mapping(network_file, buildings_file, population_file, out_dir):
     """Map labour to work trips as a proxy to map GDP onto roads"""
 
-    # Read files
+    logging.info("Read input data")
     nodes = gpd.read_file(network_file, layer="nodes")
     edges = gpd.read_file(network_file, layer="edges")
     buildings = gpd.read_file(buildings_file, layer="areas")
@@ -239,6 +237,7 @@ def commuter_flow_mapping(network_file, buildings_file, population_file, out_dir
     # they have to be rerouted with an hour, the cost would be: 0.4 * 200 * 1/24 * 100 = 333 USD
     # So corrected for inflation in 2019 values, this would be 1.2-2.9 USD per hour of value of time for business related trips
 
+    logging.info("Build network graph")
     graph = ig.Graph.TupleList(
         network.itertuples(index=False), edge_attrs=list(network.columns)[2:]
     )
@@ -252,6 +251,8 @@ def commuter_flow_mapping(network_file, buildings_file, population_file, out_dir
     population["working_frac"] = (
             population[f"working_{population_year}"] / population[f"{population_year}"]
     )
+
+    logging.info("Assign buildings to road nodes")
     buildings = pd.merge(
         buildings,
         population[["ED_ID", "ED", "working_frac"]],
@@ -278,6 +279,8 @@ def commuter_flow_mapping(network_file, buildings_file, population_file, out_dir
     nodes_population = gpd.GeoDataFrame(
         nodes_population, geometry="geometry", crs=f"EPSG:{epsg_jamaica}"
     )
+
+    logging.info("Write out working population at road nodes")
     nodes_population.to_file(
         os.path.join(out_dir, "road_nodes_labour_economic_activity_aggregations.gpkg"),
         layer="working_population",
@@ -297,13 +300,14 @@ def commuter_flow_mapping(network_file, buildings_file, population_file, out_dir
         geometry="geometry",
         crs=f"EPSG:{epsg_jamaica}",
     )
+    logging.info("Write out economic activity at road nodes")
     nodes_economic_activity.to_file(
         os.path.join(out_dir, "road_nodes_labour_economic_activity_aggregations.gpkg"),
         layer="economic_activity",
         driver="GPKG",
     )
 
-    # Build the radiation model
+    logging.info("Build radiation model")
     nodes_population = nodes_population[
         nodes_population["working_population"] >= population_threshold
         ]
@@ -311,15 +315,18 @@ def commuter_flow_mapping(network_file, buildings_file, population_file, out_dir
         nodes_economic_activity["total_GDP"] >= gdp_threshold
         ]
     buffer_distance = 10000  # 10 km distance buffer
+    logging.info("Buffer nodes")
     nodes_population["geometry"] = nodes_population.apply(
         lambda x: x.geometry.buffer(buffer_distance), axis=1
     )
     nodes_population.rename(columns={"node_id": "origin_id"}, inplace=True)
     nodes_economic_activity.rename(columns={"node_id": "destination_id"}, inplace=True)
+    logging.info("Spatially join economic activity proximate population (create OD)")
     od_pairs = gpd.sjoin(
         nodes_economic_activity, nodes_population, how="inner", predicate="within"
     ).reset_index()
 
+    logging.info("Find shortest paths for OD over network")
     flow_paths = network_od_paths_assembly(
         od_pairs[["origin_id", "destination_id", "total_GDP"]], graph, "time", "total_GDP"
     )
@@ -330,11 +337,13 @@ def commuter_flow_mapping(network_file, buildings_file, population_file, out_dir
         how="left",
         on=["origin_id"],
     )
+    logging.info("Write out OD and shortest paths to disk")
     flow_paths.to_csv(
         os.path.join(out_dir, "labour_to_sectors_flow_paths.csv"),
         index=False,
     )
 
+    logging.info("Sum up flows")
     flow_radius = flow_paths.groupby(["origin_id"])["total_GDP"].sum().reset_index()
     flow_radius.rename(columns={"total_GDP": "radius_GDP"}, inplace=True)
 
@@ -368,6 +377,8 @@ def commuter_flow_mapping(network_file, buildings_file, population_file, out_dir
         axis=1,
     )
     flow_paths.drop(["t_ij_ext_sums", "working_trips_sums"], axis=1, inplace=True)
+
+    logging.info("Write out flows to disk")
     flow_paths.to_csv(
         os.path.join(out_dir, "labour_to_sectors_trips_and_activity.csv"),
         index=False,
@@ -445,4 +456,5 @@ def commuter_flow_mapping(network_file, buildings_file, population_file, out_dir
 
 
 if __name__ == "__main__":
+    logging.basicConfig(format="%(asctime)s %(message)s", level=logging.INFO)
     commuter_flow_mapping()
