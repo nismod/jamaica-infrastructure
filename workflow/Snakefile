@@ -19,9 +19,9 @@ wildcard_constraints:
     gpkg="[^/]+",  # no slash in filename
     protection_type="[^/]+",  # no slash
     layer="(nodes|edges|areas)",
-    threshold="\d+(p\d+)?",
+    threshold=r"\d+(p\d+)?",
     output_path=f"{OUTPUT}(/.+[^/])?",
-    parameter_set="parameter_set_\d+",
+    parameter_set=r"parameter_set_\d+",
 
 # container: "docker://nismod/jamaica-infrastructure"
 # container: "docker://geo-test"
