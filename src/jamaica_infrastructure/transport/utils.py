@@ -1,23 +1,22 @@
 """Functions for preprocessing data
 """
 
+from collections import defaultdict
 import os
 import json
+import logging
 
-# import rasterio
-# import rioxarray
 import pandas as pd
 import geopandas as gpd
 from scipy.spatial import Voronoi
-from collections import defaultdict
 from shapely.geometry import Polygon, shape, LineString
-
-# workaround for geopandas >0.9 until snkit #37 and geopandas #1977 are fixed
-gpd._compat.USE_PYGEOS = False
+from tqdm import tqdm
 import numpy as np
 from scipy.spatial import cKDTree
 import snkit
-from tqdm import tqdm
+
+# workaround for geopandas >0.9 until snkit #37 and geopandas #1977 are fixed
+gpd._compat.USE_PYGEOS = False
 
 tqdm.pandas()
 epsg_jamaica = 3448
@@ -608,7 +607,7 @@ def network_od_paths_assembly(points_dataframe, graph, cost_criteria, tonnage_co
     save_paths = []
     points_dataframe = points_dataframe.set_index("origin_id")
     origins = list(set(points_dataframe.index.values.tolist()))
-    for origin in origins:
+    for origin in tqdm(origins):
         try:
             destinations = points_dataframe.loc[
                 [origin], "destination_id"
@@ -623,9 +622,8 @@ def network_od_paths_assembly(points_dataframe, graph, cost_criteria, tonnage_co
                 zip([origin] * len(destinations), destinations, get_path, get_gcost)
             )
 
-            print(f"done with {origin}")
         except:
-            print(f"* no path between {origin}-{destinations}")
+            logging.info(f"* no path between {origin}-{destinations}")
 
     cols = ["origin_id", "destination_id", "edge_path", "gcost"]
     save_paths_df = pd.DataFrame(save_paths, columns=cols)
