@@ -38,7 +38,7 @@ rule transport_scenario_edge_map:
                 f.write(f"{n},{int(num_values[n])},{int(num_values[n + 1])}\n")
 
 
-rule FAKE_MACROECONOMIC_FILES:
+rule MACROECONOMIC_FILES:
     """
     Create fake macroeconomic files.
     
@@ -59,39 +59,6 @@ rule FAKE_MACROECONOMIC_FILES:
                 echo "WARNING: Faking macroeconomic file $f"
                 touch $f
             fi
-        done
-        """
-
-
-rule collate_flow_data:
-    """
-    Collate flow data for transport failure analysis.
-    
-    scripts/transport_model/transport_failure_scenario_setup.py:collate_data_flow
-    
-    Test with:
-    snakemake -c1 results/transport_failures/nominal/all_flows.pq
-    """
-    input:
-        labour_flow_edges = f"{DATA}/networks/transport/multi_modal_network.gpkg",
-        trade_flow_edges = "{output_path}/flow_mapping/sector_imports_exports_to_ports_flows.gpkg",
-        trade_flows = "{output_path}/flow_mapping/sector_to_ports_flow_paths.pq",
-        labour_flows = "{output_path}/flow_mapping/labour_to_sectors_trips_and_activity.pq",
-    output:
-        [
-            "{output_path}/transport_failures/nominal/labour/network.gpq",
-            "{output_path}/transport_failures/nominal/trade/network.gpq",
-            "{output_path}/transport_failures/nominal/labour/flows.pq",
-            "{output_path}/transport_failures/nominal/trade/flows.pq",
-            "{output_path}/transport_failures/nominal/labour/edges.pq",
-            "{output_path}/transport_failures/nominal/trade/edges.pq",
-            "{output_path}/transport_failures/nominal/all_flows.pq",
-            "{output_path}/transport_failures/nominal/trade/trade_sectors.json",
-        ]
-    shell:
-        """
-        for f in {input} {output}; do
-            touch $f
         done
         """
 
@@ -202,6 +169,39 @@ rule ELECTRICTY_SINGLE_POINT_FAILURES:
                 echo "WARNING: Faking electricity single point failure file $f"
                 touch $f
             fi
+        done
+        """
+
+
+rule collate_flow_data:
+    """
+    Collate flow data for transport failure analysis.
+    
+    scripts/transport_model/transport_failure_scenario_setup.py:collate_data_flow
+    
+    Test with:
+    snakemake -c1 results/transport_failures/nominal/all_flows.pq
+    """
+    input:
+        labour_flow_edges = f"{DATA}/networks/transport/multi_modal_network.gpkg",
+        trade_flow_edges = "{output_path}/flow_mapping/sector_imports_exports_to_ports_flows.gpkg",
+        trade_flows = "{output_path}/flow_mapping/sector_to_ports_flow_paths.pq",
+        labour_flows = "{output_path}/flow_mapping/labour_to_sectors_trips_and_activity.pq",
+    output:
+        [
+            "{output_path}/transport_failures/nominal/labour/network.gpq",
+            "{output_path}/transport_failures/nominal/trade/network.gpq",
+            "{output_path}/transport_failures/nominal/labour/flows.pq",
+            "{output_path}/transport_failures/nominal/trade/flows.pq",
+            "{output_path}/transport_failures/nominal/labour/edges.pq",
+            "{output_path}/transport_failures/nominal/trade/edges.pq",
+            "{output_path}/transport_failures/nominal/all_flows.pq",
+            "{output_path}/transport_failures/nominal/trade/trade_sectors.json",
+        ]
+    shell:
+        """
+        for f in {input} {output}; do
+            touch $f
         done
         """
 

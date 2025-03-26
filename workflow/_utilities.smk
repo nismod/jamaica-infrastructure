@@ -25,4 +25,7 @@ def get_asset_metadata(wildcards) -> pd.Series:
     row = df[(df['asset_gpkg'] == wildcards.gpkg) & (df['asset_layer'] == wildcards.layer)]
     if len(row) > 1:
         raise ValueError(f"Multiple assets found for gpkg={wildcards.gpkg} and layer={wildcards.layer}")
-    return row.squeeze()
+    elif len(row) == 0:
+        raise ValueError(f"No asset found for gpkg={wildcards.gpkg} and layer={wildcards.layer}")
+    else:
+        return row.squeeze()

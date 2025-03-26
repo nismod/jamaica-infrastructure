@@ -21,7 +21,7 @@ rule add_uids:
         """
 
 
-rule FAKE_BUILD_RCP_EPOCH:
+rule BUILD_RCP_EPOCH:
     """
     Several target files are in the pattern
     results/direct_damages_summary_uids/buildings_assigned_economic_activity_areas_{hazard}__rcp_{rcp}__epoch_{epoch}__{output_path}.parquet
@@ -42,7 +42,7 @@ rule FAKE_BUILD_RCP_EPOCH:
         """
 
 
-rule FAKE_BUILDINGS_ECONOMIC_ACTIVITY:
+rule BUILDINGS_ECONOMIC_ACTIVITY:
     """
     Fake a mapping of buildings to economic activity.
     

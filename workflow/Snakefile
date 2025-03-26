@@ -28,6 +28,7 @@ wildcard_constraints:
 
 include: "_utilities.smk"
 include: "_damage.smk"
+include: "_transport.smk"
 include: "_criticality.smk"
 include: "_losses.smk"
 include: "_adaptation.smk"
