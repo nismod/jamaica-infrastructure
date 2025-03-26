@@ -107,15 +107,14 @@ rule trade_activity_flow_mapping:
     """
     input:
         jam_ports = f"{DATA}/networks/transport/port_polygon.gpkg",
-        nodes = f"{DATA}/networks/transport/multi_modal_network.gpkg",
-        # edges = same file as nodes
-        exports = "{output_path}/macroeconomic_data/domestic_export_by_sector.xlsx",
+        network = f"{DATA}/networks/transport/multi_modal_network.gpkg",
         imports = "{output_path}/macroeconomic_data/import_by_industry.xlsx",
+        exports = "{output_path}/macroeconomic_data/domestic_export_by_sector.xlsx",
         # fuel_shares reads same file
         buildings = f"{DATA}/buildings/buildings_assigned_economic_activity.gpkg",
         # Files read in the trade_details loop
-        trade_agriculture = f"{DATA}/agriculture_data/agriculture_gdp.gpkg",
-        trade_mining = f"{DATA}/mining_data/mining_gdp.gpkg",
+        agriculture = f"{DATA}/agriculture_data/agriculture_gdp.gpkg",
+        mining = f"{DATA}/mining_data/mining_gdp.gpkg",
     output:
         [
             "{output_path}/flow_mapping/sector_to_ports_flow_paths.csv",
@@ -126,14 +125,14 @@ rule trade_activity_flow_mapping:
     shell:
         """
         python scripts/smk-analysis/trade_activity_flow_mapping.py \
-            --jam_ports {input.jam_ports} \
-            --nodes {input.nodes} \
-            --exports {input.exports} \
-            --imports {input.imports} \
-            --buildings {input.buildings} \
-            --trade_agriculture {input.trade_agriculture} \
-            --trade_mining {input.trade_mining} \
-            --output_path {wildcards.output_path}/flow_mapping
+            --ports {input.jam_ports} \
+            --network {input.network} \
+            --imports-xlsx {input.imports} \
+            --exports-xlsx {input.exports} \
+            --buildings-file {input.buildings} \
+            --agriculture-file {input.agriculture} \
+            --mining-file {input.mining} \
+            --out-dir {wildcards.output_path}/flow_mapping
         """
 
 
