@@ -45,15 +45,15 @@ def quantiles(dataframe, grouping_by_columns, grouped_columns):
     required=True,
     multiple=True,
     type=click.Path(exists=True, dir_okay=False, file_okay=True, readable=True),
-    help="Damage files",
+    help="Input damage files (one per parameter set)",
 )
 @click.option(
-    "--EAD_EAEL",
+    "--ead-eael",
     "-ee",
     required=True,
     multiple=True,
     type=click.Path(exists=True, dir_okay=False, file_okay=True, readable=True),
-    help="EAD and EAEL files",
+    help="EAD and EAEL files (one per parameter set)",
 )
 @click.option(
     "--single-failure-scenarios",
@@ -79,53 +79,53 @@ def quantiles(dataframe, grouping_by_columns, grouped_columns):
     "-oe",
     required=True,
     type=click.Path(exists=False, dir_okay=False, file_okay=True, readable=True),
-    help="Path to write output exposures to",
+    help="Path to write summarised exposures to",
 )
 @click.option(
     "--output-damages",
     "-od",
     required=True,
     type=click.Path(exists=False, dir_okay=False, file_okay=True, readable=True),
-    help="Path to write output damages to",
+    help="Path to write summarised damages to",
 )
 @click.option(
     "--output-losses",
     "-ol",
     required=True,
     type=click.Path(exists=False, dir_okay=False, file_okay=True, readable=True),
-    help="Path to write output losses to",
+    help="Path to write summarised losses to",
 )
 @click.option(
-    "--output-EAD_EAEL",
+    "--output-ead-eael",
     "-oee",
     required=True,
     type=click.Path(exists=False, dir_okay=False, file_okay=True, readable=True),
-    help="Path to write output EAD and EAEL to",
+    help="Path to write summarised EAD and EAEL to",
 )
 def loss_summary(
         network_csv,
-        damage_files,
-        ead_eael_files,
+        damages,
+        ead_eael,
         single_failure_scenarios,
         asset_gpkg,
         asset_layer,
         output_exposures,
         output_damages,
         output_losses,
-        output_EAD_EAEL,
+        output_ead_eael,
 ):
     """
     Collate direct damages and losses to an asset across all hazards under all parameter sets.
     """
 
     logging.info(f"{asset_gpkg=} {asset_layer=}")
-    asset = get_asset(asset_gpkg, asset_layer, network_csv)
+    asset = get_asset(network_csv, asset_gpkg, asset_layer)
 
     logging.info("Reading exposure and direct damages")
-    direct_damages = [pd.read_parquet(file) for file in damage_files]
+    direct_damages = [pd.read_parquet(file) for file in damages]
 
     logging.info("Reading EAD and EAEL")
-    EAD_EAEL_damages = [pd.read_csv(file) for file in ead_eael_files]
+    EAD_EAEL_damages = [pd.read_csv(file) for file in ead_eael]
 
     logging.info("Reading single failure scenarios")
     if single_failure_scenarios:
@@ -263,7 +263,7 @@ def loss_summary(
     summarised_damages = pd.concat(
         summarised_damages, axis=0, ignore_index=True
     )
-    summarised_damages.to_csv(output_EAD_EAEL, index=False)
+    summarised_damages.to_csv(output_ead_eael, index=False)
 
 
 if __name__ == "__main__":

@@ -143,20 +143,20 @@ rule loss_summary:
 
         EAD_EAEL_FILES=""
         for FILE in {input.EAD_EAEL}; do
-            EAD_EAEL_FILES="$EAD_EAEL_FILES --EAD_EAEL $FILE"
+            EAD_EAEL_FILES="$EAD_EAEL_FILES --ead-eael $FILE"
         done
 
         python {input.script} \
             --network-csv {input.network_csv} \
             $DAMAGE_FILES \
             $EAD_EAEL_FILES \
-            --single_failure_scenarios {input.single_failure_scenarios} \
+            --single-failure-scenarios {input.single_failure_scenarios} \
             --asset-gpkg {wildcards.gpkg} \
             --asset-layer {wildcards.layer} \
-            --output_exposures {output.exposures} \
-            --output_damages {output.damages} \
-            --output_losses {output.losses} \
-            --output_EAD_EAEL {output.EAD_EAEL}
+            --output-exposures {output.exposures} \
+            --output-damages {output.damages} \
+            --output-losses {output.losses} \
+            --output-ead-eael {output.EAD_EAEL}
         """
 
 
