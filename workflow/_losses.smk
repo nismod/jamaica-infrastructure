@@ -55,34 +55,74 @@ def get_single_failure_scenario_file(wildcards):
         return f"{DATA}/{sfs}"
     return f"{wildcards.output_path}/{sfs}"
 
-rule EAD_EAEL_results:
+#   rule flood_threshold_EAD_EAEL:
+#       """
+#       Calculate Estimated Annual Damages and Expected Annual Economic Losses for
+#       assets across all hazards with a given parameter set.
+
+#       I'm not sure if this rule is needed, or if it can be replaced by the EAD_EAEL rule.
+#       
+#       This script is called by scripts/analysis/flood_changes_setup.py which assigns different input args to it for each run.
+#       
+#       TODO: Script should default flood_protection_name to None
+#       
+#       Test with:
+#       snakemake -c1 results/direct_damages/airport_polygon_areas/airport_polygon_areas_EAD_EAEL_parameter_set_0.csv
+#       """
+#       input:
+#           script = "scripts/analysis/expected_damages_losses_calculations.py",
+#           network_csv = f"{DATA}/networks/network_layers_hazard_intersections_details.csv",
+#           hazard_csv = config["paths"]["hazard_layers"],
+#           sensitivity_parameters = f"{DATA}/sensitivity_parameters.csv",
+#           gpkg = lambda wildcards: f"{DATA}/{get_asset_metadata(wildcards).path}",
+#           damage_file = "{output_path}/{flood_threshold}/direct_damages/{gpkg}_{layer}/{gpkg}_{layer}_direct_damages_{parameter_set}.parquet",
+#           single_failure_scenarios = get_single_failure_scenario_file,
+#       params:
+#           sensitivity_id = sensitivity_id_from_slug,
+#       output:
+#           EAD_EAEL = "{output_path}/{flood_threshold}/direct_damages/{gpkg}_{layer}/{gpkg}_{layer}_EAD_EAEL_{parameter_set}.csv",
+#       shell:
+#           """
+#           python {input.script} \
+#               --network-csv {input.network_csv} \
+#               --hazard-csv {input.hazard_csv} \
+#               --sensitivity-csv {input.sensitivity_parameters} \
+#               --sensitivity-id {params.sensitivity_id} \
+#               --asset-gpkg-label {wildcards.gpkg} \
+#               --asset-layer {wildcards.layer} \
+#               --damage-file {input.damage_file} \
+#               --single-failure-scenarios {input.single_failure_scenarios} \
+#               --output-path {output.EAD_EAEL}
+#           """
+
+
+rule EAD_EAEL:
     """
     Calculate Estimated Annual Damages and Expected Annual Economic Losses for
     assets across all hazards with a given parameter set.
-    
-    This script is called by scripts/analysis/flood_changes_setup.py which assigns different input args to it for each run.
-    
-    TODO: Update the script to accept parameter set id rather than parameter set values directly.
-    TODO: Script should default flood_protection_name to None
     
     Test with:
     snakemake -c1 results/direct_damages/airport_polygon_areas/airport_polygon_areas_EAD_EAEL_parameter_set_0.csv
     """
     input:
-        script = "scripts/analysis/ead_eael_calculations.py",
+        script = "scripts/analysis/expected_damages_losses_calculations.py",
         network_csv = f"{DATA}/networks/network_layers_hazard_intersections_details.csv",
         hazard_csv = config["paths"]["hazard_layers"],
-        sensitivity_parameters = f"{DATA}/sensitivity_parameters.csv",
         gpkg = lambda wildcards: f"{DATA}/{get_asset_metadata(wildcards).path}",
         damage_file = "{output_path}/direct_damages/{gpkg}_{layer}/{gpkg}_{layer}_direct_damages_{parameter_set}.parquet",
         single_failure_scenarios = get_single_failure_scenario_file,
-    params:
-        sensitivity_id = sensitivity_id_from_slug,
     output:
         EAD_EAEL = "{output_path}/direct_damages/{gpkg}_{layer}/{gpkg}_{layer}_EAD_EAEL_{parameter_set}.csv",
     shell:
         """
-        touch {output.EAD_EAEL}
+        python {input.script} \
+            --network-csv {input.network_csv} \
+            --hazard-csv {input.hazard_csv} \
+            --asset-gpkg-label {wildcards.gpkg} \
+            --asset-layer {wildcards.layer} \
+            --damage-file {input.damage_file} \
+            --single-failure-scenarios {input.single_failure_scenarios} \
+            --output-path {output.EAD_EAEL}
         """
 
 
