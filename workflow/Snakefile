@@ -26,13 +26,14 @@ wildcard_constraints:
 # container: "docker://nismod/jamaica-infrastructure"
 # container: "docker://geo-test"
 
-include: "_utilities.smk"
-include: "_damage.smk"
-include: "_transport.smk"
-include: "_criticality.smk"
-include: "_losses.smk"
-include: "_adaptation.smk"
-include: "_etl.smk"
+include: "utilities/_utilities.smk"
+include: "1_damage/_damage.smk"
+include: "2a_transport/_transport.smk"
+include: "3_criticality/_criticality.smk"
+include: "4a_losses/_losses.smk"
+# include: "4b_hotspots/hotspots.smk"
+include: "5_adaptation/_adaptation.smk"
+include: "6_etl/_etl.smk"
 
 from check_targets import EXPOSURE, DAMAGES, LOSSES, EAD_EAEL, TARGETS
 

@@ -1,8 +1,54 @@
 """
 Generate the files required by irv-jamaica/etl/adaptation_files.csv
 """
+
 from typing import List
 import pandas
+
+
+rule flood_threshold_EAD_EAEL:
+    """
+    Calculate Estimated Annual Damages and Expected Annual Economic Losses for
+    assets across all hazards with a given parameter set and flood threshold.
+    The flood threshold is used to screen out flood depths, allowing the
+    later analysis of flood defence measures (adaptation options).
+
+    The nominal calculation is largely the same, but with threshold of zero.
+    However it is treated as a special case with its own rules elsewhere (see
+    4a_losses). Unifying these two approaches could reduce the number of rules,
+    but would require reworking the results folder structure.
+    
+    Old orchestration script that we want to preproduce the functionality of:
+    scripts/analysis/flood_changes_setup.py
+    """
+    input:
+        script = "?",
+        network_csv = f"{DATA}/networks/network_layers_hazard_intersections_details.csv",
+        hazard_csv = config["paths"]["hazard_layers"],
+        sensitivity_parameters = f"{DATA}/sensitivity_parameters.csv",
+        gpkg = lambda wildcards: f"{DATA}/{get_asset_metadata(wildcards).path}",
+        damage_file = "{output_path}/{flood_threshold}/direct_damages/{gpkg}_{layer}/{gpkg}_{layer}_direct_damages_{parameter_set}.parquet",
+        single_failure_scenarios = get_single_failure_scenario_file,
+    params:
+        sensitivity_id = sensitivity_id_from_slug,
+    output:
+        EAD_EAEL = "{output_path}/{flood_threshold}/direct_damages/{gpkg}_{layer}/{gpkg}_{layer}_EAD_EAEL_{parameter_set}.csv",
+    shell:
+        """
+        # You probably want something like this?
+
+        python {input.script} \
+            --network-csv {input.network_csv} \
+            --hazard-csv {input.hazard_csv} \
+            --sensitivity-csv {input.sensitivity_parameters} \
+            --sensitivity-id {params.sensitivity_id} \
+            --asset-gpkg-label {wildcards.gpkg} \
+            --asset-layer {wildcards.layer} \
+            --damage-file {input.damage_file} \
+            --single-failure-scenarios {input.single_failure_scenarios} \
+            --output-path {output.EAD_EAEL}
+        """
+
 
 def get_hazard_thresholds(hazard: str) -> List[str]:
     if hazard == "TC":
@@ -47,6 +93,7 @@ rule benefit_cost_ratio:
         touch {output.EAD}
         """
 
+
 rule adaptation_options:
     """
     Generate the adaptation options for each asset.
@@ -68,6 +115,7 @@ rule adaptation_options:
         touch {output.npv}
         touch {output.unit_costs}
         """
+
 
 rule damage_loss_timeseries_and_NPV:
     """
