@@ -15,26 +15,24 @@ Those CSVs are:
 - other_tilelayers.csv
 - hotspot_layers.csv
 - storm_layers.csv
-
 """
 
-import os
 import subprocess
 import pandas
 
 # Check the files that we need to generate
 csv_path_refs = {
     "adaptation_files": ["avoided_risk"],
-    # "damage_exp_files": ["expected"],
-    # "damage_rp_files": ["damage", "exposure", "loss"],
-    # "damage_rp_files_with_buildings": ["damage", "exposure", "loss"],
-    # "hazard_layers": ["path"],
-    # "hotspot_layers": ["path"],
-    # "network_layers": ["path", "single_failure_scenarios"],
-    # "network_tilelayers": [],
-    # "network_tilelayers_with_buildings": [],
-    # "other_tilelayers": [],
-    # "storm_layers": ["path"],
+    "damage_exp_files": ["expected"],
+    "damage_rp_files": ["damage", "exposure", "loss"],
+    "damage_rp_files_with_buildings": ["damage", "exposure", "loss"],
+    "hazard_layers": ["path"],
+    "hotspot_layers": ["path"],
+    "network_layers": ["path", "single_failure_scenarios"],
+    "network_tilelayers": [],
+    "network_tilelayers_with_buildings": [],
+    "other_tilelayers": [],
+    "storm_layers": ["path"],
 }
 
 required_files = set()
@@ -46,7 +44,7 @@ for f, cols in csv_path_refs.items():
 # alphabetize the files for ease of comparison
 required_files = sorted(required_files)
 
-processed_data = "../processed_data"
+processed_data = "processed_data"
 
 missing_files = []
 ambiguous_files = []
