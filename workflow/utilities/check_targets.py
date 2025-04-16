@@ -1,11 +1,21 @@
 """
-This file runs the snakemake workflow for each target and checks whether it succeeds.
+This script checks to see if there's a sequence of rules available for creating
+the chain of rule inputs and outputs which ultimately may generate a desired
+target file.
 
-Don't use it if the rules do anything more than touch files because it will take forever.
+It does not try and generate any of the intermediate or target files.
+
+Run from the root of the repository:
+$ python workflow/utilities/check_targets.py
+
+If .tmp already exists, it will need to be deleted first.
 """
+
 import os
 import subprocess
 import re
+import sys
+
 
 EXPOSURE = [
     "results/direct_damages_summary_uids/airport_polygon_areas_exposures.parquet",
@@ -181,11 +191,19 @@ TARGETS = EXPOSURE + DAMAGES + LOSSES + EAD_EAEL
 if __name__ == "__main__":
     n_okay = 0
     n_warn = 0
+
+    if os.path.exists(".tmp"):
+        sys.exit("Please remove .tmp folder before running.")
+    else:
+        os.makedirs(".tmp/rulegraphs")
+
     for target in TARGETS:
-        # run snakemake and print the output if it fails
+
+        # run snakemake to check the rulegraph
+        # print the output if it fails
         print(f"Checking {target}... ", end="")
         run = subprocess.run(
-            f"snakemake --cores 1 --rulegraph --directory .. {target}",
+            f"snakemake --cores 1 --rulegraph {target}",
             capture_output=True,
             shell=True,
         )
@@ -199,13 +217,17 @@ if __name__ == "__main__":
                 n_warn += 1
             else:
                 fname = os.path.basename(target).replace('.parquet', '.png').replace('.csv', '.png')
+
+                # plot the rulegraph and write to disk
                 subprocess.run(
-                    ["dot", "-Tpng", f"-o../.tmp/rulegraphs/{fname}"],
+                    ["dot", "-Tpng", "-o", f".tmp/rulegraphs/{fname}"],
                     check=True,
                     input=run.stdout,
                 )
+
+                # create the DAG, plot and write to disk
                 subprocess.run(
-                    f"snakemake --cores 1 --dag --directory .. {target} | dot -Tpng -o../.tmp/{fname}",
+                    f"snakemake --cores 1 --dag {target} | dot -Tpng -o .tmp/dag/{fname}",
                     check=True,
                     shell=True,
                 )

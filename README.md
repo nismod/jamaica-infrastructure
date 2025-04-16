@@ -64,12 +64,16 @@ are parallelised and can make use more than one processor themselves.
 
 ### Available rules
 
-See the following files within `workflow/` for available rules and their input
-and output files:
-- `direct_damages.smk`
-- `losses.smk`
-- `transport_model.smk`
-- `hotspots.smk`
+See `.smk` files in `workflow/` for available rules and their required input and
+output files.
+
+To check the validity of the rules and which target files have rules, try
+running:
+```shell
+python workflow/utilities/check_targets.py
+```
+
+While this workflow is in development, some of the rules are placeholders.
 
 ### Required data
 
