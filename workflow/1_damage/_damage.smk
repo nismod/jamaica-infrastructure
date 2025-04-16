@@ -38,14 +38,14 @@ rule rasterise_asset_layer:
     output:
         splits = "{output_path}/hazard_asset_intersection/{gpkg}_splits__hazard_layers__{layer}.geoparquet",
     shell:
-        f"""
-        python {{input.script}} \
-            --network-csv {{input.networks}} \
-            --hazard-csv {{input.hazards}} \
-            --data-dir {{DATA}} \
-            --asset-gpkg {{wildcards.gpkg}} \
-            --asset-layer {{wildcards.layer}} \
-            --output-path {{output.splits}}
+        """
+        python {input.script} \
+            --network-csv {input.networks} \
+            --hazard-csv {input.hazards} \
+            --data-dir {DATA} \
+            --asset-gpkg {wildcards.gpkg} \
+            --asset-layer {wildcards.layer} \
+            --output-path {output.splits}
         """
 
 
@@ -113,18 +113,18 @@ rule direct_damage:
     output:
         damages = "{output_path}/direct_damages/{gpkg}_{layer}/{gpkg}_{layer}_direct_damages_{parameter_set}.parquet",
     shell:
-        f"""
-        python {{input.script}} \
-            --network-csv {{input.network_csv}} \
-            --hazard-csv {{input.hazard_csv}} \
-            --sensitivity-csv {{input.sensitivity_parameters}} \
-            --sensitivity-id {{params.sensitivity_id}} \
-            --asset-gpkg-file {{input.asset_gpkg}} \
-            --asset-gpkg-label {{wildcards.gpkg}} \
-            --asset-layer {{wildcards.layer}} \
-            --damage-curve-mapping-csv {{input.damage_curve_mapping}} \
-            --damage-threshold-uplift-csv {{input.damage_threshold_uplift}} \
-            --damage-curves-dir {{input.damage_curves_dir}} \
-            --intersection {{input.hazard_intersection_file}} \
-            --output-path {{output.damages}}
+        """
+        python {input.script} \
+            --network-csv {input.network_csv} \
+            --hazard-csv {input.hazard_csv} \
+            --sensitivity-csv {input.sensitivity_parameters} \
+            --sensitivity-id {params.sensitivity_id} \
+            --asset-gpkg-file {input.asset_gpkg} \
+            --asset-gpkg-label {wildcards.gpkg} \
+            --asset-layer {wildcards.layer} \
+            --damage-curve-mapping-csv {input.damage_curve_mapping} \
+            --damage-threshold-uplift-csv {input.damage_threshold_uplift} \
+            --damage-curves-dir {input.damage_curves_dir} \
+            --intersection {input.hazard_intersection_file} \
+            --output-path {output.damages}
         """
