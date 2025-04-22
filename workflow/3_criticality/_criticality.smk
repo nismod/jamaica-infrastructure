@@ -3,26 +3,6 @@ How does a network perform while missing a given link?
 """
 
 
-rule ELECTRICTY_SINGLE_POINT_FAILURES:
-    """
-    The electricity single point failures are generated elsewhere.
-    """
-    output:
-        [
-            "{output_path}/electricity_failures/single_point_failure_results_nodes.csv",
-            "{output_path}/electricity_failures/single_point_failure_results_edges.csv",
-        ]
-    shell:
-        """
-        for f in {output}; do
-            if [ ! -s "$f" ]; then
-                echo "WARNING: Faking electricity single point failure file $f"
-                touch $f
-            fi
-        done
-        """
-
-
 rule collate_flow_data:
     """
     Collate flow data for transport failure analysis.
@@ -56,46 +36,39 @@ rule collate_flow_data:
         """
 
 
-rule single_point_failure_electricity_water:
+rule single_link_failures:
     """
-    Create a single point failure file for electricity and water assets.
+    Create single link failure results.
     
-    This is a placeholder for the real file.
-    
+    scripts/transport_model/transport_failure_analysis.py 
+        
     Test with:
-    snakemake -c1 results/single_point_failures/electricity_water_single_point_failures.csv
+    snakemake -c1 results/single_point_failures/roads_edges_single_point_failures.csv
     """
     input:
-        buildings = f"{DATA}/buildings/buildings_assigned_economic_activity.gpkg",
-        potable_economic_activity_buildings = f"{DATA}/networks_economic_activity/potable_facilities_buildings_economic_activity_mapping.csv",
-        potable_economic_activity = f"{DATA}/networks_economic_activity/potable_facilities_dependent_economic_activity.csv",
-        pipelines_economic_activity = f"{DATA}/networks_economic_activity/potable_pipelines_dependent_economic_activity.csv",
-        irrigation_economic_activity = f"{DATA}/networks_economic_activity/irrigation_nodes_dependent_economic_activity.csv",
-        irrigation_edges_economic_activity = f"{DATA}/networks_economic_activity/irrigation_edges_dependent_economic_activity.csv",
-        electricity_economic_activity = f"{DATA}/networks_economic_activity/electricity_dependent_economic_activity.csv",
-        electricity_nodes_failure_results = "{output_path}/electricity_failures/single_point_failure_results_nodes.csv",
-        electricity_edges_failure_results = "{output_path}/electricity_failures/single_point_failure_results_edges.csv",
-        electricity_water_mapping = f"{DATA}/networks/energy/mapping_water_to_electricity.csv",
-        electricity_economic_activity_buildings = f"{DATA}/networks_economic_activity/electricity_buildings_economic_activity_mapping.csv",
+        edge_split_map = "{output_path}/transport_failures/transport_scenario_edge_map.csv",
+        edges = f"{DATA}/networks/transport/multi_modal_network.gpkg",
+
+        read_flow_data = [
+            "{output_path}/transport_failures/nominal/labour/network.gpq",
+            "{output_path}/transport_failures/nominal/trade/network.gpq",
+            "{output_path}/transport_failures/nominal/labour/flows.pq",
+            "{output_path}/transport_failures/nominal/trade/flows.pq",
+            "{output_path}/transport_failures/nominal/labour/edges.pq",
+            "{output_path}/transport_failures/nominal/trade/edges.pq",
+            "{output_path}/transport_failures/nominal/all_flows.pq",
+            "{output_path}/transport_failures/nominal/trade/trade_sectors.json",
+        ]
     output:
-        potable_facilities = "{output_path}/economic_losses/single_failure_scenarios/single_point_failure_potable_facilities_economic_losses.csv",
-        potable_pipelines = "{output_path}/economic_losses/single_failure_scenarios/single_point_failure_potable_pipelines_economic_losses.csv",
-        irrigation_nodes = "{output_path}/economic_losses/single_failure_scenarios/single_point_failure_irrigation_nodes_economic_losses.csv",
-        irrigation_edges = "{output_path}/economic_losses/single_failure_scenarios/single_point_failure_irrigation_edges_economic_losses.csv",
-        electricity_nodes_no_water = "{output_path}/economic_losses/single_failure_scenarios/single_point_failure_electricity_nodes_no_water.csv",
-        electricity_edges_no_water = "{output_path}/economic_losses/single_failure_scenarios/single_point_failure_electricity_edges_no_water.csv",
-        electricity_nodes = "{output_path}/economic_losses/single_failure_scenarios/single_point_failure_electricity_nodes_economic_losses.csv",
-        electricity_edges = "{output_path}/economic_losses/single_failure_scenarios/single_point_failure_electricity_edges_economic_losses.csv",
+        single_link_failures = expand(
+            "{{output_path}}/transport_failures/scenario_results/single_link_failure_{chunk}.csv",
+            chunk=range(config["single_link_failure_chunk_count"]),
+        ),
     shell:
         """
-        touch {output.potable_facilities}
-        touch {output.potable_pipelines}
-        touch {output.irrigation_nodes}
-        touch {output.irrigation_edges}
-        touch {output.electricity_nodes_no_water}
-        touch {output.electricity_edges_no_water}
-        touch {output.electricity_nodes}
-        touch {output.electricity_edges}
+        for f in {output.single_link_failures}; do
+            touch $f
+        done
         """
 
 
@@ -140,37 +113,64 @@ rule single_point_failure_road_rail:
         """
 
 
-rule single_link_failures:
+rule ELECTRICTY_SINGLE_POINT_FAILURES:
     """
-    Create single link failure results.
-    
-    scripts/transport_model/transport_failure_analysis.py 
-        
-    Test with:
-    snakemake -c1 results/single_point_failures/roads_edges_single_point_failures.csv
+    The electricity single point failures are generated elsewhere.
     """
-    input:
-        edge_split_map = "{output_path}/transport_failures/transport_scenario_edge_map.csv",
-        edges = f"{DATA}/networks/transport/multi_modal_network.gpkg",
-
-        read_flow_data = [
-            "{output_path}/transport_failures/nominal/labour/network.gpq",
-            "{output_path}/transport_failures/nominal/trade/network.gpq",
-            "{output_path}/transport_failures/nominal/labour/flows.pq",
-            "{output_path}/transport_failures/nominal/trade/flows.pq",
-            "{output_path}/transport_failures/nominal/labour/edges.pq",
-            "{output_path}/transport_failures/nominal/trade/edges.pq",
-            "{output_path}/transport_failures/nominal/all_flows.pq",
-            "{output_path}/transport_failures/nominal/trade/trade_sectors.json",
-        ]
     output:
-        single_link_failures = expand(
-            "{{output_path}}/transport_failures/scenario_results/single_link_failure_{chunk}.csv",
-            chunk=range(config["single_link_failure_chunk_count"]),
-        ),
+        [
+            "{output_path}/electricity_failures/single_point_failure_results_nodes.csv",
+            "{output_path}/electricity_failures/single_point_failure_results_edges.csv",
+        ]
     shell:
         """
-        for f in {output.single_link_failures}; do
-            touch $f
+        for f in {output}; do
+            if [ ! -s "$f" ]; then
+                echo "WARNING: Faking electricity single point failure file $f"
+                touch $f
+            fi
         done
+        """
+
+
+rule single_point_failure_electricity_water:
+    """
+    Create a single point failure file for electricity and water assets.
+    
+    This is a placeholder for the real file.
+    
+    Test with:
+    snakemake -c1 results/single_point_failures/electricity_water_single_point_failures.csv
+    """
+    input:
+        buildings = f"{DATA}/buildings/buildings_assigned_economic_activity.gpkg",
+        potable_economic_activity_buildings = f"{DATA}/networks_economic_activity/potable_facilities_buildings_economic_activity_mapping.csv",
+        potable_economic_activity = f"{DATA}/networks_economic_activity/potable_facilities_dependent_economic_activity.csv",
+        pipelines_economic_activity = f"{DATA}/networks_economic_activity/potable_pipelines_dependent_economic_activity.csv",
+        irrigation_economic_activity = f"{DATA}/networks_economic_activity/irrigation_nodes_dependent_economic_activity.csv",
+        irrigation_edges_economic_activity = f"{DATA}/networks_economic_activity/irrigation_edges_dependent_economic_activity.csv",
+        electricity_economic_activity = f"{DATA}/networks_economic_activity/electricity_dependent_economic_activity.csv",
+        electricity_nodes_failure_results = "{output_path}/electricity_failures/single_point_failure_results_nodes.csv",
+        electricity_edges_failure_results = "{output_path}/electricity_failures/single_point_failure_results_edges.csv",
+        electricity_water_mapping = f"{DATA}/networks/energy/mapping_water_to_electricity.csv",
+        electricity_economic_activity_buildings = f"{DATA}/networks_economic_activity/electricity_buildings_economic_activity_mapping.csv",
+    output:
+        potable_facilities = "{output_path}/economic_losses/single_failure_scenarios/single_point_failure_potable_facilities_economic_losses.csv",
+        potable_pipelines = "{output_path}/economic_losses/single_failure_scenarios/single_point_failure_potable_pipelines_economic_losses.csv",
+        irrigation_nodes = "{output_path}/economic_losses/single_failure_scenarios/single_point_failure_irrigation_nodes_economic_losses.csv",
+        irrigation_edges = "{output_path}/economic_losses/single_failure_scenarios/single_point_failure_irrigation_edges_economic_losses.csv",
+        electricity_nodes_no_water = "{output_path}/economic_losses/single_failure_scenarios/single_point_failure_electricity_nodes_no_water.csv",
+        electricity_edges_no_water = "{output_path}/economic_losses/single_failure_scenarios/single_point_failure_electricity_edges_no_water.csv",
+        electricity_nodes = "{output_path}/economic_losses/single_failure_scenarios/single_point_failure_electricity_nodes_economic_losses.csv",
+        electricity_edges = "{output_path}/economic_losses/single_failure_scenarios/single_point_failure_electricity_edges_economic_losses.csv",
+    shell:
+        """
+        touch {output.potable_facilities}
+        touch {output.potable_pipelines}
+        touch {output.irrigation_nodes}
+        touch {output.irrigation_edges}
+        touch {output.electricity_nodes_no_water}
+        touch {output.electricity_edges_no_water}
+        touch {output.electricity_nodes}
+        touch {output.electricity_edges}
         """
