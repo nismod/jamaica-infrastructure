@@ -196,6 +196,7 @@ if __name__ == "__main__":
         sys.exit("Please remove .tmp folder before running.")
     else:
         os.makedirs(".tmp/rulegraphs")
+        os.makedirs(".tmp/dag")
 
     for target in TARGETS:
 
