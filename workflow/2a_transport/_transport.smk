@@ -131,6 +131,96 @@ rule create_multi_modal_network:
         """
 
 
+rule trade_activity_flow_mapping:
+    """
+    Create a mapping of trade activity to flows.
+    
+    scripts/transport_model/trade_activity_flow_mapping.py
+    
+    Test with:
+    snakemake -c1 results/flow_mapping/sector_imports_exports_to_ports_flows.gpkg
+    """
+    input:
+        script = "workflow/2a_transport/trade_activity_flow_mapping.py",
+        jam_ports = f"{DATA}/networks/transport/port_polygon.gpkg",
+        network = f"{DATA}/networks/transport/multi_modal_network.gpkg",
+        imports = f"{DATA}/macroeconomic_data/import_by_industry.xlsx",
+        exports = f"{DATA}/macroeconomic_data/domestic_export_by_sector.xlsx",
+        buildings = f"{DATA}/buildings/buildings_assigned_economic_activity.gpkg",
+        agriculture = f"{DATA}/agriculture_data/agriculture_gdp.gpkg",
+        mining = f"{DATA}/mining_data/mining_gdp.gpkg",
+    output:
+        [
+            "{output_path}/flow_mapping/sector_to_ports_flow_paths.csv",
+            "{output_path}/flow_mapping/sector_to_ports_flow_paths.pq",
+            "{output_path}/flow_mapping/sector_imports_exports_to_ports_flows.gpkg",
+            "{output_path}/flow_mapping/origins_destinations_trade_economic_activity.csv"
+        ]
+    shell:
+        """
+        python {input.script} \
+            --ports {input.jam_ports} \
+            --network {input.network} \
+            --imports-xlsx {input.imports} \
+            --exports-xlsx {input.exports} \
+            --buildings-file {input.buildings} \
+            --agriculture-file {input.agriculture} \
+            --mining-file {input.mining} \
+            --out-dir {wildcards.output_path}/flow_mapping
+        """
+
+
+rule labour_to_work_flow_mapping:
+    """
+    Create a mapping of labour to work flows.
+    
+    Test with:
+    snakemake -c1 results/flow_mapping/labour_to_sectors_trips_and_activity.pq
+    """
+    input:
+        script = "workflow/2a_transport/labour_to_work_flow_mapping.py",
+        network = f"{DATA}/networks/transport/multi_modal_network.gpkg",
+        buildings = f"{DATA}/buildings/buildings_assigned_economic_activity.gpkg",
+        population = f"{DATA}/population/population_projections.gpkg",
+    output:
+        [
+            "{output_path}/flow_mapping/road_nodes_labour_economic_activity_aggregations.gpkg",
+            "{output_path}/flow_mapping/labour_to_sectors_flow_paths.csv",
+            "{output_path}/flow_mapping/labour_to_sectors_trips_and_activity.csv",
+            "{output_path}/flow_mapping/labour_to_sectors_trips_and_activity.pq",
+            "{output_path}/flow_mapping/origins_destinations_labour_economic_activity.csv",
+        ]
+    shell:
+        """
+        python {input.script} \
+            --network-file {input.network} \
+            --buildings-file {input.buildings} \
+            --population-file {input.population} \
+            --out-dir {wildcards.output_path}/flow_mapping
+        """
+
+
+rule RENAME_LABOUR_FILE:
+    """
+    There's a potential mismatch between 
+    {{output_path}}/flow_mapping/labour_to_sectors_trips_and_activity.pq created in labour_to_work_flow_mapping and
+    {{output_path}}/flow_mapping/labour_trips_and_activity.pq required by single_point_failure_road_rail
+    
+    This rule renames the former to the latter.
+    """
+    input:
+        "{output_path}/flow_mapping/labour_to_sectors_trips_and_activity.pq",
+    output:
+        "{output_path}/flow_mapping/labour_trips_and_activity.pq",
+    shell:
+        """
+        if [ ! -s "{output}" ]; then
+            echo "WARNING: Renaming {input} to {output}"
+            cp {input} {output}
+        fi
+        """
+
+
 rule transport_scenario_edge_map:
     """
     We split the transport maps into chunks for parallel processing.
@@ -165,118 +255,3 @@ rule transport_scenario_edge_map:
             f.write("id,minEdge,maxEdge\n")
             for n in range(len(num_values) - 1):
                 f.write(f"{n},{int(num_values[n])},{int(num_values[n + 1])}\n")
-
-
-rule MACROECONOMIC_FILES:
-    """
-    Create fake macroeconomic files.
-    
-    These are placeholders for the real files.
-    
-    Test with:
-    snakemake -c1 results/macroecomic_data/domestic_export_by_sector.xlsx
-    """
-    output:
-        [
-            "{output_path}/macroeconomic_data/domestic_export_by_sector.xlsx",
-            "{output_path}/macroeconomic_data/import_by_industry.xlsx",
-        ]
-    shell:
-        """
-        for f in {output}; do
-            if [ ! -s "$f" ]; then
-                echo "WARNING: Faking macroeconomic file $f"
-                touch $f
-            fi
-        done
-        """
-
-
-rule trade_activity_flow_mapping:
-    """
-    Create a mapping of trade activity to flows.
-    
-    scripts/transport_model/trade_activity_flow_mapping.py
-    
-    Test with:
-    snakemake -c1 results/flow_mapping/sector_imports_exports_to_ports_flows.gpkg
-    """
-    input:
-        script = "workflow/3_criticality/trade_activity_flow_mapping.py",
-        jam_ports = f"{DATA}/networks/transport/port_polygon.gpkg",
-        network = f"{DATA}/networks/transport/multi_modal_network.gpkg",
-        imports = f"{DATA}/macroeconomic_data/import_by_industry.xlsx",
-        exports = f"{DATA}/macroeconomic_data/domestic_export_by_sector.xlsx",
-        buildings = f"{DATA}/buildings/buildings_assigned_economic_activity.gpkg",
-        agriculture = f"{DATA}/agriculture_data/agriculture_gdp.gpkg",
-        mining = f"{DATA}/mining_data/mining_gdp.gpkg",
-    output:
-        [
-            "{output_path}/flow_mapping/sector_to_ports_flow_paths.csv",
-            "{output_path}/flow_mapping/sector_to_ports_flow_paths.pq",
-            "{output_path}/flow_mapping/sector_imports_exports_to_ports_flows.gpkg",
-            "{output_path}/flow_mapping/origins_destinations_trade_economic_activity.csv"
-        ]
-    shell:
-        """
-        python {input.script} \
-            --ports {input.jam_ports} \
-            --network {input.network} \
-            --imports-xlsx {input.imports} \
-            --exports-xlsx {input.exports} \
-            --buildings-file {input.buildings} \
-            --agriculture-file {input.agriculture} \
-            --mining-file {input.mining} \
-            --out-dir {wildcards.output_path}/flow_mapping
-        """
-
-
-rule RENAME_LABOUR_FILE:
-    """
-    There's a potential mismatch between 
-    {{output_path}}/flow_mapping/labour_to_sectors_trips_and_activity.pq created in labour_to_work_flow_mapping and
-    {{output_path}}/flow_mapping/labour_trips_and_activity.pq required by single_point_failure_road_rail
-    
-    This rule renames the former to the latter.
-    """
-    input:
-        "{output_path}/flow_mapping/labour_to_sectors_trips_and_activity.pq",
-    output:
-        "{output_path}/flow_mapping/labour_trips_and_activity.pq",
-    shell:
-        """
-        if [ ! -s "{output}" ]; then
-            echo "WARNING: Renaming {input} to {output}"
-            cp {input} {output}
-        fi
-        """
-
-
-rule labour_to_work_flow_mapping:
-    """
-    Create a mapping of labour to work flows.
-    
-    Test with:
-    snakemake -c1 results/flow_mapping/labour_to_sectors_trips_and_activity.pq
-    """
-    input:
-        script = "workflow/3_criticality/labour_to_work_flow_mapping.py",
-        network = f"{DATA}/networks/transport/multi_modal_network.gpkg",
-        buildings = f"{DATA}/buildings/buildings_assigned_economic_activity.gpkg",
-        population = f"{DATA}/population/population_projections.gpkg",
-    output:
-        [
-            "{output_path}/flow_mapping/road_nodes_labour_economic_activity_aggregations.gpkg",
-            "{output_path}/flow_mapping/labour_to_sectors_flow_paths.csv",
-            "{output_path}/flow_mapping/labour_to_sectors_trips_and_activity.csv",
-            "{output_path}/flow_mapping/labour_to_sectors_trips_and_activity.pq",
-            "{output_path}/flow_mapping/origins_destinations_labour_economic_activity.csv",
-        ]
-    shell:
-        """
-        python {input.script} \
-            --network-file {input.network} \
-            --buildings-file {input.buildings} \
-            --population-file {input.population} \
-            --out-dir {wildcards.output_path}/flow_mapping
-        """
