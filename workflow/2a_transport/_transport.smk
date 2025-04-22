@@ -205,11 +205,9 @@ rule trade_activity_flow_mapping:
         script = "workflow/3_criticality/trade_activity_flow_mapping.py",
         jam_ports = f"{DATA}/networks/transport/port_polygon.gpkg",
         network = f"{DATA}/networks/transport/multi_modal_network.gpkg",
-        imports = "{output_path}/macroeconomic_data/import_by_industry.xlsx",
-        exports = "{output_path}/macroeconomic_data/domestic_export_by_sector.xlsx",
-        # fuel_shares reads same file
+        imports = f"{DATA}/macroeconomic_data/import_by_industry.xlsx",
+        exports = f"{DATA}/macroeconomic_data/domestic_export_by_sector.xlsx",
         buildings = f"{DATA}/buildings/buildings_assigned_economic_activity.gpkg",
-        # Files read in the trade_details loop
         agriculture = f"{DATA}/agriculture_data/agriculture_gdp.gpkg",
         mining = f"{DATA}/mining_data/mining_gdp.gpkg",
     output:
