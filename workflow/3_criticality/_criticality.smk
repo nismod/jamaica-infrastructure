@@ -7,12 +7,11 @@ rule collate_flow_data:
     """
     Collate flow data for transport failure analysis.
     
-    scripts/transport_model/transport_failure_scenario_setup.py:collate_data_flow
-    
     Test with:
     snakemake -c1 results/transport_failures/nominal/all_flows.pq
     """
     input:
+        script = "workflow/3_criticality/collate_flow_data.py",
         labour_flow_edges = f"{DATA}/networks/transport/multi_modal_network.gpkg",
         trade_flow_edges = "{output_path}/flow_mapping/sector_imports_exports_to_ports_flows.gpkg",
         trade_flows = "{output_path}/flow_mapping/sector_to_ports_flow_paths.pq",
@@ -23,16 +22,16 @@ rule collate_flow_data:
             "{output_path}/transport_failures/nominal/trade/network.gpq",
             "{output_path}/transport_failures/nominal/labour/flows.pq",
             "{output_path}/transport_failures/nominal/trade/flows.pq",
-            "{output_path}/transport_failures/nominal/labour/edges.pq",
-            "{output_path}/transport_failures/nominal/trade/edges.pq",
+            "{output_path}/transport_failures/nominal/labour/edge_indexes.pq",
+            "{output_path}/transport_failures/nominal/trade/edge_indexes.pq",
             "{output_path}/transport_failures/nominal/all_flows.pq",
             "{output_path}/transport_failures/nominal/trade/trade_sectors.json",
         ]
     shell:
-        """
-        for f in {input} {output}; do
-            touch $f
-        done
+        f"""
+        python {{input.script}} \
+            --results-dir {{wildcards.output_path}} \
+            --processed-data-dir {DATA}
         """
 
 
