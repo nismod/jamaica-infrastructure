@@ -42,19 +42,18 @@ rule single_link_failures:
     scripts/transport_model/transport_failure_analysis.py 
         
     Test with:
-    snakemake -c1 results/single_point_failures/roads_edges_single_point_failures.csv
+    snakemake -c1 results/transport_failures/scenario_results/single_link_failure_0.csv
     """
     input:
         edge_split_map = "{output_path}/transport_failures/transport_scenario_edge_map.csv",
         edges = f"{DATA}/networks/transport/multi_modal_network.gpkg",
-
         read_flow_data = [
             "{output_path}/transport_failures/nominal/labour/network.gpq",
             "{output_path}/transport_failures/nominal/trade/network.gpq",
             "{output_path}/transport_failures/nominal/labour/flows.pq",
             "{output_path}/transport_failures/nominal/trade/flows.pq",
-            "{output_path}/transport_failures/nominal/labour/edges.pq",
-            "{output_path}/transport_failures/nominal/trade/edges.pq",
+            "{output_path}/transport_failures/nominal/labour/edge_indexes.pq",
+            "{output_path}/transport_failures/nominal/trade/edge_indexes.pq",
             "{output_path}/transport_failures/nominal/all_flows.pq",
             "{output_path}/transport_failures/nominal/trade/trade_sectors.json",
         ]
