@@ -227,31 +227,37 @@ rule transport_scenario_edge_map:
     
     This script determines the min/max edge numbers at the boundary of each split.
     
-    TODO: turn into a standalone script
-    
     Test with:
     snakemake -c1 results/transport_failures/transport_scenario_edge_map.csv
     """
     input:
         edges = f"{DATA}/networks/transport/multi_modal_network.gpkg",
+    params:
+        # include as a param to trigger re-run on change
+        chunk_count = config["single_link_failure_chunk_count"]
     output:
-        edge_split_map = "{output_path}/transport_failures/transport_scenario_edge_map.csv",
+        edge_split_map = temp("{output_path}/transport_failures/transport_scenario_edge_map.csv"),
     run:
-        # Adapted from scripts/transport_model/transport_failure_scenario_setup.py
+        import logging
+
         import geopandas
         import numpy
 
-        edges = geopandas.read_file(input.edges, layer="edges")
-        rail_edges = edges[(edges["from_mode"] == "rail") & (edges["to_mode"] == "rail")][
-            "edge_id"
-        ].values.tolist()
-        road_edges = edges[(edges["from_mode"] == "road") & (edges["to_mode"] == "road")][
-            "edge_id"
-        ].values.tolist()
-        edge_fail = rail_edges + road_edges
+        logging.basicConfig(format="%(asctime)s %(message)s", level=logging.INFO)
 
-        num_values = numpy.linspace(0, len(edge_fail) - 1, config["single_link_failure_chunk_count"])
+        logging.info("Filtering edges")
+        edges = geopandas.read_file(input.edges, layer="edges")
+        rail_edges = edges[(edges["from_mode"] == "rail") & (edges["to_mode"] == "rail")]["edge_id"].values.tolist()
+        road_edges = edges[(edges["from_mode"] == "road") & (edges["to_mode"] == "road")]["edge_id"].values.tolist()
+        edges_to_fail = rail_edges + road_edges
+
+        n_chunk = int(config["single_link_failure_chunk_count"])
+        logging.info(f"{len(edges_to_fail)} edges to fail, splitting into {n_chunk} chunks")
+        indicies = numpy.round(numpy.linspace(0, len(edges_to_fail), n_chunk + 1)).astype(int)
+        logging.info(f"Using following indicies:\n{indicies}")
+
+        logging.info("Write out start and stop indicies to disk")
         with open(output.edge_split_map, "w+") as f:
             f.write("id,minEdge,maxEdge\n")
-            for n in range(len(num_values) - 1):
-                f.write(f"{n},{int(num_values[n])},{int(num_values[n + 1])}\n")
+            for n in range(len(indicies) - 1):
+                f.write(f"{n},{indicies[n]},{indicies[n + 1]}\n")
