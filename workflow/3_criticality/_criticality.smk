@@ -38,9 +38,9 @@ rule collate_flow_data:
 rule transport_scenario_edge_map:
     """
     We split the transport maps into chunks for parallel processing.
-    
+
     This script determines the min/max edge numbers at the boundary of each split.
-    
+
     Test with:
     snakemake -c1 results/transport_failures/transport_scenario_edge_map.csv
     """
@@ -87,7 +87,8 @@ rule single_link_failures:
     snakemake -c1 results/transport_failures/scenario_results/single_link_failure_0.csv
     """
     input:
-        edge_split_map = "{output_path}/transport_failures/transport_scenario_edge_map.csv",
+        script = "workflow/3_criticality/single_link_failures.py",
+        edge_chunk_map_csv = "{output_path}/transport_failures/transport_scenario_edge_map.csv",
         edges = f"{DATA}/networks/transport/multi_modal_network.gpkg",
         read_flow_data = [
             "{output_path}/transport_failures/nominal/labour/network.gpq",
@@ -99,16 +100,19 @@ rule single_link_failures:
             "{output_path}/transport_failures/nominal/all_flows.pq",
             "{output_path}/transport_failures/nominal/trade/trade_sectors.json",
         ]
+    params:
+        # include as a param to trigger re-run on change
+        chunk_count = config["single_link_failure_chunk_count"]
     output:
-        single_link_failures = expand(
-            "{{output_path}}/transport_failures/scenario_results/single_link_failure_{chunk}.csv",
-            chunk=range(config["single_link_failure_chunk_count"]),
-        ),
+        chunk = "{output_path}/transport_failures/scenario_results/single_link_failure_{chunk}.csv",
     shell:
         """
-        for f in {output.single_link_failures}; do
-            touch $f
-        done
+        python {input.script} \
+            --edge-chunk-map-csv {input.edge_chunk_map_csv} \
+            --chunk-id {wildcards.chunk} \
+            --edges-file {input.edges} \
+            --flow-data-dir {wildcards.output_path}/transport_failures/nominal \
+            --output-path {output.chunk}
         """
 
 
@@ -123,7 +127,7 @@ rule single_point_failure_road_rail:
         `*_#minEdge_#maxEdge.csv` so we can know the names of files from a single chunks parameter.
     
     Test with:
-    snakemake -c1 results/single_point_failures/roads_edges_single_point_failures.csv
+    snakemake -c1 results/economic_losses/single_failure_scenarios/single_point_failure_road_rail_edges_economic_losses.csv
     """
     input:
         # single_link_failures are read into all_failures in the walk through scenario_results/ directory
