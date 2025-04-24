@@ -104,7 +104,7 @@ rule single_link_failures:
         # include as a param to trigger re-run on change
         chunk_count = config["single_link_failure_chunk_count"]
     output:
-        chunk = "{output_path}/transport_failures/scenario_results/single_link_failure_{chunk}.csv",
+        chunk = protected("{output_path}/transport_failures/scenario_results/single_link_failure_{chunk}.csv"),
     shell:
         """
         python {input.script} \
