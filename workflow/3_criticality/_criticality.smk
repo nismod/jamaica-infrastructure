@@ -120,27 +120,42 @@ rule single_point_failure_road_rail:
     """
     Create a single point failure file for road and rail assets.
     
-    scripts/analysis/transport_single_point_failure_results_combine.py
-    
-    TODO: scripts/transport_model/transport_failure_scenario_setup.py needs adjusting
-        so its output files use a pattern of `*_#chunk.csv` rather than
-        `*_#minEdge_#maxEdge.csv` so we can know the names of files from a single chunks parameter.
-    
     Test with:
     snakemake -c1 results/economic_losses/single_failure_scenarios/single_point_failure_road_rail_edges_economic_losses.csv
+
+    TODO: There's a question which script we should use here:
+        transport_failure_results_combine.py looks ideal to parse the chunked
+            results and output road and rail failures however it ignores bridges and
+            doesn't output the other required files (as per this rule, e.g. bridge,
+            ports, airports)
+        transport_single_point_failure_results_combine.py requires bridge data
+            which we don't know how to produce
+
+    If we need to produce the bridge output files, we need some bridge input
+    data. Workflow currently set up to expect bridges as nodes in road network.
+
+    We may need to reinsert a road nodes asset class row into the coordinating
+    network CSV and trace the rulegraph that follows.
+
+    There's also an argument that bridges, ports, rail stations and airports
+    should be considered by another rule entirely.
     """
     input:
-        # single_link_failures are read into all_failures in the walk through scenario_results/ directory
+        script = "workflow/3_criticality/single_point_failure_road_rail.py", # TODO: is this the right script ???
         single_link_failures = expand(
             "{{output_path}}/transport_failures/scenario_results/single_link_failure_{chunk}.csv",
             chunk=range(config["single_link_failure_chunk_count"]),
         ),
         labour_flows = "{output_path}/flow_mapping/labour_trips_and_activity.pq",
-        bridges = f"{DATA}/networks/transport/roads.gpkg",  # bridges are a layer in the roads network
+        bridges = f"{DATA}/networks/transport/roads.gpkg",  # assumed to be road nodes, alas not yet
         edges = f"{DATA}/networks/transport/multi_modal_network.gpkg",
         bridge_labour_trips = "{output_path}/flow_mapping/origins_destinations_labour_economic_activity.csv",
         od_losses = "{output_path}/flow_mapping/origins_destinations_trade_economic_activity.csv",
         ports = f"{DATA}/networks/transport/port_polygon.gpkg",
+        airports = f"{DATA}/networks/transport/airport_polygon.gpkg",
+    params:
+        # include as a param to trigger re-run on change
+        chunk_count = config["single_link_failure_chunk_count"]
     output:
         [
             "{output_path}/economic_losses/single_failure_scenarios/single_point_failure_road_rail_edges_economic_losses.csv",
@@ -150,10 +165,10 @@ rule single_point_failure_road_rail:
             "{output_path}/economic_losses/single_failure_scenarios/single_point_failure_airports_economic_losses.csv",
         ]
     shell:
-        """
-        for f in {output}; do
-            touch $f
-        done
+        f"""
+        python {input.script} \
+            --results-dir {{wildcards.output_path}} \
+            --processed-data-dir {DATA}
         """
 
 
