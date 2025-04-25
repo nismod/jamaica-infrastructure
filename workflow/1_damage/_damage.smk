@@ -96,7 +96,7 @@ rule direct_damage:
     """
     input:
         script = "workflow/1_damage/damage_calculations.py",
-        network_csv = f"{DATA}/networks/network_layers_hazard_intersections_details.csv",
+        network_csv = config["paths"]["network_layers"],
         hazard_csv = config["paths"]["hazard_layers"],
         sensitivity_parameters = f"{DATA}/sensitivity_parameters.csv",
         asset_gpkg = lambda wildcards: f"{DATA}/{get_asset_metadata(wildcards).path}",

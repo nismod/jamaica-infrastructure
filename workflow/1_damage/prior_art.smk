@@ -62,7 +62,7 @@ rule summarise_direct_damages:
     """
     input:
         sensitivity_parameter_set = f"{DATA}/sensitivity_parameters.csv",
-        network_layers_intersections = f"{DATA}/networks/network_layers_hazard_intersections_details.csv",
+        network_layers_intersections = config["paths"]["network_layers"],
         script_summarise = "scripts/analysis/direct_damage_summarise.py",
     output:
         summary = directory(f"{OUTPUT}/direct_damages_summary")
