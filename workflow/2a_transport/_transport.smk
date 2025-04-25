@@ -70,15 +70,11 @@ rule preprocess_road_network:
         edges.lanes = edges.lanes.astype(int)
         edges[edges.lanes == 0] = 1
 
-        logging.info("Assign rebuild costs")
-        USD_per_JMD = 0.0064  # TODO: factor out cost assumptions
-        # From NWA - Cost of two lane road reconstruction is US$ 1.5 million/km
-        road_cost_USD_per_lane_per_km = 0.75E6
-        bridge_cost_USD_per_meter = 1.5E6
-
-        road_cost_JMD_per_lane_per_meter = (road_cost_USD_per_lane_per_km / 1.0e3) / USD_per_JMD
-        bridge_cost_JMD_per_meter = bridge_cost_USD_per_meter / USD_per_JMD
-        edges["cost_unit"] = "J$/m"
+        logging.info("Assign rebuild costs from config")
+        USD_per_JMD = config["USD_per_JMD"]
+        road_cost_JMD_per_lane_per_meter = (config["road_cost_USD_per_lane_per_km"] / 1.0e3) / USD_per_JMD
+        bridge_cost_JMD_per_meter = config["bridge_cost_USD_per_meter"] / USD_per_JMD
+        edges["cost_unit"] = "J$"
         edges["mean_damage_cost"] = np.where(
             edges["asset_type"] == "road_bridge",
             bridge_cost_JMD_per_meter * edges["length_m"],
@@ -97,6 +93,25 @@ rule preprocess_road_network:
         network = snkit.Network(nodes=nodes, edges=edges)
         network = snkit.network.add_ids(network, edge_prefix="roade", node_prefix="roadn")
         network = snkit.network.add_topology(network, id_col="id")
+
+        logging.info("Label bridge nodes (from_id of bridge edge)")
+        # previously, bridge data from the NWA (2016) was used
+        # that data has some of features present in OSM and some that are not
+        # the NWA dataset contains some errors (false positives, imprecise locations)
+        # and has fewer features in total
+        # we decide in this rewrite to use the new OSM data exclusively
+
+        # the downstream workflow is written assuming that bridges are nodes
+        # we take the from_node of the OSM bridge edge to be the bridge node
+        # this is not central to the span, but to one side of it
+        bridge_edges = network.edges[network.edges.asset_type=="road_bridge"]
+        bridge_edges_to_merge = bridge_edges.loc[
+            :,
+            ["from_id", "length_m", "min_damage_cost", "mean_damage_cost", "max_damage_cost", "cost_unit"]
+        ].rename(columns={"from_id": "id"})
+        network.nodes = network.nodes.merge(bridge_edges_to_merge, how="outer", on="id")
+        network.nodes.loc[~network.nodes.mean_damage_cost.isna(), "asset_type"] = "bridge"
+
         logging.info("Label road network with components")
         network = snkit.network.add_component_ids(network)
         network.edges = network.edges.rename(
@@ -134,9 +149,9 @@ rule create_multi_modal_network:
 rule trade_activity_flow_mapping:
     """
     Create a mapping of trade activity to flows.
-    
+
     scripts/transport_model/trade_activity_flow_mapping.py
-    
+
     Test with:
     snakemake -c1 results/flow_mapping/sector_imports_exports_to_ports_flows.gpkg
     """
@@ -173,7 +188,7 @@ rule trade_activity_flow_mapping:
 rule labour_to_work_flow_mapping:
     """
     Create a mapping of labour to work flows.
-    
+
     Test with:
     snakemake -c1 results/flow_mapping/labour_to_sectors_trips_and_activity.pq
     """
@@ -202,10 +217,10 @@ rule labour_to_work_flow_mapping:
 
 rule RENAME_LABOUR_FILE:
     """
-    There's a potential mismatch between 
+    There's a potential mismatch between
     {{output_path}}/flow_mapping/labour_to_sectors_trips_and_activity.pq created in labour_to_work_flow_mapping and
     {{output_path}}/flow_mapping/labour_trips_and_activity.pq required by single_point_failure_road_rail
-    
+
     This rule renames the former to the latter.
     """
     input:
@@ -219,3 +234,4 @@ rule RENAME_LABOUR_FILE:
             cp {input} {output}
         fi
         """
+

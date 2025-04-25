@@ -18,7 +18,7 @@ rule collapse_sensitivity:
     """
     input:
         script = "workflow/4a_losses/direct_damage_summarise.py",
-        network_csv = f"{DATA}/networks/network_layers_hazard_intersections_details.csv",
+        network_csv = config["paths"]["network_layers"],
         sensitivity_parameters = f"{DATA}/sensitivity_parameters.csv",
         damages = damage_ensemble_files
         # TODO: Need EAD_and_EAEL_parameter_set_\d+ files, OR, use loss_summary rule?
@@ -66,7 +66,7 @@ rule EAD_EAEL:
     """
     input:
         script = "workflow/4a_losses/expected_damages_losses_calculations.py",
-        network_csv = f"{DATA}/networks/network_layers_hazard_intersections_details.csv",
+        network_csv = config["paths"]["network_layers"],
         hazard_csv = config["paths"]["hazard_layers"],
         gpkg = lambda wildcards: f"{DATA}/{get_asset_metadata(wildcards).path}",
         damage_file = "{output_path}/direct_damages/{gpkg}_{layer}/{gpkg}_{layer}_direct_damages_{parameter_set}.parquet",

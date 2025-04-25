@@ -23,7 +23,7 @@ rule flood_threshold_EAD_EAEL:
     """
     input:
         script = "?",
-        network_csv = f"{DATA}/networks/network_layers_hazard_intersections_details.csv",
+        network_csv = config["paths"]["network_layers"],
         hazard_csv = config["paths"]["hazard_layers"],
         sensitivity_parameters = f"{DATA}/sensitivity_parameters.csv",
         gpkg = lambda wildcards: f"{DATA}/{get_asset_metadata(wildcards).path}",
@@ -81,7 +81,7 @@ rule benefit_cost_ratio:
     snakemake -c1 results/adaptation_benefits_costs_bcr/flooding_waste_water_facilities_NWC_nodes_adaptation_costs_avoided_EAD_EAEL.csv
     """
     input:
-        asset_data = f"{DATA}/networks/network_layers_hazard_intersections_details.csv",
+        asset_data = config["paths"]["network_layers"],
         cost_df = f"{OUTPUT}/adaptation_costs/{{hazard}}_costs/{{gpkg}}_{{layer}}_adaptation_timeseries_and_npvs.csv",
         risk_files = lambda wildcards: [f"{dir}/loss_damage_npvs/{wildcards.gpkg}_{wildcards.layer}_EAD_EAEL_npvs.csv" for dir in risk_dirs],
     output:
@@ -105,7 +105,7 @@ rule adaptation_options:
     """
     input:
         cost_df = f"{DATA}/adaptation/adaptation_options_and_costs_jamaica.xlsx",
-        asset_data = f"{DATA}/networks/network_layers_hazard_intersections_details.csv",
+        asset_data = config["paths"]["network_layers"],
         asset_df = lambda wildcards: f"{DATA}/{get_asset_metadata(wildcards).path}",  # gpkg
     output:
         npv = f"{OUTPUT}/adaptation_costs/{{hazard}}_costs/{{gpkg}}_{{layer}}_adaptation_timeseries_and_npvs.csv",
@@ -127,7 +127,7 @@ rule damage_loss_timeseries_and_NPV:
     snakemake -c1 results/flood_threshold_1p0/loss_damage_npvs/waste_water_facilities_NWC_nodes_EAD_EAEL_npvs.csv
     """
     input:
-        network_csv = f"{DATA}/networks/network_layers_hazard_intersections_details.csv",
+        network_csv = config["paths"]["network_layers"],
         growth_rates = f"{DATA}/macroeconomic_data/gdp_growth_rates.xlsx",
         summarised_damages = f"{OUTPUT}/{{protection_type}}_{{threshold}}/direct_damages_summary/{{gpkg}}_{{layer}}_EAD_EAEL.csv",
     output:

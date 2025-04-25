@@ -1,6 +1,4 @@
-"""Estimate direct damages to physical assets exposed to hazards
-
-"""
+"""Estimate direct damages to physical assets exposed to hazards"""
 
 import logging
 import os
@@ -21,7 +19,6 @@ pd.options.mode.chained_assignment = None  # default='warn'
 tqdm.pandas()
 
 epsg_jamaica = 3448
-jd_to_usd = 0.0067  # Jamaican dollar to USD conversion
 
 
 def get_damage_data(x, damage_data_path, uplift_factor=0, uncertainty_parameter=0):
@@ -41,7 +38,7 @@ def get_damage_data(x, damage_data_path, uplift_factor=0, uncertainty_parameter=
 
 
 def convert_cost_units(x, cost_value, cost_unit, conversion_rate):
-    if ("US$" in x[cost_unit]) or ("USD" in x[cost_unit]):
+    if isinstance(x[cost_unit], str) and (("US$" in x[cost_unit]) or ("USD" in x[cost_unit])):
         return conversion_rate * x[cost_value]
     else:
         return x[cost_value]
@@ -90,10 +87,14 @@ def estimate_direct_damage_costs_and_units(
     dataframe_type="nodes",
 ):
     if dataframe_type == "nodes":
-        dataframe[damage_ratio_columns] = dataframe[damage_ratio_columns].multiply(dataframe[damage_cost_column], axis="index")
+        dataframe[damage_ratio_columns] = dataframe[damage_ratio_columns].multiply(
+            dataframe[damage_cost_column], axis="index"
+        )
         dataframe["damage_cost_unit"] = dataframe[cost_unit_column]
     else:
-        dataframe[damage_ratio_columns] = dataframe[damage_ratio_columns].multiply(dataframe[damage_cost_column] * dataframe["exposure"], axis="index")
+        dataframe[damage_ratio_columns] = dataframe[damage_ratio_columns].multiply(
+            dataframe[damage_cost_column] * dataframe["exposure"], axis="index"
+        )
         cost_unit = dataframe[cost_unit_column].values.tolist()[0]
         dataframe["damage_cost_unit"] = "/".join(cost_unit.split("/")[:-1])
 
@@ -178,6 +179,14 @@ def estimate_direct_damage_costs_and_units(
     help="Path to geoparquet assets split on raster grids",
 )
 @click.option(
+    "--USD-per-JMD",
+    "-x",
+    "USD_per_JMD",
+    required=True,
+    type=float,
+    help="US Dollars per Jamaican Dollar",
+)
+@click.option(
     "--output-path",
     "-o",
     required=True,
@@ -196,21 +205,33 @@ def direct_damages(
     damage_threshold_uplift_csv,
     damage_curves_dir,
     intersection,
+    USD_per_JMD,
     output_path,
 ):
+
+    asset_data_details = pd.read_csv(network_csv)
+    asset_info = asset_data_details.loc[
+        (asset_data_details.asset_gpkg == asset_gpkg_label) & (asset_data_details.asset_layer == asset_layer)
+    ].squeeze()
+    if asset_info.empty:
+        raise ValueError(f"No asset data found for {asset_gpkg_label=} and {asset_layer=}")
+    asset_sector = asset_info.sector
+    asset_id = asset_info.asset_id_column
+    asset_min_cost = asset_info.asset_min_cost_column
+    asset_max_cost = asset_info.asset_max_cost_column
+    asset_cost_unit = asset_info.asset_cost_unit_column
 
     sensitivity = pd.read_csv(sensitivity_csv)
     cost_uncertainty_parameter = sensitivity.loc[sensitivity_id, "cost_uncertainty_parameter"].squeeze()
     damage_uncertainty_parameter = sensitivity.loc[sensitivity_id, "damage_uncertainty_parameter"].squeeze()
 
-    asset_data_details = pd.read_csv(network_csv)
     hazard_data_details = pd.read_csv(hazard_csv, encoding="latin1")
-    damage_curve_lookup = pd.read_csv(damage_curve_mapping_csv)[["sector", "hazard_type", "asset_name", "asset_sheet"]]
 
     hazard_attributes = pd.read_csv(damage_threshold_uplift_csv)
     flood_hazards = hazard_attributes[hazard_attributes["hazard_type"] == "flooding"]["hazard"].values.tolist()
 
     logging.info("Read damage curves")
+    damage_curve_lookup = pd.read_csv(damage_curve_mapping_csv)[["sector", "hazard_type", "asset_name", "asset_sheet"]]
     damage_curves = []
     for idx, hazard in hazard_attributes.iterrows():
 
@@ -229,20 +250,14 @@ def direct_damages(
     del damage_curve_df
 
     logging.info("Preprocessing cost data")
-    asset_info = asset_data_details.loc[(asset_data_details.asset_gpkg == asset_gpkg_label) & (asset_data_details.asset_layer == asset_layer)].squeeze()
-    asset_sector = asset_info.sector
-    asset_id = asset_info.asset_id_column
-    asset_min_cost = asset_info.asset_min_cost_column
-    asset_max_cost = asset_info.asset_max_cost_column
-    asset_cost_unit = asset_info.asset_cost_unit_column
 
     asset_df = gpd.read_file(asset_gpkg_file, layer=asset_layer)
     asset_df[asset_min_cost] = asset_df.apply(
-        lambda x: convert_cost_units(x, asset_min_cost, asset_cost_unit, 1.0 / jd_to_usd),
+        lambda x: convert_cost_units(x, asset_min_cost, asset_cost_unit, 1.0 / USD_per_JMD),
         axis=1,
     )
     asset_df[asset_max_cost] = asset_df.apply(
-        lambda x: convert_cost_units(x, asset_max_cost, asset_cost_unit, 1.0 / jd_to_usd),
+        lambda x: convert_cost_units(x, asset_max_cost, asset_cost_unit, 1.0 / USD_per_JMD),
         axis=1,
     )
     asset_df[asset_cost_unit] = asset_df[asset_cost_unit].replace(["USD", "US$"], "J$", regex=True)
@@ -252,7 +267,9 @@ def direct_damages(
         asset_df[asset_max_cost] = asset_df[asset_max_cost] / asset_df["length"]
         asset_df[asset_cost_unit] = "J$/m"
 
-    asset_df["damage_cost"] = asset_df[asset_min_cost] + cost_uncertainty_parameter * (asset_df[asset_max_cost] - asset_df[asset_min_cost])
+    asset_df["damage_cost"] = asset_df[asset_min_cost] + cost_uncertainty_parameter * (
+        asset_df[asset_max_cost] - asset_df[asset_min_cost]
+    )
     asset_df["damage_cost"] = asset_df.progress_apply(lambda x: modify_cost_units(x, asset_cost_unit), axis=1)
     hazard_damages = []
 
@@ -267,11 +284,17 @@ def direct_damages(
 
         if getattr(asset_info, f"{hazard_info.hazard}_asset_damage_lookup_column") != "none":
             asset_hazard = getattr(asset_info, f"{hazard_info.hazard}_asset_damage_lookup_column")
-            hazard_keys = hazard_data_details[hazard_data_details["hazard"] == hazard_info.hazard]["key"].values.tolist()
+            hazard_keys = hazard_data_details[hazard_data_details["hazard"] == hazard_info.hazard][
+                "key"
+            ].values.tolist()
             hazard_effect_df = hazard_df[[asset_id, "exposure", "exposure_unit"] + hazard_keys]
-            damages_df = damage_curves[(damage_curves["sector"] == asset_sector) & (damage_curves["hazard"] == hazard_info.hazard)]
+            damages_df = damage_curves[
+                (damage_curves["sector"] == asset_sector) & (damage_curves["hazard"] == hazard_info.hazard)
+            ]
             damaged_assets = list(set(damages_df["asset_name"].values.tolist()))
-            affected_assets_df = asset_df[asset_df[asset_hazard].isin(damaged_assets)][[asset_id, asset_hazard, asset_cost_unit, "damage_cost"]]
+            affected_assets_df = asset_df[asset_df[asset_hazard].isin(damaged_assets)][
+                [asset_id, asset_hazard, asset_cost_unit, "damage_cost"]
+            ]
             damaged_assets = list(set(affected_assets_df[asset_hazard].values.tolist()))
             damages_df = damages_df[damages_df["asset_name"].isin(damaged_assets)]
             affected_assets = list(set(affected_assets_df[asset_id].values.tolist()))
@@ -287,11 +310,15 @@ def direct_damages(
                     0,
                     hazard_effect_df[hazard_keys],
                 )
-                hazard_effect_df = hazard_effect_df[(hazard_effect_df[hazard_keys] > hazard_info.hazard_threshold).any(axis=1)]
+                hazard_effect_df = hazard_effect_df[
+                    (hazard_effect_df[hazard_keys] > hazard_info.hazard_threshold).any(axis=1)
+                ]
                 hazard_effect_df = hazard_effect_df[hazard_effect_df[asset_id].isin(affected_assets)]
 
             if len(hazard_effect_df.index) == 0:
-                logging.info(f"No {hazard_info.hazard} intersections with {asset_info.asset_gpkg} {asset_info.asset_layer}")
+                logging.info(
+                    f"No {hazard_info.hazard} intersections with {asset_info.asset_gpkg} {asset_info.asset_layer}"
+                )
             else:
                 hazard_effect_df = pd.merge(
                     hazard_effect_df,
