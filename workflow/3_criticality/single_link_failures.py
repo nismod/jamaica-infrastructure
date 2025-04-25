@@ -1,8 +1,6 @@
 """Transport failure analysis with rerouting."""
 
-import json
 import logging
-import os
 
 import click
 import pandas as pd
@@ -14,7 +12,11 @@ from jamaica_infrastructure.transport.utils import (
     map_nearest_locations_and_create_lines,
     network_od_paths_assembly,
 )
-import jamaica_infrastructure.transport.flow as tf
+from jamaica_infrastructure.transport.flow import (
+    igraph_scenario_edge_failures_premade_network,
+    read_flow_data,
+)
+
 
 tqdm.pandas()
 epsg_jamaica = 3448
@@ -180,40 +182,6 @@ def filter_sector_from_buildings(buildings_dataframe, sector_code, subsector_cod
     return get_sector[get_sector["find_subsector"] == 1]
 
 
-def read_flow_data(data_path: str):
-    """
-    Read combined flow data from disk ready for transport failure disruption.
-    """
-
-    network_data: dict = {}
-    for flow_type in ("labour", "trade"):
-        output_flow_dir = os.path.join(data_path, flow_type)
-        logging.info(f"Reading {flow_type} network")
-        network_df = gpd.read_parquet(os.path.join(output_flow_dir, "network.gpq"))
-        network: ig.Graph = ig.Graph.TupleList(
-            network_df.itertuples(index=False),
-            edge_attrs=['edge_id', 'from_mode', 'to_mode', 'length_m', 'speed', 'time', 'geometry']
-        )
-        logging.info(f"Reading {flow_type} flows")
-        flows = pd.read_parquet(os.path.join(output_flow_dir, "flows.pq"))
-        logging.info(f"Reading {flow_type} edge indices")
-        edge_indexes = pd.read_parquet(os.path.join(output_flow_dir, "edge_indexes.pq"))
-        network_data[flow_type] = {
-            "network": network,
-            "flows": flows,
-            "edge_indexes": edge_indexes.to_dict()["edge_indexes"],
-        }
-
-    logging.info("Reading combined flows")
-    all_flows = pd.read_parquet(os.path.join(data_path, "all_flows.pq"))
-
-    logging.info("Reading trade sectors")
-    with open(os.path.join(data_path, "trade", "trade_sectors.json"), "r") as fp:
-        trade_sectors = json.load(fp)
-
-    return network_data, all_flows, trade_sectors
-
-
 @click.command()
 @click.version_option("1.0.0")
 @click.option(
@@ -273,7 +241,7 @@ def main(*, edge_chunk_map_csv, chunk_id, edges_file, flow_data_dir, output_path
         edge = edge_fail[edge_number]
         logging.info(f"Failing {edge}")
         for networks in network_dictionary.values():
-            edge_fail_results += tf.igraph_scenario_edge_failures_premade_network(
+            edge_fail_results += igraph_scenario_edge_failures_premade_network(
                 # we will remove edges from the graph, only operate on a copy
                 networks["network"].copy(),
                 [edge],

@@ -3,12 +3,14 @@
 
 from collections import defaultdict
 from itertools import chain
+import json
+import logging
+import os
 
+import geopandas as gpd
 import igraph as ig
-import networkx as nx
 import numpy as np
 import pandas as pd
-from tqdm import tqdm
 
 
 def swap_min_max(x, min_col, max_col):
@@ -642,3 +644,37 @@ def merge_failure_results(
     )
 
     return flow_df_select
+
+
+def read_flow_data(data_path: str):
+    """
+    Read combined flow data from disk ready for transport failure disruption.
+    """
+
+    network_data: dict = {}
+    for flow_type in ("labour", "trade"):
+        output_flow_dir = os.path.join(data_path, flow_type)
+        logging.info(f"Reading {flow_type} network")
+        network_df = gpd.read_parquet(os.path.join(output_flow_dir, "network.gpq"))
+        network: ig.Graph = ig.Graph.TupleList(
+            network_df.itertuples(index=False),
+            edge_attrs=['edge_id', 'from_mode', 'to_mode', 'length_m', 'speed', 'time', 'geometry']
+        )
+        logging.info(f"Reading {flow_type} flows")
+        flows = pd.read_parquet(os.path.join(output_flow_dir, "flows.pq"))
+        logging.info(f"Reading {flow_type} edge indices")
+        edge_indexes = pd.read_parquet(os.path.join(output_flow_dir, "edge_indexes.pq"))
+        network_data[flow_type] = {
+            "network": network,
+            "flows": flows,
+            "edge_indexes": edge_indexes.to_dict()["edge_indexes"],
+        }
+
+    logging.info("Reading combined flows")
+    all_flows = pd.read_parquet(os.path.join(data_path, "all_flows.pq"))
+
+    logging.info("Reading trade sectors")
+    with open(os.path.join(data_path, "trade", "trade_sectors.json"), "r") as fp:
+        trade_sectors = json.load(fp)
+
+    return network_data, all_flows, trade_sectors
