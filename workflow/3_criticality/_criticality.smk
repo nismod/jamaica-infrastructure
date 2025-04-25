@@ -116,6 +116,31 @@ rule single_link_failures:
         """
 
 
+rule rail_stations_failure_analysis:
+    """
+    Remove railway stations from multi-modal transport network and estimate the
+    arising economic losses.
+
+    Test with:
+    snakemake -c1 results/transport_failures/single_station_failures_scenarios.csv
+    """
+    input:
+        script = "workflow/3_criticality/rail_stations_failure_analysis.py",
+        edges = f"{DATA}/networks/transport/multi_modal_network.gpkg",
+        rail_nodes = f"{DATA}/networks/transport/rail.gpkg",
+        flow_data_dir = f"{OUTPUT}/transport_failures/nominal/",
+    output:
+        station_failures = f"{OUTPUT}/transport_failures/single_station_failures_scenarios.csv",
+    shell:
+        """
+        python {input.script} \
+            --edges-file {input.edges} \
+            --rail-nodes-file {input.rail_nodes} \
+            --flow-data-dir {input.flow_data_dir} \
+            --output-path {output.station_failures}
+        """
+
+
 rule single_point_failure_road_rail:
     """
     Create a single point failure file for road and rail assets.
