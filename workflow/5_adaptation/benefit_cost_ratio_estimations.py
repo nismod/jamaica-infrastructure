@@ -352,7 +352,7 @@ def get_ead_eael_costs(
 )
 @click.option(
     "--cost-file",
-    "-a",
+    "-c",
     required=True,
     type=click.Path(exists=True, dir_okay=False, file_okay=True, readable=True),
     help="Path to adaptation cost data",
