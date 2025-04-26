@@ -21,7 +21,7 @@ def get_asset_metadata(wildcards) -> pd.Series:
     With `asset_gpkg`, e.g. 'port_polygon'  and `asset_layer`, e.g. 'areas'
     wildcards, get the metadata for the asset class from file.
     """
-    df = pd.read_csv(f"{DATA}/networks/network_layers_hazard_intersections_details.csv")
+    df = pd.read_csv(config["paths"]["network_layers"])
     row = df[(df['asset_gpkg'] == wildcards.gpkg) & (df['asset_layer'] == wildcards.layer)]
     if len(row) > 1:
         raise ValueError(f"Multiple assets found for gpkg={wildcards.gpkg} and layer={wildcards.layer}")

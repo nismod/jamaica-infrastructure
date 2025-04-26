@@ -77,11 +77,9 @@ def split_assets(network_csv, hazard_csv, data_dir, asset_gpkg, asset_layer, out
     pq_fname_edges = output_path.replace(".gpkg", "__edges.geoparquet")
     pq_fname_areas = output_path.replace(".gpkg", "__areas.geoparquet")
 
-    logging.info("Processing %s", os.path.basename(fname))
-    layers = fiona.listlayers(fname)
-    logging.info("Layers: %s", layers)
+    logging.info(f"Processing {asset_layer} for {os.path.basename(fname)}")
 
-    if "nodes" in layers:
+    if asset_layer == "nodes":
         # look up nodes cell index
         nodes = geopandas.read_file(fname, layer="nodes")
 
@@ -94,7 +92,7 @@ def split_assets(network_csv, hazard_csv, data_dir, asset_gpkg, asset_layer, out
             # nodes.to_file(out_fname, driver="GPKG", layer="nodes")
             nodes.to_parquet(pq_fname_nodes)
 
-    if "edges" in layers:
+    elif asset_layer == "edges":
         # split lines
         edges = geopandas.read_file(fname, layer="edges")
 
@@ -108,7 +106,7 @@ def split_assets(network_csv, hazard_csv, data_dir, asset_gpkg, asset_layer, out
             # edges.to_file(out_fname, driver="GPKG", layer="edges")
             edges.to_parquet(pq_fname_edges)
 
-    if "areas" in layers:
+    elif asset_layer == "areas":
         # split polygons
         areas = geopandas.read_file(fname, layer="areas")
 
@@ -120,6 +118,9 @@ def split_assets(network_csv, hazard_csv, data_dir, asset_gpkg, asset_layer, out
             areas = process_areas(areas, transforms, hazard_transforms, data_dir)
             # areas.to_file(out_fname, driver="GPKG", layer="areas")
             areas.to_parquet(pq_fname_areas)
+
+    else:
+        raise ValueError(f"No path for processing {asset_layer=}")
 
 
 def associate_raster(df, fname, cell_index_col="cell_index", band_number=1, min_val=0, max_val=None):
