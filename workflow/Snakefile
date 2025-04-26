@@ -20,6 +20,7 @@ wildcard_constraints:
     protection_type="[^/]+",  # no slash
     layer="(nodes|edges|areas)",
     threshold=r"\d+(p\d+)?",
+    chunk="\d+",
     output_path=f"{OUTPUT}(/.+[^/])?",
     parameter_set=r"parameter_set_\d+",
 
