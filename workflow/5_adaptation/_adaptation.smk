@@ -82,7 +82,7 @@ rule benefit_cost_ratio:
     """
     input:
         script = "workflow/5_adaptation/benefit_cost_ratio_estimations.py",
-        asset_data = asset_data = config["paths"]["network_layers"],
+        asset_data = config["paths"]["network_layers"],
         cost_file = f"{OUTPUT}/adaptation_costs/{{hazard}}_costs/{{gpkg}}_{{layer}}_adaptation_timeseries_and_npvs.csv",
         risk_files = lambda wildcards: [f"{dir}/loss_damage_npvs/{wildcards.gpkg}_{wildcards.layer}_EAD_EAEL_npvs.csv" for dir in risk_dirs],
     output:
