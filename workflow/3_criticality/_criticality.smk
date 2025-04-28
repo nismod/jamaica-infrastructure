@@ -18,6 +18,7 @@ rule collate_flow_data:
         labour_flows = "{output_path}/flow_mapping/labour_to_sectors_trips_and_activity.pq",
     output:
         [
+            directory("{output_path}/transport_failures/nominal"),
             "{output_path}/transport_failures/nominal/labour/network.gpq",
             "{output_path}/transport_failures/nominal/trade/network.gpq",
             "{output_path}/transport_failures/nominal/labour/flows.pq",
@@ -166,11 +167,13 @@ rule single_point_failure_road_rail:
     should be considered by another rule entirely.
     """
     input:
-        script = "workflow/3_criticality/single_point_failure_road_rail.py", # TODO: is this the right script ???
+        script = "workflow/3_criticality/transport_single_point_failure_results_combine.py",
         single_link_failures = expand(
             "{{output_path}}/transport_failures/scenario_results/single_link_failure_{chunk}.csv",
             chunk=range(config["single_link_failure_chunk_count"]),
         ),
+        station_failures = "{output_path}/transport_failures/single_station_failures_scenarios.csv",
+        # bridge_failures = "{output_path}/transport_failures/single_bridge_failures_scenarios.csv",
         labour_flows = "{output_path}/flow_mapping/labour_trips_and_activity.pq",
         bridges = f"{DATA}/networks/transport/roads.gpkg",  # assumed to be road nodes, alas not yet
         edges = f"{DATA}/networks/transport/multi_modal_network.gpkg",
