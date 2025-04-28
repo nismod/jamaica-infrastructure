@@ -100,26 +100,33 @@ rule benefit_cost_ratio:
         """
 
 
-rule adaptation_options:
+rule adaptation_options_costs:
     """
     Generate the adaptation options for each asset.
     
-    scripts/analysis/adaptation_options.py
+    scripts/analysis/adaptation_options_costs.py
     
     Test with:
-    snakemake -c1 results/adaptation_options/flooding_waste_water_facilities_NWC_nodes_adaptation_timeseries_and_npvs.csv
+    snakemake -c1 results/adaptation_costs/flooding_costs/waste_water_facilities_NWC_nodes_adaptation_timeseries_and_npvs.csv
     """
     input:
-        cost_df = f"{DATA}/adaptation/adaptation_options_and_costs_jamaica.xlsx",
+        script = "workflow/5_adaptation/adaptation_options_costs.py",
+        cost_file = f"{DATA}/adaptation/adaptation_options_and_costs_jamaica.xlsx",
         asset_data = config["paths"]["network_layers"],
-        asset_df = lambda wildcards: f"{DATA}/{get_asset_metadata(wildcards).path}",  # gpkg
+        asset_file = lambda wildcards: f"{DATA}/{get_asset_metadata(wildcards).path}",  # gpkg
     output:
         npv = f"{OUTPUT}/adaptation_costs/{{hazard}}_costs/{{gpkg}}_{{layer}}_adaptation_timeseries_and_npvs.csv",
         unit_costs = f"{OUTPUT}/adaptation_costs/{{hazard}}_costs/{{gpkg}}_{{layer}}_adaptation_unit_costs.csv",
     shell:
         """
-        touch {output.npv}
-        touch {output.unit_costs}
+        python {input.script} \
+            --asset-data {input.asset_data} \
+            --asset-file {input.asset_file} \
+            --cost-file {input.cost_file} \
+            --hazard-label {wildcards.hazard} \
+            --asset-gpkg {wildcards.gpkg} \
+            --asset-layer {wildcards.layer} \
+            --output-dir {OUTPUT}
         """
 
 
