@@ -123,6 +123,12 @@ rule adaptation_options:
         """
 
 
+timeseries_files = []
+for risk_type in ["EAD", "EAEL"]:
+        timeseries_files = [
+            *timeseries_files,
+            *[f"{risk_type}_timeseries_{val_type}" for val_type in ["amin", "mean", "amax"]]
+        ]
 rule damage_loss_timeseries_and_NPV:
     """
     Estimate the damage loss timeseries and NPV for an asset with an adaptation.
@@ -142,7 +148,11 @@ rule damage_loss_timeseries_and_NPV:
         projection_end_year = 2100,
         discounting_rate = 10
     output:
-        NPV = f"{OUTPUT}/{{protection_type}}_{{threshold}}/loss_damage_npvs/{{gpkg}}_{{layer}}_EAD_EAEL_npvs.csv"
+        NPV = f"{OUTPUT}/{{protection_type}}_{{threshold}}/loss_damage_npvs/{{gpkg}}_{{layer}}_EAD_EAEL_npvs.csv",
+        timeseries = [
+            f"{OUTPUT}/{{protection_type}}_{{threshold}}/loss_damage_timeseries/{{gpkg}}_{{layer}}_{file_suffix}.csv"
+            for file_suffix in timeseries_files
+        ],
     shell:
         """
         python {input.script} \

@@ -321,19 +321,15 @@ def damage_loss_timeseries_and_npv(
                         )
                     )
 
+                timeseries_csv = os.path.join(
+                    timeseries_results,
+                    f"{asset_prefix}_{risk_type}_timeseries_{val_type}.csv"
+                )
                 damages_time_series.to_csv(
-                    os.path.join(
-                        timeseries_results,
-                        f"{asset_prefix}_{risk_type}_timeseries_{val_type}.csv"
-                    ),
+                    timeseries_csv,
                     index=False,
                 )
-                logging.info(
-                    (
-                        f"* Done with {asset_gpkg} {asset_layer} "
-                        f"{risk_type} timeseries {val_type}"
-                    )
-                )
+                logging.info(timeseries_csv)
 
         dfs = [df.set_index(asset_id) for df in discounted_values]
         discounted_values = pd.concat(dfs, axis=1).fillna(0)
@@ -344,15 +340,16 @@ def damage_loss_timeseries_and_npv(
         discounted_values["economic_loss_unit"] = summarised_damages[
             "economic_loss_unit"
         ].values[0]
+        discounted_values_csv = os.path.join(
+            discounted_results,
+            f"{asset_prefix}_EAD_EAEL_npvs.csv"
+        )
         discounted_values.to_csv(
-            os.path.join(
-                discounted_results,
-                f"{asset_prefix}_EAD_EAEL_npvs.csv"
-            ),
+            discounted_values_csv,
             index=False,
         )
 
-        logging.info(f"* Done with {asset_gpkg} discounted values")
+        logging.info(discounted_values_csv)
 
 
 if __name__ == "__main__":
