@@ -333,7 +333,6 @@ def igraph_scenario_edge_failures_premade_network(
     edge_failure_set - List of string edge ID's
     flow_dataframe - Pandas DataFrame of list of edge paths
     path_criteria - String name of column of edge paths in flow dataframe
-    tons_criteria - String name of column of path tons in flow dataframe
     cost_criteria - String name of column of path costs in flow dataframe
     time_criteria - String name of column of path travel time in flow dataframe
 
@@ -368,130 +367,132 @@ def igraph_scenario_edge_failures_premade_network(
         )
     )
 
-    if edge_path_index:
-        select_flows = flow_dataframe[flow_dataframe.index.isin(edge_path_index)]
-        del edge_path_index
+    if not edge_path_index:
+        return edge_fail_dictionary
 
-        for edge_id in edge_failure_set:
-            network_graph.es.find(edge_id=edge_id).delete()
+    select_flows = flow_dataframe[flow_dataframe.index.isin(edge_path_index)]
+    del edge_path_index
 
-        first_edge_id = edge_failure_set[0]
-        del edge_failure_set
-        A = sorted(
-            network_graph.clusters().subgraphs(),
-            key=lambda l: len(l.es["edge_id"]),
-            reverse=True,
-        )
-        access_flows = []
-        edge_fail_dictionary = []
-        for i in range(len(A)):
-            network_graph = A[i]
+    for edge_id in edge_failure_set:
+        network_graph.es.find(edge_id=edge_id).delete()
 
-            # TODO: most of the time this array probably doesn't change, we have one big island
-            # but it's 9% of runtime, so perhaps create it once for the default condition,
-            # and again if necessary
-            nodes_name = np.asarray([x["name"] for x in network_graph.vs])
-            po_access = select_flows[
-                (select_flows["origin_id"].isin(nodes_name))
-                & (select_flows["destination_id"].isin(nodes_name))
-            ]
+    first_edge_id = edge_failure_set[0]
+    del edge_failure_set
+    A = sorted(
+        network_graph.clusters().subgraphs(),
+        key=lambda l: len(l.es["edge_id"]),
+        reverse=True,
+    )
+    access_flows = []
+    edge_fail_dictionary = []
+    for i in range(len(A)):
+        network_graph = A[i]
 
-            if len(po_access.index) > 0:
-                po_access = po_access.set_index("origin_id")
-                origins = list(set(po_access.index.values.tolist()))
-                for o in range(len(origins)):
-                    origin = origins[o]
-                    destinations = po_access.loc[
-                        [origin], "destination_id"
-                    ].values.tolist()
-                    # tons = po_access.loc[[origin], tons_criteria].values.tolist()
-                    paths = network_graph.get_shortest_paths(
-                        origin, destinations, weights=cost_criteria, output="epath"
-                    )
-                    if new_path is True:
-                        for p in range(len(paths)):
-                            new_gcost = 0
-                            new_path = []
-                            for n in paths[p]:
-                                new_gcost += network_graph.es[n][cost_criteria]
-                                new_path.append(network_graph.es[n]["edge_id"])
-                            edge_fail_dictionary.append(
-                                {
-                                    "edge_id": first_edge_id,
-                                    "origin_id": origin,
-                                    "destination_id": destinations[p],
-                                    "new_path": new_path,
-                                    "new_cost": new_gcost,
-                                    "no_access": 0,
-                                }
-                            )
-                    else:
-                        for p in range(len(paths)):
-                            new_gcost = 0
-                            for n in paths[p]:
-                                new_gcost += network_graph.es[n][cost_criteria]
-                            edge_fail_dictionary.append(
-                                {
-                                    "edge_id": first_edge_id,
-                                    "origin_id": origin,
-                                    "destination_id": destinations[p],
-                                    "new_cost": new_gcost,
-                                    "no_access": 0,
-                                }
-                            )
-                    del destinations, paths
-                del origins
-                po_access = po_access.reset_index()
-                po_access["access"] = 1
-                access_flows.append(
-                    po_access[["origin_id", "destination_id", "access"]]
+        # TODO: most of the time this array probably doesn't change, we have one big island
+        # but it's 9% of runtime, so perhaps create it once for the default condition,
+        # and again if necessary
+        nodes_name = np.asarray([x["name"] for x in network_graph.vs])
+        po_access = select_flows[
+            (select_flows["origin_id"].isin(nodes_name))
+            & (select_flows["destination_id"].isin(nodes_name))
+        ]
+
+        if len(po_access.index) > 0:
+            po_access = po_access.set_index("origin_id")
+            origins = list(set(po_access.index.values.tolist()))
+            for o in range(len(origins)):
+                origin = origins[o]
+                destinations = po_access.loc[
+                    [origin], "destination_id"
+                ].values.tolist()
+                # tons = po_access.loc[[origin], tons_criteria].values.tolist()
+                paths = network_graph.get_shortest_paths(
+                    origin, destinations, weights=cost_criteria, output="epath"
                 )
-            del po_access
-
-        del A
-
-        if len(access_flows):
-            access_flows = pd.concat(
-                access_flows, axis=0, sort=False, ignore_index=True
-            )
-            select_flows = pd.merge(
-                select_flows,
-                access_flows,
-                how="left",
-                on=["origin_id", "destination_id"],
-            ).fillna(0)
-        else:
-            # TODO: SettingWithCopyWarning: 
-            # A value is trying to be set on a copy of a slice from a DataFrame.
-            # Try using .loc[row_indexer,col_indexer] = value instead
-            select_flows["access"] = 0
-
-        no_access = select_flows[select_flows["access"] == 0]
-        if len(no_access.index) > 0:
-            for value in no_access.itertuples():
                 if new_path is True:
-                    edge_fail_dictionary.append(
-                        {
-                            "edge_id": first_edge_id,
-                            "origin_id": getattr(value, "origin_id"),
-                            "destination_id": getattr(value, "destination_id"),
-                            "new_path": [],
-                            "new_cost": 0,
-                            "no_access": 1,
-                        }
-                    )
+                    for p in range(len(paths)):
+                        new_gcost = 0
+                        new_path = []
+                        for n in paths[p]:
+                            new_gcost += network_graph.es[n][cost_criteria]
+                            new_path.append(network_graph.es[n]["edge_id"])
+                        edge_fail_dictionary.append(
+                            {
+                                "edge_id": first_edge_id,
+                                "origin_id": origin,
+                                "destination_id": destinations[p],
+                                "new_path": new_path,
+                                "new_cost": new_gcost,
+                                "no_access": 0,
+                            }
+                        )
                 else:
-                    edge_fail_dictionary.append(
-                        {
-                            "edge_id": first_edge_id,
-                            "origin_id": getattr(value, "origin_id"),
-                            "destination_id": getattr(value, "destination_id"),
-                            "new_cost": 0,
-                            "no_access": 1,
-                        }
-                    )
+                    for p in range(len(paths)):
+                        new_gcost = 0
+                        for n in paths[p]:
+                            new_gcost += network_graph.es[n][cost_criteria]
+                        edge_fail_dictionary.append(
+                            {
+                                "edge_id": first_edge_id,
+                                "origin_id": origin,
+                                "destination_id": destinations[p],
+                                "new_cost": new_gcost,
+                                "no_access": 0,
+                            }
+                        )
+                del destinations, paths
+            del origins
+            po_access = po_access.reset_index()
+            po_access["access"] = 1
+            access_flows.append(
+                po_access[["origin_id", "destination_id", "access"]]
+            )
+        del po_access
 
-        del no_access, select_flows
+    del A
+
+    if len(access_flows):
+        access_flows = pd.concat(
+            access_flows, axis=0, sort=False, ignore_index=True
+        )
+        select_flows = pd.merge(
+            select_flows,
+            access_flows,
+            how="left",
+            on=["origin_id", "destination_id"],
+        ).fillna(0)
+    else:
+        # TODO: SettingWithCopyWarning: 
+        # A value is trying to be set on a copy of a slice from a DataFrame.
+        # Try using .loc[row_indexer,col_indexer] = value instead
+        select_flows["access"] = 0
+
+    no_access = select_flows[select_flows["access"] == 0]
+    if len(no_access.index) > 0:
+        for value in no_access.itertuples():
+            if new_path is True:
+                edge_fail_dictionary.append(
+                    {
+                        "edge_id": first_edge_id,
+                        "origin_id": getattr(value, "origin_id"),
+                        "destination_id": getattr(value, "destination_id"),
+                        "new_path": [],
+                        "new_cost": 0,
+                        "no_access": 1,
+                    }
+                )
+            else:
+                edge_fail_dictionary.append(
+                    {
+                        "edge_id": first_edge_id,
+                        "origin_id": getattr(value, "origin_id"),
+                        "destination_id": getattr(value, "destination_id"),
+                        "new_cost": 0,
+                        "no_access": 1,
+                    }
+                )
+
+    del no_access, select_flows
 
     return edge_fail_dictionary
 
