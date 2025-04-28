@@ -133,12 +133,27 @@ rule damage_loss_timeseries_and_NPV:
     snakemake -c1 results/flood_threshold_1p0/loss_damage_npvs/waste_water_facilities_NWC_nodes_EAD_EAEL_npvs.csv
     """
     input:
+        script = "workflow/5_adaptation/damage_loss_timeseries_and_npv.py",
         network_csv = config["paths"]["network_layers"],
         growth_rates = f"{DATA}/macroeconomic_data/gdp_growth_rates.xlsx",
         summarised_damages = f"{OUTPUT}/{{protection_type}}_{{threshold}}/direct_damages_summary/{{gpkg}}_{{layer}}_EAD_EAEL.csv",
+    params:
+        baseline_year = 2019,
+        projection_end_year = 2100,
+        discounting_rate = 10
     output:
         NPV = f"{OUTPUT}/{{protection_type}}_{{threshold}}/loss_damage_npvs/{{gpkg}}_{{layer}}_EAD_EAEL_npvs.csv"
     shell:
         """
-        touch {output.NPV}
+        python {input.script} \
+            --network-csv {input.network_csv} \
+            --growth-rates-xls {input.growth_rates} \
+            --asset-gpkg {wildcards.gpkg} \
+            --asset-layer {wildcards.layer} \
+            --protection-type {wildcards.protection_type} \
+            --threshold {wildcards.threshold} \
+            --baseline-year {params.baseline_year} \
+            --projection-end-year {params.projection_end_year} \
+            --discounting-rate {params.discounting_rate} \
+            --output-dir {OUTPUT}
         """
