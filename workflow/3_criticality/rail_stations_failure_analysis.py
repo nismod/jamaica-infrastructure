@@ -1,6 +1,3 @@
-"""Do a transport failure analysis with rerouting
-"""
-
 import logging
 
 import click
@@ -226,14 +223,13 @@ def main(*, flow_data_dir, edges_file, rail_nodes_file, output_path):
     edge_fail_results = []
     failed_nodes = []
     for node_number in range(0, len(rail_nodes)):
-        node_fail = rail_nodes[node_number]
-        edge_fail = edges[
-            (edges["from_node"] == node_fail) | (edges["to_node"] == node_fail)
-        ]
-        logging.info(f"Failing {node_fail}")
+        node_fail: str = rail_nodes[node_number]
+        edge_fail: pd.DataFrame = edges[(edges["from_node"] == node_fail) | (edges["to_node"] == node_fail)]
         if len(edge_fail.index) > 0:
-            node_edges = [node_fail] + edge_fail["edge_id"].values.tolist()
-            for network_type, network in network_dictionary.items():
+
+            logging.info(f"Failing {node_fail} and adjacent edges")
+            node_edges: list[str] = [node_fail] + edge_fail["edge_id"].values.tolist()
+            for network in network_dictionary.values():
                 edge_fail_results += igraph_scenario_edge_failures_premade_network(
                     network["network"].copy(),
                     node_edges,

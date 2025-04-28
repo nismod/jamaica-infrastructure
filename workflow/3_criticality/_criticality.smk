@@ -141,6 +141,31 @@ rule rail_stations_failure_analysis:
         """
 
 
+rule bridge_failure_analysis:
+    """
+    Remove road bridges from multi-modal transport network and estimate the
+    arising economic losses.
+
+    Test with:
+    snakemake -c1 results/transport_failures/single_bridge_failures_scenarios.csv
+    """
+    input:
+        script = "workflow/3_criticality/roads_bridges_failure_analysis.py",
+        edges = f"{DATA}/networks/transport/multi_modal_network.gpkg",
+        road_nodes = f"{DATA}/networks/transport/roads.gpkg",
+        flow_data_dir = f"{OUTPUT}/transport_failures/nominal/",
+    output:
+        bridge_failures = f"{OUTPUT}/transport_failures/single_bridge_failures_scenarios.csv",
+    shell:
+        """
+        python {input.script} \
+            --edges-file {input.edges} \
+            --road-nodes-file {input.road_nodes} \
+            --flow-data-dir {input.flow_data_dir} \
+            --output-path {output.bridge_failures}
+        """
+
+
 rule single_point_failure_road_rail:
     """
     Create a single point failure file for road and rail assets.
@@ -171,6 +196,8 @@ rule single_point_failure_road_rail:
             "{{output_path}}/transport_failures/scenario_results/single_link_failure_{chunk}.csv",
             chunk=range(config["single_link_failure_chunk_count"]),
         ),
+        station_failures = "{output_path}/transport_failures/single_station_failures_scenarios.csv",
+        bridge_failures = "{output_path}/transport_failures/single_bridge_failures_scenarios.csv",
         labour_flows = "{output_path}/flow_mapping/labour_trips_and_activity.pq",
         bridges = f"{DATA}/networks/transport/roads.gpkg",  # assumed to be road nodes, alas not yet
         edges = f"{DATA}/networks/transport/multi_modal_network.gpkg",
