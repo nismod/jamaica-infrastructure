@@ -351,7 +351,15 @@ def igraph_scenario_edge_failures_premade_network(
         new_time - Float value of estimated time of OD journey after disruption
     """
     edge_fail_dictionary = []
-    # network_df,edge_path_index = identify_all_failure_paths(network_df_in,edge_failure_set,flow_dataframe,path_criteria)
+
+    for edge_id in edge_failure_set:
+        try:
+            network_graph.es.find(edge_id=edge_id).delete()
+        except ValueError as error:
+            if "no such edge" in str(error):
+                continue
+            else:
+                raise error
 
     edge_path_index = list(
         set(
@@ -373,9 +381,6 @@ def igraph_scenario_edge_failures_premade_network(
     select_flows = flow_dataframe[flow_dataframe.index.isin(edge_path_index)]
     del edge_path_index
 
-    for edge_id in edge_failure_set:
-        network_graph.es.find(edge_id=edge_id).delete()
-
     first_edge_id = edge_failure_set[0]
     del edge_failure_set
     A = sorted(
@@ -384,7 +389,6 @@ def igraph_scenario_edge_failures_premade_network(
         reverse=True,
     )
     access_flows = []
-    edge_fail_dictionary = []
     for i in range(len(A)):
         network_graph = A[i]
 
