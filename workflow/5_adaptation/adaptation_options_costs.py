@@ -266,6 +266,38 @@ def get_adaptation_options_costs_roads(asset_df, adapt_costs, asset_id):
     ),
     help="Path to the output directory",
 )
+@click.option(
+    "--baseline-year",
+    "-y",
+    default=2019,
+    required=False,
+    type=int,
+    help="Baseline year",
+)
+@click.option(
+    "--projection-end-year",
+    "-p",
+    default=2100,
+    required=False,
+    type=int,
+    help="Projection end year",
+)
+@click.option(
+    "--discounting-rate",
+    "-d",
+    default=10,
+    required=False,
+    type=float,
+    help="Discounting rate",
+)
+@click.option(
+    "--epsg",
+    "-e",
+    default=3448,
+    required=False,
+    type=int,
+    help="EPSG",
+)
 def adaptation_options_costs(
     asset_data,
     asset_file,
@@ -274,11 +306,12 @@ def adaptation_options_costs(
     asset_gpkg,
     asset_layer,
     output_dir,
+    baseline_year,
+    projection_end_year,
+    discounting_rate,
+    epsg,
 ):
-    epsg_jamaica = 3448
-    baseline_year = 2019
-    projection_end_year = 2100
-    discounting_rate = 10
+    epsg_jamaica = epsg
 
     cost_df = pd.read_excel(
         cost_file,

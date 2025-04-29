@@ -114,6 +114,11 @@ rule adaptation_options_costs:
         cost_file = f"{DATA}/adaptation/adaptation_options_and_costs_jamaica.xlsx",
         asset_data = config["paths"]["network_layers"],
         asset_file = lambda wildcards: f"{DATA}/{get_asset_metadata(wildcards).path}",  # gpkg
+    params:
+        baseline_year = 2019,
+        projection_end_year = 2100,
+        discounting_rate = 10
+        epsg = 3448
     output:
         npv = f"{OUTPUT}/adaptation_costs/{{hazard}}_costs/{{gpkg}}_{{layer}}_adaptation_timeseries_and_npvs.csv",
         unit_costs = f"{OUTPUT}/adaptation_costs/{{hazard}}_costs/{{gpkg}}_{{layer}}_adaptation_unit_costs.csv",
@@ -127,6 +132,10 @@ rule adaptation_options_costs:
             --asset-gpkg {wildcards.gpkg} \
             --asset-layer {wildcards.layer} \
             --output-dir {OUTPUT}
+            --baseline-year {params.baseline_year} \
+            --projection-end-year {params.projection_end_year} \
+            --discounting-rate {params.discounting_rate} \
+            --epsg {params.epsg}
         """
 
 
