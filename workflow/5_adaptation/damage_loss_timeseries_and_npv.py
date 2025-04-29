@@ -194,7 +194,7 @@ def estimate_time_series(
     "-d",
     default=10,
     required=False,
-    type=int,
+    type=float,
     help="Discounting rate",
 )
 @click.option(
