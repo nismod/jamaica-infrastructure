@@ -174,16 +174,10 @@ def estimate_time_series(
     help="asset_layer value in the network CSV",
 )
 @click.option(
-    "--protection-type",
-    "-p",
+    "--data-dir",
+    "-d",
     required=True,
-    help="Adaptation protection type"
-)
-@click.option(
-    "--threshold",
-    "-t",
-    required=True,
-    help="Adaptation threshold value"
+    help="data directory sub-path",
 )
 @click.option(
     "--baseline-year",
@@ -226,8 +220,7 @@ def damage_loss_timeseries_and_npv(
     growth_rates_xls,
     asset_gpkg,
     asset_layer,
-    protection_type,
-    threshold,
+    data_dir,
     baseline_year,
     projection_end_year,
     discounting_rate,
@@ -242,7 +235,7 @@ def damage_loss_timeseries_and_npv(
 
     adaptation_dir = os.path.join(
         output_dir,
-        f"{protection_type}_{threshold}"
+        data_dir
     )
 
     growth_rates = pd.read_excel(
