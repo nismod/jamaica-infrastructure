@@ -75,20 +75,20 @@ def main(*, flow_data_dir, edges_file, rail_nodes_file, output_path):
 
     edges = gpd.read_file(edges_file, layer="edges")
     rail_nodes = gpd.read_file(rail_nodes_file, layer="nodes")
-    rail_nodes = rail_nodes[(rail_nodes["asset_type"] == "station") & (rail_nodes["status"] == "Functional")]["node_id"].values.tolist()
+    rail_node_ids = rail_nodes[(rail_nodes["asset_type"] == "station") & (rail_nodes["status"] == "Functional")]["node_id"].values.tolist()
 
     edge_fail_results = []
-    for node_number in range(0, len(rail_nodes)):
-        node_fail: str = rail_nodes[node_number]
+    for node_fail in rail_node_ids:
         edge_fail: pd.DataFrame = edges[(edges["from_node"] == node_fail) | (edges["to_node"] == node_fail)]
         if len(edge_fail.index) > 0:
 
             logging.info(f"Failing {node_fail} and adjacent edges")
-            node_edges: list[str] = [node_fail] + edge_fail["edge_id"].values.tolist()
+            # we only remove (extant) edges, but target node_id is included as first entry and becomes label for results row
+            to_fail: list[str] = [node_fail] + edge_fail["edge_id"].values.tolist()
             for network in network_dictionary.values():
                 edge_fail_results += igraph_scenario_edge_failures_premade_network(
                     network["network"].copy(),
-                    node_edges,
+                    to_fail,
                     network["flows"],
                     network["edge_indexes"],
                     "edge_path",
@@ -144,6 +144,8 @@ def main(*, flow_data_dir, edges_file, rail_nodes_file, output_path):
     losses = pd.merge(losses, rerouting_times_min.drop(columns=["no_access"]), how="left", on=["node_id"])
     losses = pd.merge(losses, rerouting_times_max.drop(columns=["no_access"]), how="left", on=["node_id"])
     losses = pd.merge(losses, rerouting_times_mean.drop(columns=["no_access"]), how="left", on=["node_id"])
+
+    logging.info(f"Losses:\n{losses}")
 
     logging.info("Writing results to disk")
     losses.to_csv(output_path, index=False)

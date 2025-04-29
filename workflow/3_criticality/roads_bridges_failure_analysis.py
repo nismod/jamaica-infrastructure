@@ -72,11 +72,12 @@ def main(*, flow_data_dir, edges_file, road_nodes_file, output_path):
         if len(edge_fail.index) > 0:
 
             logging.info(f"Failing {bridge_fail} and adjacent edges")
-            bridge_edge_ids = edge_fail["edge_id"].values.tolist()
+            # we only remove (extant) edges, but target node_id is included as first entry and becomes label for results row
+            to_fail: list[str] = [bridge_fail] + edge_fail["edge_id"].values.tolist()
             for networks in network_dictionary.values():
                 edge_fail_results += igraph_scenario_edge_failures_premade_network(
                     networks["network"].copy(),
-                    bridge_edge_ids,
+                    to_fail,
                     networks["flows"],
                     networks["edge_indexes"],
                     "edge_path",
@@ -132,6 +133,8 @@ def main(*, flow_data_dir, edges_file, road_nodes_file, output_path):
     losses = pd.merge(losses, rerouting_times_min.drop(columns=["no_access"]), how="left", on=["node_id"])
     losses = pd.merge(losses, rerouting_times_max.drop(columns=["no_access"]), how="left", on=["node_id"])
     losses = pd.merge(losses, rerouting_times_mean.drop(columns=["no_access"]), how="left", on=["node_id"])
+
+    logging.info(f"Losses:\n{losses}")
 
     logging.info("Writing results to disk")
     losses.to_csv(output_path, index=False)
