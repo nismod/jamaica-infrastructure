@@ -5,6 +5,7 @@ import pandas as pd
 import geopandas as gpd
 from tqdm import tqdm
 
+from jamaica_infrastructure.transport.econ import economic_losses_from_network_damage
 from jamaica_infrastructure.transport.flow import (
     igraph_scenario_edge_failures_premade_network,
     read_flow_data,
@@ -48,25 +49,13 @@ def main(*, flow_data_dir, edges_file, rail_nodes_file, output_path):
     """
     Calculate economic costs of removing railway stations and adjacent edges
     from multi-modal transport network.
-
-    As of April 2025, this is estimating no impact at all, i.e.
-    (`edge_fail_results`) is always empty. Suspect a bug!
-    `igraphy_scenario_edge_failures_premade_network` finds no intersection
-    between edges to fail and the keys of the network["edge_indicies"] object
-    for the labour or trade networks, it then short circuits and returns
-    nothing.
-
-    TODO: Investigate why no routes of trade or labour appear to be affected.
-    N.B. `single_link_failures.py` uses
-    `igraph_scenario_edge_failures_premade_network` in a very similar fashion
-    to this script, but _does_ calculate losses (for road edges).
     """
+
     # 0.6 - 2.1% of the value per day
     # so we need to make an assumption on the average wage per working person,
     # say 200 USD per day. Then if a road is disrupted which has 1000 daily trips and
     # they have to be rerouted with an hour, the cost would be: 0.4 * 200 * 1/24 * 100 = 333 USD
     # So corrected for inflation in 2019 values, this would be 1.2-2.9 USD per hour of value of time for business related trips
-
     hourly_wage = 0.4 * (1 + 0.454) * 235.25  # Between 200 - 500 JMD for 2012 stats, 45.4% inflation in currency
     trade_effect = 0.02  # 2% of the value of trade will be affected by rerouting
 
@@ -105,46 +94,16 @@ def main(*, flow_data_dir, edges_file, rail_nodes_file, output_path):
         logging.info(f"Failure results:\n{edge_fail_results}")
 
     logging.info("Calculating resulting economic losses")
-
     edge_fail_results.rename(columns={"edge_id": "node_id"}, inplace=True)
-    edge_fail_results = pd.merge(edge_fail_results, all_flows, how="left", on=["origin_id", "destination_id"]).fillna(0)
-    edge_fail_results["total_trade"] = edge_fail_results[[f"{t}_trade" for t in trade_sectors]].sum(axis=1)
-
-    edge_fail_results["time_loss"] = (1 - edge_fail_results["no_access"]) * (edge_fail_results["new_cost"] - edge_fail_results["gcost"])
-    edge_fail_results["labour_rerouting_loss"] = hourly_wage * edge_fail_results["time_loss"] * edge_fail_results["working_trips"]
-    edge_fail_results["trade_rerouting_loss"] = trade_effect * edge_fail_results["time_loss"] * edge_fail_results["total_trade"]
-    edge_fail_results["labour_gdp_loss"] = edge_fail_results["no_access"] * edge_fail_results["GDP_to_trips"]
-    edge_fail_results["trade_loss"] = edge_fail_results["no_access"] * edge_fail_results["total_trade"]
-
-    index_cols = ["node_id", "no_access"]
-    losses = (
-        edge_fail_results.loc[
-            :,
-            index_cols
-            + [
-                "time_loss",
-                "labour_rerouting_loss",
-                "trade_rerouting_loss",
-                "labour_gdp_loss",
-                "trade_loss",
-            ],
-        ]
-        .groupby(index_cols)
-        .sum()
-        .reset_index()
+    losses = economic_losses_from_network_damage(
+        edge_fail_results,
+        "node_id",
+        "no_access",
+        all_flows,
+        trade_sectors,
+        trade_effect,
+        hourly_wage
     )
-
-    rerouting_times_min = edge_fail_results.loc[:, index_cols + ["time_loss"]].groupby(index_cols).min().reset_index()
-    rerouting_times_min = rerouting_times_min.rename(columns={"time_loss": "min_trip_time_loss"})
-    rerouting_times_max = edge_fail_results.loc[:, index_cols + ["time_loss"]].groupby(index_cols).max().reset_index()
-    rerouting_times_max = rerouting_times_max.rename(columns={"time_loss": "max_trip_time_loss"})
-    rerouting_times_mean = edge_fail_results.loc[:, index_cols + ["time_loss"]].groupby(index_cols).mean().reset_index()
-    rerouting_times_mean = rerouting_times_mean.rename(columns={"time_loss": "mean_trip_time_loss"})
-
-    losses = pd.merge(losses, rerouting_times_min.drop(columns=["no_access"]), how="left", on=["node_id"])
-    losses = pd.merge(losses, rerouting_times_max.drop(columns=["no_access"]), how="left", on=["node_id"])
-    losses = pd.merge(losses, rerouting_times_mean.drop(columns=["no_access"]), how="left", on=["node_id"])
-
     logging.info(f"Losses:\n{losses}")
 
     logging.info("Writing results to disk")

@@ -74,8 +74,6 @@ rule transport_scenario_edge_map:
 rule single_link_failures:
     """
     Create single link failure results.
-    
-    scripts/transport_model/transport_failure_analysis.py 
         
     Test with:
     snakemake -c1 results/transport_failures/scenario_results/single_link_failure_0.csv
