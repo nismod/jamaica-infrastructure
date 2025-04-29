@@ -117,7 +117,7 @@ rule adaptation_options_costs:
     params:
         baseline_year = 2019,
         projection_end_year = 2100,
-        discounting_rate = 10
+        discounting_rate = 10,
         epsg = 3448
     output:
         npv = f"{OUTPUT}/adaptation_costs/{{hazard}}_costs/{{gpkg}}_{{layer}}_adaptation_timeseries_and_npvs.csv",
