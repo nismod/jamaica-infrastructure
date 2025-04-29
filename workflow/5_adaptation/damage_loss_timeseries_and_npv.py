@@ -176,8 +176,8 @@ def estimate_time_series(
 @click.option(
     "--data-dir",
     "-d",
-    required=True,
-    help="data directory sub-path",
+    required=False,
+    help="optional data directory sub-path",
 )
 @click.option(
     "--baseline-year",
@@ -233,10 +233,12 @@ def damage_loss_timeseries_and_npv(
     ]
     asset_prefix = f"{asset_gpkg}_{asset_layer}"
 
-    adaptation_dir = os.path.join(
-        output_dir,
-        data_dir
-    )
+    adaptation_dir = output_dir
+    if data_dir:
+        adaptation_dir = os.path.join(
+            output_dir,
+            data_dir
+        )
 
     growth_rates = pd.read_excel(
         growth_rates_xls,
