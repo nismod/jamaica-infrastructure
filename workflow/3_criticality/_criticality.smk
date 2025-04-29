@@ -8,29 +8,23 @@ rule collate_flow_data:
     Collate flow data for transport failure analysis.
     
     Test with:
-    snakemake -c1 results/transport_failures/nominal/all_flows.pq
+    snakemake -c1 results/transport_failures/nominal/
     """
     input:
         script = "workflow/3_criticality/collate_flow_data.py",
         labour_flow_edges = f"{DATA}/networks/transport/multi_modal_network.gpkg",
-        trade_flow_edges = "{output_path}/flow_mapping/sector_imports_exports_to_ports_flows.gpkg",
-        trade_flows = "{output_path}/flow_mapping/sector_to_ports_flow_paths.pq",
-        labour_flows = "{output_path}/flow_mapping/labour_to_sectors_trips_and_activity.pq",
+        trade_flow_edges = f"{OUTPUT}/flow_mapping/sector_imports_exports_to_ports_flows.gpkg",
+        trade_flows = f"{OUTPUT}/flow_mapping/sector_to_ports_flow_paths.pq",
+        labour_flows = f"{OUTPUT}/flow_mapping/labour_to_sectors_trips_and_activity.pq",
     output:
         [
-            "{output_path}/transport_failures/nominal/labour/network.gpq",
-            "{output_path}/transport_failures/nominal/trade/network.gpq",
-            "{output_path}/transport_failures/nominal/labour/flows.pq",
-            "{output_path}/transport_failures/nominal/trade/flows.pq",
-            "{output_path}/transport_failures/nominal/labour/edge_indexes.pq",
-            "{output_path}/transport_failures/nominal/trade/edge_indexes.pq",
-            "{output_path}/transport_failures/nominal/all_flows.pq",
-            "{output_path}/transport_failures/nominal/trade/trade_sectors.json",
+            directory(f"{OUTPUT}/transport_failures/nominal"),
+            f"{OUTPUT}/transport_failures/nominal/all_flows.pq",
         ]
     shell:
         f"""
         python {{input.script}} \
-            --results-dir {{wildcards.output_path}} \
+            --results-dir {OUTPUT} \
             --processed-data-dir {DATA}
         """
 
@@ -50,7 +44,7 @@ rule transport_scenario_edge_map:
         # include as a param to trigger re-run on change
         chunk_count = config["single_link_failure_chunk_count"]
     output:
-        edge_split_map = temp("{output_path}/transport_failures/transport_scenario_edge_map.csv"),
+        edge_split_map = temp(f"{OUTPUT}/transport_failures/transport_scenario_edge_map.csv"),
     run:
         import logging
 
@@ -80,39 +74,78 @@ rule transport_scenario_edge_map:
 rule single_link_failures:
     """
     Create single link failure results.
-    
-    scripts/transport_model/transport_failure_analysis.py 
         
     Test with:
     snakemake -c1 results/transport_failures/scenario_results/single_link_failure_0.csv
     """
     input:
         script = "workflow/3_criticality/single_link_failures.py",
-        edge_chunk_map_csv = "{output_path}/transport_failures/transport_scenario_edge_map.csv",
+        edge_chunk_map_csv = f"{OUTPUT}/transport_failures/transport_scenario_edge_map.csv",
         edges = f"{DATA}/networks/transport/multi_modal_network.gpkg",
-        read_flow_data = [
-            "{output_path}/transport_failures/nominal/labour/network.gpq",
-            "{output_path}/transport_failures/nominal/trade/network.gpq",
-            "{output_path}/transport_failures/nominal/labour/flows.pq",
-            "{output_path}/transport_failures/nominal/trade/flows.pq",
-            "{output_path}/transport_failures/nominal/labour/edge_indexes.pq",
-            "{output_path}/transport_failures/nominal/trade/edge_indexes.pq",
-            "{output_path}/transport_failures/nominal/all_flows.pq",
-            "{output_path}/transport_failures/nominal/trade/trade_sectors.json",
-        ]
+        flow_data = f"{OUTPUT}/transport_failures/nominal/",
     params:
         # include as a param to trigger re-run on change
         chunk_count = config["single_link_failure_chunk_count"]
     output:
-        chunk = protected("{output_path}/transport_failures/scenario_results/single_link_failure_{chunk}.csv"),
+        chunk = protected(f"{OUTPUT}/transport_failures/scenario_results/single_link_failure_{{chunk}}.csv"),
     shell:
         """
         python {input.script} \
             --edge-chunk-map-csv {input.edge_chunk_map_csv} \
             --chunk-id {wildcards.chunk} \
             --edges-file {input.edges} \
-            --flow-data-dir {wildcards.output_path}/transport_failures/nominal \
+            --flow-data-dir {input.flow_data} \
             --output-path {output.chunk}
+        """
+
+
+rule rail_stations_failure_analysis:
+    """
+    Remove railway stations from multi-modal transport network and estimate the
+    arising economic losses.
+
+    Test with:
+    snakemake -c1 results/transport_failures/single_station_failures_scenarios.csv
+    """
+    input:
+        script = "workflow/3_criticality/rail_stations_failure_analysis.py",
+        edges = f"{DATA}/networks/transport/multi_modal_network.gpkg",
+        rail_nodes = f"{DATA}/networks/transport/rail.gpkg",
+        flow_data_dir = f"{OUTPUT}/transport_failures/nominal/",
+    output:
+        station_failures = f"{OUTPUT}/transport_failures/single_station_failures_scenarios.csv",
+    shell:
+        """
+        python {input.script} \
+            --edges-file {input.edges} \
+            --rail-nodes-file {input.rail_nodes} \
+            --flow-data-dir {input.flow_data_dir} \
+            --output-path {output.station_failures}
+        """
+
+
+rule bridge_failure_analysis:
+    """
+    Remove road bridges from multi-modal transport network and estimate the
+    arising economic losses.
+
+    Test with:
+    snakemake -c1 results/transport_failures/single_bridge_failures_scenarios.csv
+    """
+    input:
+        script = "workflow/3_criticality/roads_bridges_failure_analysis.py",
+        edges = f"{DATA}/networks/transport/multi_modal_network.gpkg",
+        road_nodes = f"{DATA}/networks/transport/roads.gpkg",
+        flow_data_dir = f"{OUTPUT}/transport_failures/nominal/",
+    output:
+        bridge_failures = f"{OUTPUT}/transport_failures/single_bridge_failures_scenarios.csv",
+    shell:
+        """
+        python {input.script} \
+            --edges-file {input.edges} \
+            --road-nodes-file {input.road_nodes} \
+            --flow-data-dir {input.flow_data_dir} \
+            --output-path {output.bridge_failures}
         """
 
 
@@ -120,40 +153,57 @@ rule single_point_failure_road_rail:
     """
     Create a single point failure file for road and rail assets.
     
-    scripts/analysis/transport_single_point_failure_results_combine.py
-    
-    TODO: scripts/transport_model/transport_failure_scenario_setup.py needs adjusting
-        so its output files use a pattern of `*_#chunk.csv` rather than
-        `*_#minEdge_#maxEdge.csv` so we can know the names of files from a single chunks parameter.
-    
     Test with:
     snakemake -c1 results/economic_losses/single_failure_scenarios/single_point_failure_road_rail_edges_economic_losses.csv
+
+    TODO: There's a question which script we should use here:
+        transport_failure_results_combine.py looks ideal to parse the chunked
+            results and output road and rail failures however it ignores bridges and
+            doesn't output the other required files (as per this rule, e.g. bridge,
+            ports, airports)
+        transport_single_point_failure_results_combine.py requires bridge data
+            which we don't know how to produce
+
+    If we need to produce the bridge output files, we need some bridge input
+    data. Workflow currently set up to expect bridges as nodes in road network.
+
+    We may need to reinsert a road nodes asset class row into the coordinating
+    network CSV and trace the rulegraph that follows.
+
+    There's also an argument that bridges, ports, rail stations and airports
+    should be considered by another rule entirely.
     """
     input:
-        # single_link_failures are read into all_failures in the walk through scenario_results/ directory
+        script = "workflow/3_criticality/transport_single_point_failure_results_combine.py",
         single_link_failures = expand(
-            "{{output_path}}/transport_failures/scenario_results/single_link_failure_{chunk}.csv",
+            f"{OUTPUT}/transport_failures/scenario_results/single_link_failure_{{chunk}}.csv",
             chunk=range(config["single_link_failure_chunk_count"]),
         ),
-        labour_flows = "{output_path}/flow_mapping/labour_trips_and_activity.pq",
-        bridges = f"{DATA}/networks/transport/roads.gpkg",  # bridges are a layer in the roads network
+        station_failures = f"{OUTPUT}/transport_failures/single_station_failures_scenarios.csv",
+        bridge_failures = f"{OUTPUT}/transport_failures/single_bridge_failures_scenarios.csv",
+        labour_flows = f"{OUTPUT}/flow_mapping/labour_trips_and_activity.pq",
+        bridges = f"{DATA}/networks/transport/roads.gpkg",  # assumed to be road nodes, alas not yet
         edges = f"{DATA}/networks/transport/multi_modal_network.gpkg",
-        bridge_labour_trips = "{output_path}/flow_mapping/origins_destinations_labour_economic_activity.csv",
-        od_losses = "{output_path}/flow_mapping/origins_destinations_trade_economic_activity.csv",
+        bridge_labour_trips = f"{OUTPUT}/flow_mapping/origins_destinations_labour_economic_activity.csv",
+        od_losses = f"{OUTPUT}/flow_mapping/origins_destinations_trade_economic_activity.csv",
         ports = f"{DATA}/networks/transport/port_polygon.gpkg",
+        airports = f"{DATA}/networks/transport/airport_polygon.gpkg",
+    params:
+        # include as a param to trigger re-run on change
+        chunk_count = config["single_link_failure_chunk_count"]
     output:
         [
-            "{output_path}/economic_losses/single_failure_scenarios/single_point_failure_road_rail_edges_economic_losses.csv",
-            "{output_path}/economic_losses/single_failure_scenarios/single_point_failure_road_bridges_economic_losses.csv",
-            "{output_path}/economic_losses/single_failure_scenarios/single_point_failure_ports_economic_losses.csv",
-            "{output_path}/economic_losses/single_failure_scenarios/single_point_failure_rail_stations_economic_losses.csv",
-            "{output_path}/economic_losses/single_failure_scenarios/single_point_failure_airports_economic_losses.csv",
+            f"{OUTPUT}/economic_losses/single_failure_scenarios/single_point_failure_road_rail_edges_economic_losses.csv",
+            f"{OUTPUT}/economic_losses/single_failure_scenarios/single_point_failure_road_bridges_economic_losses.csv",
+            f"{OUTPUT}/economic_losses/single_failure_scenarios/single_point_failure_ports_economic_losses.csv",
+            f"{OUTPUT}/economic_losses/single_failure_scenarios/single_point_failure_rail_stations_economic_losses.csv",
+            f"{OUTPUT}/economic_losses/single_failure_scenarios/single_point_failure_airports_economic_losses.csv",
         ]
     shell:
-        """
-        for f in {output}; do
-            touch $f
-        done
+        f"""
+        python {input.script} \
+            --results-dir {OUTPUT} \
+            --processed-data-dir {DATA}
         """
 
 
@@ -163,8 +213,8 @@ rule ELECTRICTY_SINGLE_POINT_FAILURES:
     """
     output:
         [
-            "{output_path}/electricity_failures/single_point_failure_results_nodes.csv",
-            "{output_path}/electricity_failures/single_point_failure_results_edges.csv",
+            f"{OUTPUT}/electricity_failures/single_point_failure_results_nodes.csv",
+            f"{OUTPUT}/electricity_failures/single_point_failure_results_edges.csv",
         ]
     shell:
         """
@@ -194,19 +244,19 @@ rule single_point_failure_electricity_water:
         irrigation_economic_activity = f"{DATA}/networks_economic_activity/irrigation_nodes_dependent_economic_activity.csv",
         irrigation_edges_economic_activity = f"{DATA}/networks_economic_activity/irrigation_edges_dependent_economic_activity.csv",
         electricity_economic_activity = f"{DATA}/networks_economic_activity/electricity_dependent_economic_activity.csv",
-        electricity_nodes_failure_results = "{output_path}/electricity_failures/single_point_failure_results_nodes.csv",
-        electricity_edges_failure_results = "{output_path}/electricity_failures/single_point_failure_results_edges.csv",
+        electricity_nodes_failure_results = f"{OUTPUT}/electricity_failures/single_point_failure_results_nodes.csv",
+        electricity_edges_failure_results = f"{OUTPUT}/electricity_failures/single_point_failure_results_edges.csv",
         electricity_water_mapping = f"{DATA}/networks/energy/mapping_water_to_electricity.csv",
         electricity_economic_activity_buildings = f"{DATA}/networks_economic_activity/electricity_buildings_economic_activity_mapping.csv",
     output:
-        potable_facilities = "{output_path}/economic_losses/single_failure_scenarios/single_point_failure_potable_facilities_economic_losses.csv",
-        potable_pipelines = "{output_path}/economic_losses/single_failure_scenarios/single_point_failure_potable_pipelines_economic_losses.csv",
-        irrigation_nodes = "{output_path}/economic_losses/single_failure_scenarios/single_point_failure_irrigation_nodes_economic_losses.csv",
-        irrigation_edges = "{output_path}/economic_losses/single_failure_scenarios/single_point_failure_irrigation_edges_economic_losses.csv",
-        electricity_nodes_no_water = "{output_path}/economic_losses/single_failure_scenarios/single_point_failure_electricity_nodes_no_water.csv",
-        electricity_edges_no_water = "{output_path}/economic_losses/single_failure_scenarios/single_point_failure_electricity_edges_no_water.csv",
-        electricity_nodes = "{output_path}/economic_losses/single_failure_scenarios/single_point_failure_electricity_nodes_economic_losses.csv",
-        electricity_edges = "{output_path}/economic_losses/single_failure_scenarios/single_point_failure_electricity_edges_economic_losses.csv",
+        potable_facilities = f"{OUTPUT}/economic_losses/single_failure_scenarios/single_point_failure_potable_facilities_economic_losses.csv",
+        potable_pipelines = f"{OUTPUT}/economic_losses/single_failure_scenarios/single_point_failure_potable_pipelines_economic_losses.csv",
+        irrigation_nodes = f"{OUTPUT}/economic_losses/single_failure_scenarios/single_point_failure_irrigation_nodes_economic_losses.csv",
+        irrigation_edges = f"{OUTPUT}/economic_losses/single_failure_scenarios/single_point_failure_irrigation_edges_economic_losses.csv",
+        electricity_nodes_no_water = f"{OUTPUT}/economic_losses/single_failure_scenarios/single_point_failure_electricity_nodes_no_water.csv",
+        electricity_edges_no_water = f"{OUTPUT}/economic_losses/single_failure_scenarios/single_point_failure_electricity_edges_no_water.csv",
+        electricity_nodes = f"{OUTPUT}/economic_losses/single_failure_scenarios/single_point_failure_electricity_nodes_economic_losses.csv",
+        electricity_edges = f"{OUTPUT}/economic_losses/single_failure_scenarios/single_point_failure_electricity_edges_economic_losses.csv",
     shell:
         """
         touch {output.potable_facilities}

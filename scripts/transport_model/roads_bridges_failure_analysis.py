@@ -1,18 +1,19 @@
 """Do a transport failure analysis with rerouting
 """
 
+import sys
 import os
 
-import pandas as pd
+import ast
 import geopandas as gpd
 import igraph as ig
-import ast
+import pandas as pd
 from tqdm import tqdm
 
 from jamaica_infrastructure.transport.utils import (
     load_config,
     map_nearest_locations_and_create_lines,
-    network_od_paths_assembly,
+    network_od_paths_assembly
 )
 import jamaica_infrastructure.transport.flow as tf
 
@@ -180,7 +181,7 @@ def filter_sector_from_buildings(buildings_dataframe, sector_code, subsector_cod
     return get_sector[get_sector["find_subsector"] == 1]
 
 
-def main(config):
+def main(config, min_node_number, max_node_number):
     # 0.6 - 2.1% of the value per day
     # so we need to make an assumption on the average wage per working person,
     # say 200 USD per day. Then if a road is disrupted which has 1000 daily trips and
@@ -308,38 +309,39 @@ def main(config):
         ),
         layer="edges",
     )
-    rail_nodes = gpd.read_file(
-        os.path.join(processed_data_path, "networks", "transport", "rail.gpkg"),
+    bridges = gpd.read_file(
+        os.path.join(processed_data_path, "networks", "transport", "roads.gpkg"),
         layer="nodes",
     )
-    rail_nodes = rail_nodes[
-        (rail_nodes["asset_type"] == "station") & (rail_nodes["status"] == "Functional")
-    ]["node_id"].values.tolist()
+    bridges = bridges[bridges["asset_type"] == "bridge"]["node_id"].values.tolist()
+
+    if max_node_number > len(bridges):
+        max_node_number = len(bridges)
 
     edge_fail_results = []
-    failed_nodes = []
-    for node_number in range(0, len(rail_nodes)):
-        node_fail = rail_nodes[node_number]
+    failed_bridges = []
+    for bridge_number in range(min_node_number, max_node_number):
+        bridge_fail = bridges[bridge_number]
         edge_fail = edges[
-            (edges["from_node"] == node_fail) | (edges["to_node"] == node_fail)
+            (edges["from_node"] == bridge_fail) | (edges["to_node"] == bridge_fail)
         ]
         if len(edge_fail.index) > 0:
-            # node_edges = list(set(edge_fail["from_node"].values.tolist() + edge_fail["to_node"].values.tolist()))
-            node_edges = [node_fail] + edge_fail["edge_id"].values.tolist()
+            # bridge_edges = list(set(edge_fail["from_node"].values.tolist() + edge_fail["to_node"].values.tolist()))
+            bridge_edges = [bridge_fail] + edge_fail["edge_id"].values.tolist()
             for networks in network_dictionary:
                 edge_fail_results += tf.igraph_scenario_edge_failures(
                     networks["network"],
-                    node_edges,
+                    bridge_edges,
                     networks["flows"],
                     networks["edge_indexes"],
                     "edge_path",
                     "time",
                 )
-                failed_nodes.append(node_fail)
-        print("* Done with node", node_fail)
+                failed_bridges.append(bridge_fail)
+        print("* Done with bridge", bridge_fail)
     edge_fail_results = pd.DataFrame(edge_fail_results)
     edge_fail_results.rename(columns={"edge_id": "node_id"}, inplace=True)
-    # edge_fail_results["node_id"] = failed_nodes
+    # edge_fail_results["node_id"] = failed_bridges
     edge_fail_results = pd.merge(
         edge_fail_results, all_flows, how="left", on=["origin_id", "destination_id"]
     ).fillna(0)
@@ -413,7 +415,9 @@ def main(config):
 
     losses.to_csv(
         os.path.join(
-            results_path, "transport_failures", f"single_station_failures_scenarios.csv"
+            results_path,
+            "transport_failures",
+            f"single_bridge_failures_scenarios_{min_node_number}_{max_node_number}.csv",
         ),
         index=False,
     )
@@ -421,4 +425,12 @@ def main(config):
 
 if __name__ == "__main__":
     CONFIG = load_config()
-    main(CONFIG)
+    try:
+        min_node_number = int(sys.argv[2])
+        max_node_number = int(sys.argv[3])
+        # print (min_node_number,max_node_number)
+    except IndexError:
+        print("Got arguments", sys.argv)
+        exit()
+
+    main(CONFIG, min_node_number, max_node_number)

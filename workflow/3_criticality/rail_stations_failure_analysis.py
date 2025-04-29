@@ -1,5 +1,3 @@
-"""Transport failure analysis with rerouting."""
-
 import logging
 
 import click
@@ -13,7 +11,6 @@ from jamaica_infrastructure.transport.flow import (
     read_flow_data,
 )
 
-
 tqdm.pandas()
 epsg_jamaica = 3448
 
@@ -21,19 +18,18 @@ epsg_jamaica = 3448
 @click.command()
 @click.version_option("1.0.0")
 @click.option(
-    "--edge-chunk-map-csv",
-    "-c",
-    required=True,
-    type=click.Path(exists=True, file_okay=True, dir_okay=False, readable=True),
-    help="Path to the file mapping a chunk ID to start and stop edge indicies.",
-)
-@click.option("--chunk-id", "-i", required=True, type=int, help="Path to the file mapping a chunk ID to start and stop edge indicies.")
-@click.option(
     "--edges-file",
     "-e",
     required=True,
     type=click.Path(exists=True, dir_okay=False, readable=True),
     help="Jamaican Multimodal Network GeoPackage file",
+)
+@click.option(
+    "--rail-nodes-file",
+    "-r",
+    required=True,
+    type=click.Path(exists=True, dir_okay=False, readable=True),
+    help="Railway nodes GeoPackage file",
 )
 @click.option(
     "--flow-data-dir",
@@ -49,9 +45,10 @@ epsg_jamaica = 3448
     type=click.Path(exists=False, file_okay=True, dir_okay=False, readable=True),
     help="Path to write failure analysis results to.",
 )
-def main(*, edge_chunk_map_csv, chunk_id, edges_file, flow_data_dir, output_path):
+def main(*, flow_data_dir, edges_file, rail_nodes_file, output_path):
     """
-    Calculate economic costs of removing road edges from multi-modal transport network.
+    Calculate economic costs of removing railway stations and adjacent edges
+    from multi-modal transport network.
     """
 
     # 0.6 - 2.1% of the value per day
@@ -62,48 +59,45 @@ def main(*, edge_chunk_map_csv, chunk_id, edges_file, flow_data_dir, output_path
     hourly_wage = 0.4 * (1 + 0.454) * 235.25  # Between 200 - 500 JMD for 2012 stats, 45.4% inflation in currency
     trade_effect = 0.02  # 2% of the value of trade will be affected by rerouting
 
-    chunk_map = pd.read_csv(edge_chunk_map_csv).set_index("id")
-    min_edge_number, max_edge_number = sorted(chunk_map.loc[chunk_id])
-
-    logging.info(f"Running transport failure analysis for edge positions {min_edge_number} -> {max_edge_number}")
-
     logging.info("Read nominal flow data")
     network_dictionary, all_flows, trade_sectors = read_flow_data(flow_data_dir)
 
-    logging.info("Reading network data")
     edges = gpd.read_file(edges_file, layer="edges")
-
-    rail_edges = edges[(edges["from_mode"] == "rail") & (edges["to_mode"] == "rail")]["edge_id"].values.tolist()
-    road_edges = edges[(edges["from_mode"] == "road") & (edges["to_mode"] == "road")]["edge_id"].values.tolist()
-    edge_fail = rail_edges + road_edges
-
-    logging.info("Failing edges and reallocating flows")
-
-    if max_edge_number > len(edge_fail):
-        max_edge_number = len(edge_fail)
+    rail_nodes = gpd.read_file(rail_nodes_file, layer="nodes")
+    rail_node_ids = rail_nodes[(rail_nodes["asset_type"] == "station") & (rail_nodes["status"] == "Functional")]["node_id"].values.tolist()
 
     edge_fail_results = []
-    for edge_number in range(min_edge_number, max_edge_number):
-        edge = edge_fail[edge_number]
-        logging.info(f"Failing {edge}")
-        for networks in network_dictionary.values():
-            edge_fail_results += igraph_scenario_edge_failures_premade_network(
-                # we will remove edges from the graph, only operate on a copy
-                networks["network"].copy(),
-                [edge],
-                networks["flows"],
-                networks["edge_indexes"],
-                "edge_path",
-                "time",
-            )
+    for node_fail in rail_node_ids:
+        edge_fail: pd.DataFrame = edges[(edges["from_node"] == node_fail) | (edges["to_node"] == node_fail)]
+        if len(edge_fail.index) > 0:
+
+            logging.info(f"Failing {node_fail} and adjacent edges")
+            # we only remove (extant) edges, but target node_id is included as first entry and becomes label for results row
+            to_fail: list[str] = [node_fail] + edge_fail["edge_id"].values.tolist()
+            for network in network_dictionary.values():
+                edge_fail_results += igraph_scenario_edge_failures_premade_network(
+                    network["network"].copy(),
+                    to_fail,
+                    network["flows"],
+                    network["edge_indexes"],
+                    "edge_path",
+                    "time",
+                )
 
     logging.info("Done failing edges")
 
+    if not edge_fail_results:
+        edge_fail_results = pd.DataFrame([], columns=["edge_id", "origin_id", "destination_id", "new_cost", "no_access"])
+        logging.info("Node & edge removal had no effect(!)")
+    else:
+        edge_fail_results = pd.DataFrame(edge_fail_results)
+        logging.info(f"Failure results:\n{edge_fail_results}")
+
     logging.info("Calculating resulting economic losses")
-    edge_fail_results = pd.DataFrame(edge_fail_results)
+    edge_fail_results.rename(columns={"edge_id": "node_id"}, inplace=True)
     losses = economic_losses_from_network_damage(
         edge_fail_results,
-        "edge_id",
+        "node_id",
         "no_access",
         all_flows,
         trade_sectors,
@@ -117,6 +111,5 @@ def main(*, edge_chunk_map_csv, chunk_id, edges_file, flow_data_dir, output_path
 
 
 if __name__ == "__main__":
-
     logging.basicConfig(format="%(asctime)s %(process)d %(filename)s %(message)s", level=logging.INFO)
     main()
