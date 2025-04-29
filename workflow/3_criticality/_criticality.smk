@@ -44,7 +44,7 @@ rule transport_scenario_edge_map:
         # include as a param to trigger re-run on change
         chunk_count = config["single_link_failure_chunk_count"]
     output:
-        edge_split_map = temp("{output_path}/transport_failures/transport_scenario_edge_map.csv"),
+        edge_split_map = temp(f"{OUTPUT}/transport_failures/transport_scenario_edge_map.csv"),
     run:
         import logging
 
@@ -178,16 +178,16 @@ rule single_point_failure_road_rail:
     input:
         script = "workflow/3_criticality/transport_single_point_failure_results_combine.py",
         single_link_failures = expand(
-            "{{output_path}}/transport_failures/scenario_results/single_link_failure_{chunk}.csv",
+            f"{OUTPUT}/transport_failures/scenario_results/single_link_failure_{{chunk}}.csv",
             chunk=range(config["single_link_failure_chunk_count"]),
         ),
-        station_failures = "{output_path}/transport_failures/single_station_failures_scenarios.csv",
-        bridge_failures = "{output_path}/transport_failures/single_bridge_failures_scenarios.csv",
-        labour_flows = "{output_path}/flow_mapping/labour_trips_and_activity.pq",
+        station_failures = f"{OUTPUT}/transport_failures/single_station_failures_scenarios.csv",
+        bridge_failures = f"{OUTPUT}/transport_failures/single_bridge_failures_scenarios.csv",
+        labour_flows = f"{OUTPUT}/flow_mapping/labour_trips_and_activity.pq",
         bridges = f"{DATA}/networks/transport/roads.gpkg",  # assumed to be road nodes, alas not yet
         edges = f"{DATA}/networks/transport/multi_modal_network.gpkg",
-        bridge_labour_trips = "{output_path}/flow_mapping/origins_destinations_labour_economic_activity.csv",
-        od_losses = "{output_path}/flow_mapping/origins_destinations_trade_economic_activity.csv",
+        bridge_labour_trips = f"{OUTPUT}/flow_mapping/origins_destinations_labour_economic_activity.csv",
+        od_losses = f"{OUTPUT}/flow_mapping/origins_destinations_trade_economic_activity.csv",
         ports = f"{DATA}/networks/transport/port_polygon.gpkg",
         airports = f"{DATA}/networks/transport/airport_polygon.gpkg",
     params:
@@ -195,16 +195,16 @@ rule single_point_failure_road_rail:
         chunk_count = config["single_link_failure_chunk_count"]
     output:
         [
-            "{output_path}/economic_losses/single_failure_scenarios/single_point_failure_road_rail_edges_economic_losses.csv",
-            "{output_path}/economic_losses/single_failure_scenarios/single_point_failure_road_bridges_economic_losses.csv",
-            "{output_path}/economic_losses/single_failure_scenarios/single_point_failure_ports_economic_losses.csv",
-            "{output_path}/economic_losses/single_failure_scenarios/single_point_failure_rail_stations_economic_losses.csv",
-            "{output_path}/economic_losses/single_failure_scenarios/single_point_failure_airports_economic_losses.csv",
+            f"{OUTPUT}/economic_losses/single_failure_scenarios/single_point_failure_road_rail_edges_economic_losses.csv",
+            f"{OUTPUT}/economic_losses/single_failure_scenarios/single_point_failure_road_bridges_economic_losses.csv",
+            f"{OUTPUT}/economic_losses/single_failure_scenarios/single_point_failure_ports_economic_losses.csv",
+            f"{OUTPUT}/economic_losses/single_failure_scenarios/single_point_failure_rail_stations_economic_losses.csv",
+            f"{OUTPUT}/economic_losses/single_failure_scenarios/single_point_failure_airports_economic_losses.csv",
         ]
     shell:
         f"""
         python {input.script} \
-            --results-dir {{wildcards.output_path}} \
+            --results-dir {OUTPUT} \
             --processed-data-dir {DATA}
         """
 
@@ -215,8 +215,8 @@ rule ELECTRICTY_SINGLE_POINT_FAILURES:
     """
     output:
         [
-            "{output_path}/electricity_failures/single_point_failure_results_nodes.csv",
-            "{output_path}/electricity_failures/single_point_failure_results_edges.csv",
+            f"{OUTPUT}/electricity_failures/single_point_failure_results_nodes.csv",
+            f"{OUTPUT}/electricity_failures/single_point_failure_results_edges.csv",
         ]
     shell:
         """
@@ -246,19 +246,19 @@ rule single_point_failure_electricity_water:
         irrigation_economic_activity = f"{DATA}/networks_economic_activity/irrigation_nodes_dependent_economic_activity.csv",
         irrigation_edges_economic_activity = f"{DATA}/networks_economic_activity/irrigation_edges_dependent_economic_activity.csv",
         electricity_economic_activity = f"{DATA}/networks_economic_activity/electricity_dependent_economic_activity.csv",
-        electricity_nodes_failure_results = "{output_path}/electricity_failures/single_point_failure_results_nodes.csv",
-        electricity_edges_failure_results = "{output_path}/electricity_failures/single_point_failure_results_edges.csv",
+        electricity_nodes_failure_results = f"{OUTPUT}/electricity_failures/single_point_failure_results_nodes.csv",
+        electricity_edges_failure_results = f"{OUTPUT}/electricity_failures/single_point_failure_results_edges.csv",
         electricity_water_mapping = f"{DATA}/networks/energy/mapping_water_to_electricity.csv",
         electricity_economic_activity_buildings = f"{DATA}/networks_economic_activity/electricity_buildings_economic_activity_mapping.csv",
     output:
-        potable_facilities = "{output_path}/economic_losses/single_failure_scenarios/single_point_failure_potable_facilities_economic_losses.csv",
-        potable_pipelines = "{output_path}/economic_losses/single_failure_scenarios/single_point_failure_potable_pipelines_economic_losses.csv",
-        irrigation_nodes = "{output_path}/economic_losses/single_failure_scenarios/single_point_failure_irrigation_nodes_economic_losses.csv",
-        irrigation_edges = "{output_path}/economic_losses/single_failure_scenarios/single_point_failure_irrigation_edges_economic_losses.csv",
-        electricity_nodes_no_water = "{output_path}/economic_losses/single_failure_scenarios/single_point_failure_electricity_nodes_no_water.csv",
-        electricity_edges_no_water = "{output_path}/economic_losses/single_failure_scenarios/single_point_failure_electricity_edges_no_water.csv",
-        electricity_nodes = "{output_path}/economic_losses/single_failure_scenarios/single_point_failure_electricity_nodes_economic_losses.csv",
-        electricity_edges = "{output_path}/economic_losses/single_failure_scenarios/single_point_failure_electricity_edges_economic_losses.csv",
+        potable_facilities = f"{OUTPUT}/economic_losses/single_failure_scenarios/single_point_failure_potable_facilities_economic_losses.csv",
+        potable_pipelines = f"{OUTPUT}/economic_losses/single_failure_scenarios/single_point_failure_potable_pipelines_economic_losses.csv",
+        irrigation_nodes = f"{OUTPUT}/economic_losses/single_failure_scenarios/single_point_failure_irrigation_nodes_economic_losses.csv",
+        irrigation_edges = f"{OUTPUT}/economic_losses/single_failure_scenarios/single_point_failure_irrigation_edges_economic_losses.csv",
+        electricity_nodes_no_water = f"{OUTPUT}/economic_losses/single_failure_scenarios/single_point_failure_electricity_nodes_no_water.csv",
+        electricity_edges_no_water = f"{OUTPUT}/economic_losses/single_failure_scenarios/single_point_failure_electricity_edges_no_water.csv",
+        electricity_nodes = f"{OUTPUT}/economic_losses/single_failure_scenarios/single_point_failure_electricity_nodes_economic_losses.csv",
+        electricity_edges = f"{OUTPUT}/economic_losses/single_failure_scenarios/single_point_failure_electricity_edges_economic_losses.csv",
     shell:
         """
         touch {output.potable_facilities}
