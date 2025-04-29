@@ -142,15 +142,15 @@ rule damage_loss_timeseries_and_NPV:
         script = "workflow/5_adaptation/damage_loss_timeseries_and_npv.py",
         network_csv = config["paths"]["network_layers"],
         growth_rates = f"{DATA}/macroeconomic_data/gdp_growth_rates.xlsx",
-        summarised_damages = f"{OUTPUT}/{{data_dir}}/direct_damages_summary/{{gpkg}}_{{layer}}_EAD_EAEL.csv",
+        summarised_damages = f"{{output_path}}/direct_damages_summary/{{gpkg}}_{{layer}}_EAD_EAEL.csv",
     params:
         baseline_year = 2019,
         projection_end_year = 2100,
         discounting_rate = 10
     output:
-        NPV = f"{OUTPUT}/{{data_dir}}/loss_damage_npvs/{{gpkg}}_{{layer}}_EAD_EAEL_npvs.csv",
+        NPV = f"{{output_path}}/loss_damage_npvs/{{gpkg}}_{{layer}}_EAD_EAEL_npvs.csv",
         timeseries = [
-            f"{OUTPUT}/{{data_dir}}/loss_damage_timeseries/{{gpkg}}_{{layer}}_{file_suffix}.csv"
+            f"{{output_path}}/loss_damage_timeseries/{{gpkg}}_{{layer}}_{file_suffix}.csv"
             for file_suffix in timeseries_files
         ],
     shell:
@@ -160,9 +160,8 @@ rule damage_loss_timeseries_and_NPV:
             --growth-rates-xls {input.growth_rates} \
             --asset-gpkg {wildcards.gpkg} \
             --asset-layer {wildcards.layer} \
-            --data-dir {wildcards.data_dir} \
             --baseline-year {params.baseline_year} \
             --projection-end-year {params.projection_end_year} \
             --discounting-rate {params.discounting_rate} \
-            --output-dir {OUTPUT}
+            --output-path {wildcards.output_path}
         """

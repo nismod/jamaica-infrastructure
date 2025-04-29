@@ -174,12 +174,6 @@ def estimate_time_series(
     help="asset_layer value in the network CSV",
 )
 @click.option(
-    "--data-dir",
-    "-d",
-    required=False,
-    help="optional data directory sub-path",
-)
-@click.option(
     "--baseline-year",
     "-b",
     default=2019,
@@ -204,7 +198,7 @@ def estimate_time_series(
     help="Discounting rate",
 )
 @click.option(
-    "--output-dir",
+    "--output-path",
     "-o",
     required=True,
     type=click.Path(
@@ -220,11 +214,10 @@ def damage_loss_timeseries_and_npv(
     growth_rates_xls,
     asset_gpkg,
     asset_layer,
-    data_dir,
     baseline_year,
     projection_end_year,
     discounting_rate,
-    output_dir,
+    output_path
 ):
     asset_df = pd.read_csv(asset_data)
     asset_data_details = asset_df[
@@ -234,31 +227,24 @@ def damage_loss_timeseries_and_npv(
     asset_info = asset_data_details.squeeze()
     asset_prefix = f"{asset_gpkg}_{asset_layer}"
 
-    adaptation_dir = output_dir
-    if data_dir:
-        adaptation_dir = os.path.join(
-            output_dir,
-            data_dir
-        )
-
     growth_rates = pd.read_excel(
         growth_rates_xls,
         sheet_name="Sheet1",
     ).fillna(0)
 
     summarised_damages_csv = os.path.join(
-        adaptation_dir,
+        output_path,
         "direct_damages_summary",
         f"{asset_prefix}_EAD_EAEL.csv"
     )
     summarised_damages = pd.read_csv(summarised_damages_csv)
 
     discounted_results = os.path.join(
-        adaptation_dir,
+        output_path,
         "loss_damage_npvs"
     )
     timeseries_results = os.path.join(
-        adaptation_dir,
+        output_path,
         "loss_damage_timeseries"
     )
 
