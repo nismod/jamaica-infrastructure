@@ -119,14 +119,13 @@ def collate_flow_data(results_dir: str, processed_data_dir: str):
         sector_flow_path_indexes = tf.get_flow_paths_indexes_of_edges(
             sector_flows, "edge_path"
         )
-        network_dictionary["trade"] = {
+        network_dictionary[f"trade_{t}"] = {
             "network": sector_network,
             "flows": sector_flows,
             "edge_indexes": pd.Series(sector_flow_path_indexes).to_frame().rename(columns={0: "edge_indexes"}),
         }
-        del sector_network, sector_flows, sector_flow_path_indexes
 
-    logging.info("Writing network, flows and paths to disk.")
+    logging.info("Writing networks, flows and paths to disk.")
 
     output_parent_dir = os.path.join(results_dir, "transport_failures", "nominal")
     for flow_type, flow_data in network_dictionary.items():
@@ -141,7 +140,7 @@ def collate_flow_data(results_dir: str, processed_data_dir: str):
 
     logging.info("Writing trade sectors to disk.")
 
-    with open(os.path.join(output_parent_dir, "trade", "trade_sectors.json"), "w") as fp:
+    with open(os.path.join(output_parent_dir, "trade_sectors.json"), "w") as fp:
         json.dump(trade_sectors, fp, indent=2)
 
     return

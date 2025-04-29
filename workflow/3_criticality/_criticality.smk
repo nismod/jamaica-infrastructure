@@ -8,30 +8,23 @@ rule collate_flow_data:
     Collate flow data for transport failure analysis.
     
     Test with:
-    snakemake -c1 results/transport_failures/nominal/all_flows.pq
+    snakemake -c1 results/transport_failures/nominal/
     """
     input:
         script = "workflow/3_criticality/collate_flow_data.py",
         labour_flow_edges = f"{DATA}/networks/transport/multi_modal_network.gpkg",
-        trade_flow_edges = "{output_path}/flow_mapping/sector_imports_exports_to_ports_flows.gpkg",
-        trade_flows = "{output_path}/flow_mapping/sector_to_ports_flow_paths.pq",
-        labour_flows = "{output_path}/flow_mapping/labour_to_sectors_trips_and_activity.pq",
+        trade_flow_edges = f"{OUTPUT}/flow_mapping/sector_imports_exports_to_ports_flows.gpkg",
+        trade_flows = f"{OUTPUT}/flow_mapping/sector_to_ports_flow_paths.pq",
+        labour_flows = f"{OUTPUT}/flow_mapping/labour_to_sectors_trips_and_activity.pq",
     output:
         [
-            directory("{output_path}/transport_failures/nominal"),
-            "{output_path}/transport_failures/nominal/labour/network.gpq",
-            "{output_path}/transport_failures/nominal/trade/network.gpq",
-            "{output_path}/transport_failures/nominal/labour/flows.pq",
-            "{output_path}/transport_failures/nominal/trade/flows.pq",
-            "{output_path}/transport_failures/nominal/labour/edge_indexes.pq",
-            "{output_path}/transport_failures/nominal/trade/edge_indexes.pq",
-            "{output_path}/transport_failures/nominal/all_flows.pq",
-            "{output_path}/transport_failures/nominal/trade/trade_sectors.json",
+            directory(f"{OUTPUT}/transport_failures/nominal"),
+            f"{OUTPUT}/transport_failures/nominal/all_flows.pq",
         ]
     shell:
         f"""
         python {{input.script}} \
-            --results-dir {{wildcards.output_path}} \
+            --results-dir {OUTPUT} \
             --processed-data-dir {DATA}
         """
 
@@ -89,30 +82,21 @@ rule single_link_failures:
     """
     input:
         script = "workflow/3_criticality/single_link_failures.py",
-        edge_chunk_map_csv = "{output_path}/transport_failures/transport_scenario_edge_map.csv",
+        edge_chunk_map_csv = f"{OUTPUT}/transport_failures/transport_scenario_edge_map.csv",
         edges = f"{DATA}/networks/transport/multi_modal_network.gpkg",
-        read_flow_data = [
-            "{output_path}/transport_failures/nominal/labour/network.gpq",
-            "{output_path}/transport_failures/nominal/trade/network.gpq",
-            "{output_path}/transport_failures/nominal/labour/flows.pq",
-            "{output_path}/transport_failures/nominal/trade/flows.pq",
-            "{output_path}/transport_failures/nominal/labour/edge_indexes.pq",
-            "{output_path}/transport_failures/nominal/trade/edge_indexes.pq",
-            "{output_path}/transport_failures/nominal/all_flows.pq",
-            "{output_path}/transport_failures/nominal/trade/trade_sectors.json",
-        ]
+        flow_data = f"{OUTPUT}/transport_failures/nominal/",
     params:
         # include as a param to trigger re-run on change
         chunk_count = config["single_link_failure_chunk_count"]
     output:
-        chunk = protected("{output_path}/transport_failures/scenario_results/single_link_failure_{chunk}.csv"),
+        chunk = protected(f"{OUTPUT}/transport_failures/scenario_results/single_link_failure_{{chunk}}.csv"),
     shell:
         """
         python {input.script} \
             --edge-chunk-map-csv {input.edge_chunk_map_csv} \
             --chunk-id {wildcards.chunk} \
             --edges-file {input.edges} \
-            --flow-data-dir {wildcards.output_path}/transport_failures/nominal \
+            --flow-data-dir {input.flow_data} \
             --output-path {output.chunk}
         """
 

@@ -656,8 +656,13 @@ def read_flow_data(data_path: str):
     Read combined flow data from disk ready for transport failure disruption.
     """
 
+    logging.info("Reading trade sector list")
+    with open(os.path.join(data_path, "trade_sectors.json"), "r") as fp:
+        trade_sectors = json.load(fp)
+
     network_data: dict = {}
-    for flow_type in ("labour", "trade"):
+    flow_types = [f"trade_{sector}" for sector in trade_sectors] + ["labour"]
+    for flow_type in flow_types:
         output_flow_dir = os.path.join(data_path, flow_type)
         logging.info(f"Reading {flow_type} network")
         network_df = gpd.read_parquet(os.path.join(output_flow_dir, "network.gpq"))
@@ -677,9 +682,5 @@ def read_flow_data(data_path: str):
 
     logging.info("Reading combined flows")
     all_flows = pd.read_parquet(os.path.join(data_path, "all_flows.pq"))
-
-    logging.info("Reading trade sectors")
-    with open(os.path.join(data_path, "trade", "trade_sectors.json"), "r") as fp:
-        trade_sectors = json.load(fp)
 
     return network_data, all_flows, trade_sectors
