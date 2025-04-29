@@ -37,7 +37,11 @@ def get_benefits(id_column, df1, df2, df1_columns, df2_columns):
 def get_ead_eael_benefits(id_column, df1, df2, df1_columns, df2_columns):
     modified_columns = dict(
         [
-            (c, c.replace("EAD", "protection_EAD").replace("EAEL", "protection_EAEL"))
+            (
+                c,
+                c.replace("EAD", "protection_EAD")
+                .replace("EAEL", "protection_EAEL")
+            )
             for c in df2_columns
         ]
     )
@@ -78,7 +82,9 @@ def get_all_column_combinations(hzd, rcps, risk_type, val_type):
     return all_c, rcp_c
 
 
-def get_risks(df, asset_id, hazard, hazard_types, rcps, risk_type, val_type, days=10):
+def get_risks(
+    df, asset_id, hazard, hazard_types, rcps, risk_type, val_type, days=10
+):
     all_columns, rcp_columns = get_all_column_combinations(
         hazard_types, rcps, risk_type, val_type
     )
@@ -99,7 +105,9 @@ def get_risks(df, asset_id, hazard, hazard_types, rcps, risk_type, val_type, day
     return df[[asset_id] + risk_rcp_columns], risk_rcp_columns
 
 
-def get_ead_eael(df, asset_id, hazard, hazard_types, rcps, risk_type, val_type):
+def get_ead_eael(
+    df, asset_id, hazard, hazard_types, rcps, risk_type, val_type
+):
     all_columns, rcp_columns = get_all_column_combinations(
         hazard_types, rcps, risk_type, val_type
     )
@@ -113,7 +121,8 @@ def get_ead_eael(df, asset_id, hazard, hazard_types, rcps, risk_type, val_type):
                 for vt in val_type:
                     vt_cols = [c for c in rcp_c if f"{rt}_{vt}" in c]
                     risk_rcp_columns.append(f"{hazard}__rcp_{rcp}__{rt}_{vt}")
-                    df[f"{hazard}__rcp_{rcp}__{rt}_{vt}"] = df[vt_cols].sum(axis=1)
+                    column_name = f"{hazard}__rcp_{rcp}__{rt}_{vt}"
+                    df[column_name] = df[vt_cols].sum(axis=1)
 
     return df[[asset_id] + risk_rcp_columns], risk_rcp_columns
 
@@ -141,7 +150,10 @@ def bcr_estimates(
         on=[asset_id],
     ).fillna(0)
     risk_df = risk_df[risk_df["adapt_cost_npv"] > 0]
-    bcr_columns = [c.replace("avoided_risk", "BCR") for c in adapt_benefit_columns]
+    bcr_columns = [
+        c.replace("avoided_risk", "BCR")
+        for c in adapt_benefit_columns
+    ]
     risk_df[bcr_columns] = risk_df[adapt_benefit_columns].div(
         risk_df["adapt_cost_npv"], axis=0
     )
@@ -229,7 +241,9 @@ def get_bcr_values(
 
             option_cost_df = option_df.copy()
             option_cost_df[hazard_thresholds_column_name] = ft
-            option_cost_df["adapt_cost_npv"] = cmf * option_cost_df["adapt_cost_npv"]
+            option_cost_df["adapt_cost_npv"] = (
+                cmf * option_cost_df["adapt_cost_npv"]
+            )
             risk_df, bcr_columns = bcr_estimates(
                 asset_id,
                 option_cost_df,
@@ -302,7 +316,9 @@ def get_ead_eael_costs(
 
             option_cost_df = option_df.copy()
             option_cost_df[hazard_thresholds_column_name] = ft
-            option_cost_df["adapt_cost_npv"] = cmf * option_cost_df["adapt_cost_npv"]
+            option_cost_df["adapt_cost_npv"] = (
+                cmf * option_cost_df["adapt_cost_npv"]
+            )
             option_cost_df["adapt_cost_unit"] = "J$"
             option_cost_df["ead_cost_unit"] = "J$"
             option_cost_df["eael_cost_unit"] = "J$/day"
@@ -347,14 +363,24 @@ def get_ead_eael_costs(
     "--asset-data",
     "-a",
     required=True,
-    type=click.Path(exists=True, dir_okay=False, file_okay=True, readable=True),
+    type=click.Path(
+        exists=True,
+        dir_okay=False,
+        file_okay=True,
+        readable=True
+    ),
     help="Path to the asset layer data",
 )
 @click.option(
     "--cost-file",
     "-c",
     required=True,
-    type=click.Path(exists=True, dir_okay=False, file_okay=True, readable=True),
+    type=click.Path(
+        exists=True,
+        dir_okay=False,
+        file_okay=True,
+        readable=True
+    ),
     help="Path to adaptation cost data",
 )
 @click.option(
@@ -379,7 +405,12 @@ def get_ead_eael_costs(
     "--output-dir",
     "-o",
     required=True,
-    type=click.Path(exists=True, dir_okay=True, file_okay=False, readable=True),
+    type=click.Path(
+        exists=True,
+        dir_okay=True,
+        file_okay=False,
+        readable=True
+    ),
     help="Path to the output directory",
 )
 def benefit_cost_ratio(
@@ -434,193 +465,206 @@ def benefit_cost_ratio(
 
     asset_df = pd.read_csv(asset_data)
     asset_data_details = asset_df[
-        (asset_df["asset_gpkg"] == asset_gpkg) & (asset_df["asset_layer"] == asset_layer)
+        (asset_df["asset_gpkg"] == asset_gpkg) &
+        (asset_df["asset_layer"] == asset_layer)
     ]
-
-    for asset_info in asset_data_details.itertuples():
-        asset_id = asset_info.asset_id_column
-        if (os.path.isfile(cost_file) is True) and (
-            os.path.isfile(risk_file) is True
-        ):
-            logging.info(
-                f"* Starting with {hazard['hazard']} {asset_gpkg} {asset_layer}"
+    if len(asset_data_details) > 1:
+        raise ValueError(
+            (
+                f"Multiple assets found for gpkg={asset_gpkg} "
+                f"and layer={asset_layer}"
             )
-            cost_df = pd.read_csv(cost_file)
-            no_adapt_risk = pd.read_csv(risk_file)
+        )
+    elif len(asset_data_details) == 0:
+        raise ValueError(
+            f"No asset found for gpkg={asset_gpkg} and layer={asset_layer}"
+        )
+    asset_info = asset_data_details.squeeze()
 
-            adaptation_options = list(
-                set(cost_df["adaptation_option"].values.tolist())
+    asset_id = asset_info.asset_id_column
+    if (os.path.isfile(cost_file) is True) and (
+        os.path.isfile(risk_file) is True
+    ):
+        logging.info(
+            f"* Starting with {hazard['hazard']} {asset_gpkg} {asset_layer}"
+        )
+        cost_df = pd.read_csv(cost_file)
+        no_adapt_risk = pd.read_csv(risk_file)
+
+        adaptation_options = list(
+            set(cost_df["adaptation_option"].values.tolist())
+        )
+        no_adapt_risk_df, risk_columns = get_risks(
+            no_adapt_risk,
+            asset_id,
+            hazard["hazard"],
+            hazard["hazard_type"],
+            rcps,
+            risk_type,
+            val_type,
+            days=days,
+        )
+        no_adapt_ead_eael_df, ead_eael_columns = get_ead_eael(
+            no_adapt_risk,
+            asset_id,
+            hazard["hazard"],
+            hazard["hazard_type"],
+            rcps,
+            risk_type,
+            val_type,
+        )
+        bcr_results = []
+        ead_eael_results = []
+        for option in adaptation_options:
+            option_df = cost_df[cost_df["adaptation_option"] == option]
+            asset_adaptation_cost = option_df[
+                "asset_adaptation_cost"
+            ].values[0]
+            if (
+                hazard_label == "flooding"
+                and asset_adaptation_cost == "J$/m"
+            ):
+                flood_thresholds = [1.0, 1.5, 2.0, 2.5]
+                bcr_results = get_bcr_values(
+                    output_dir,
+                    asset_id,
+                    bcr_results,
+                    risk_filepath,
+                    hazard,
+                    rcps,
+                    risk_type,
+                    val_type,
+                    no_adapt_risk_df,
+                    risk_columns,
+                    option_df,
+                    flood_thresholds,
+                    flood_thresholds,
+                    "flood_depth_protection_level",
+                    "flood_threshold",
+                    days=days,
+                )
+                ead_eael_results = get_ead_eael_costs(
+                    output_dir,
+                    asset_id,
+                    ead_eael_results,
+                    risk_filepath,
+                    hazard,
+                    rcps,
+                    risk_type,
+                    val_type,
+                    no_adapt_ead_eael_df,
+                    ead_eael_columns,
+                    option_df,
+                    flood_thresholds,
+                    flood_thresholds,
+                    "flood_depth_protection_level",
+                    "flood_threshold",
+                )
+            elif hazard_label == "TC" and asset_info.sector == "energy":
+                cyclone_damage_curve_change = [0.76]
+                bcr_results = get_bcr_values(
+                    output_dir,
+                    asset_id,
+                    bcr_results,
+                    risk_filepath,
+                    hazard,
+                    rcps,
+                    risk_type,
+                    val_type,
+                    no_adapt_risk_df,
+                    risk_columns,
+                    option_df,
+                    cyclone_damage_curve_change,
+                    [1],
+                    "cyclone_damage_curve_reduction",
+                    "cyclone_damage_curve_change",
+                    days=days,
+                )
+                ead_eael_results = get_ead_eael_costs(
+                    output_dir,
+                    asset_id,
+                    ead_eael_results,
+                    risk_filepath,
+                    hazard,
+                    rcps,
+                    risk_type,
+                    val_type,
+                    no_adapt_ead_eael_df,
+                    ead_eael_columns,
+                    option_df,
+                    cyclone_damage_curve_change,
+                    [1],
+                    "cyclone_damage_curve_reduction",
+                    "cyclone_damage_curve_change",
+                )
+            else:
+                option_df["flood_protection_level"] = "All"
+                adapt_benefit_columns = [
+                    c.replace("risk", "avoided_risk") for c in risk_columns
+                ]
+                risk_df = no_adapt_risk_df.copy()
+                risk_df.rename(
+                    columns=dict(
+                        list(zip(risk_columns, adapt_benefit_columns))
+                    ),
+                    inplace=True,
+                )
+                bcr_r, bcr_cols = bcr_estimates(
+                    asset_id,
+                    option_df,
+                    risk_df,
+                    "flood_protection_level",
+                    adapt_benefit_columns,
+                )
+                bcr_results.append(bcr_r)
+
+                adapt_ead_eael_columns = [
+                    c.replace("EAD", "avoided_EAD").replace(
+                        "EAEL", "avoided_EAEL"
+                    )
+                    for c in risk_columns
+                ]
+                ead_eael_df = no_adapt_ead_eael_df.copy()
+                ead_eael_df.rename(
+                    columns=dict(
+                        list(zip(ead_eael_columns, adapt_ead_eael_columns))
+                    ),
+                    inplace=True,
+                )
+                ead_eael_r = ead_eael_estimates(
+                    asset_id,
+                    option_df,
+                    ead_eael_df,
+                    "flood_protection_level",
+                    adapt_ead_eael_columns,
+                )
+                ead_eael_results.append(ead_eael_r)
+        if len(bcr_results) > 0:
+            bcr_results = pd.concat(bcr_results, axis=0, ignore_index=False)
+
+            bcr_results.to_csv(
+                output_bcr,
+                index=False,
             )
-            no_adapt_risk_df, risk_columns = get_risks(
-                no_adapt_risk,
-                asset_id,
-                hazard["hazard"],
-                hazard["hazard_type"],
-                rcps,
-                risk_type,
-                val_type,
-                days=days,
+
+            logging.info(output_bcr)
+
+        if len(ead_eael_results) > 0:
+            ead_eael_results = pd.concat(
+                ead_eael_results, axis=0, ignore_index=False
             )
-            no_adapt_ead_eael_df, ead_eael_columns = get_ead_eael(
-                no_adapt_risk,
-                asset_id,
-                hazard["hazard"],
-                hazard["hazard_type"],
-                rcps,
-                risk_type,
-                val_type,
+
+            ead_eael_results.to_csv(
+                output_ead,
+                index=False,
             )
-            bcr_results = []
-            ead_eael_results = []
-            for option in adaptation_options:
-                option_df = cost_df[cost_df["adaptation_option"] == option]
-                asset_adaptation_cost = option_df["asset_adaptation_cost"].values[0]
-                if (
-                    hazard_label == "flooding"
-                    and asset_adaptation_cost == "J$/m"
-                ):
-                    flood_thresholds = [1.0, 1.5, 2.0, 2.5]
-                    bcr_results = get_bcr_values(
-                        output_dir,
-                        asset_id,
-                        bcr_results,
-                        risk_filepath,
-                        hazard,
-                        rcps,
-                        risk_type,
-                        val_type,
-                        no_adapt_risk_df,
-                        risk_columns,
-                        option_df,
-                        flood_thresholds,
-                        flood_thresholds,
-                        "flood_depth_protection_level",
-                        "flood_threshold",
-                        days=days,
-                    )
-                    ead_eael_results = get_ead_eael_costs(
-                        output_dir,
-                        asset_id,
-                        ead_eael_results,
-                        risk_filepath,
-                        hazard,
-                        rcps,
-                        risk_type,
-                        val_type,
-                        no_adapt_ead_eael_df,
-                        ead_eael_columns,
-                        option_df,
-                        flood_thresholds,
-                        flood_thresholds,
-                        "flood_depth_protection_level",
-                        "flood_threshold",
-                    )
-                elif hazard_label == "TC" and asset_info.sector == "energy":
-                    cyclone_damage_curve_change = [0.76]
-                    bcr_results = get_bcr_values(
-                        output_dir,
-                        asset_id,
-                        bcr_results,
-                        risk_filepath,
-                        hazard,
-                        rcps,
-                        risk_type,
-                        val_type,
-                        no_adapt_risk_df,
-                        risk_columns,
-                        option_df,
-                        cyclone_damage_curve_change,
-                        [1],
-                        "cyclone_damage_curve_reduction",
-                        "cyclone_damage_curve_change",
-                        days=days,
-                    )
-                    ead_eael_results = get_ead_eael_costs(
-                        output_dir,
-                        asset_id,
-                        ead_eael_results,
-                        risk_filepath,
-                        hazard,
-                        rcps,
-                        risk_type,
-                        val_type,
-                        no_adapt_ead_eael_df,
-                        ead_eael_columns,
-                        option_df,
-                        cyclone_damage_curve_change,
-                        [1],
-                        "cyclone_damage_curve_reduction",
-                        "cyclone_damage_curve_change",
-                    )
-                else:
-                    option_df["flood_protection_level"] = "All"
-                    adapt_benefit_columns = [
-                        c.replace("risk", "avoided_risk") for c in risk_columns
-                    ]
-                    risk_df = no_adapt_risk_df.copy()
-                    risk_df.rename(
-                        columns=dict(
-                            list(zip(risk_columns, adapt_benefit_columns))
-                        ),
-                        inplace=True,
-                    )
-                    bcr_r, bcr_cols = bcr_estimates(
-                        asset_id,
-                        option_df,
-                        risk_df,
-                        "flood_protection_level",
-                        adapt_benefit_columns,
-                    )
-                    bcr_results.append(bcr_r)
 
-                    adapt_ead_eael_columns = [
-                        c.replace("EAD", "avoided_EAD").replace(
-                            "EAEL", "avoided_EAEL"
-                        )
-                        for c in risk_columns
-                    ]
-                    ead_eael_df = no_adapt_ead_eael_df.copy()
-                    ead_eael_df.rename(
-                        columns=dict(
-                            list(zip(ead_eael_columns, adapt_ead_eael_columns))
-                        ),
-                        inplace=True,
-                    )
-                    ead_eael_r = ead_eael_estimates(
-                        asset_id,
-                        option_df,
-                        ead_eael_df,
-                        "flood_protection_level",
-                        adapt_ead_eael_columns,
-                    )
-                    ead_eael_results.append(ead_eael_r)
-            if len(bcr_results) > 0:
-                bcr_results = pd.concat(bcr_results, axis=0, ignore_index=False)
-
-                bcr_results.to_csv(
-                    output_bcr,
-                    index=False,
-                )
-
-                logging.info(
-                    f"* Done with {hazard['hazard']} {asset_info.asset_gpkg} {asset_info.asset_layer} BCRs"
-                )
-
-            if len(ead_eael_results) > 0:
-                ead_eael_results = pd.concat(
-                    ead_eael_results, axis=0, ignore_index=False
-                )
-
-                ead_eael_results.to_csv(
-                    output_ead,
-                    index=False,
-                )
-
-                logging.info(
-                    f"* Done with {hazard_label} {asset_gpkg} {asset_layer} EAD EAEL"
-                )
+            logging.info(output_ead)
 
 
 if __name__ == "__main__":
-    logging.basicConfig(format="%(asctime)s %(process)d %(filename)s %(message)s", level=logging.INFO)
+    logging.basicConfig(
+        format="%(asctime)s %(process)d %(filename)s %(message)s",
+        level=logging.INFO,
+    )
     benefit_cost_ratio()
