@@ -231,6 +231,7 @@ def damage_loss_timeseries_and_npv(
         (asset_df["asset_gpkg"] == asset_gpkg) &
         (asset_df["asset_layer"] == asset_layer)
     ]
+    asset_info = asset_data_details.squeeze()
     asset_prefix = f"{asset_gpkg}_{asset_layer}"
 
     adaptation_dir = output_dir
@@ -266,41 +267,25 @@ def damage_loss_timeseries_and_npv(
     if os.path.exists(timeseries_results) is False:
         os.mkdir(timeseries_results)
 
-    for asset_info in asset_data_details.itertuples():
-        asset_id = asset_info.asset_id_column
-        index_columns = [asset_id, "damage_cost_unit", "hazard"]
+    asset_id = asset_info.asset_id_column
+    index_columns = [asset_id, "damage_cost_unit", "hazard"]
 
-        discounted_values = []
-        for risk_type in ["EAD", "EAEL"]:
-            for val_type in ["amin", "mean", "amax"]:
-                if risk_type == "EAEL":
-                    eael_exists = [
-                        c
-                        for c in summarised_damages.columns.values.tolist()
-                        if "EAEL_" in c
+    discounted_values = []
+    for risk_type in ["EAD", "EAEL"]:
+        for val_type in ["amin", "mean", "amax"]:
+            if risk_type == "EAEL":
+                eael_exists = [
+                    c
+                    for c in summarised_damages.columns.values.tolist()
+                    if "EAEL_" in c
+                ]
+                if len(eael_exists) > 0:
+                    index_columns = [
+                        asset_id,
+                        "economic_loss_unit",
+                        "hazard",
                     ]
-                    if len(eael_exists) > 0:
-                        index_columns = [
-                            asset_id,
-                            "economic_loss_unit",
-                            "hazard",
-                        ]
 
-                        damages_time_series, discounted_values = (
-                            estimate_time_series(
-                                summarised_damages,
-                                asset_id,
-                                index_columns,
-                                risk_type,
-                                val_type,
-                                baseline_year,
-                                projection_end_year,
-                                growth_rates,
-                                discounting_rate,
-                                discounted_values,
-                            )
-                        )
-                else:
                     damages_time_series, discounted_values = (
                         estimate_time_series(
                             summarised_damages,
@@ -315,36 +300,51 @@ def damage_loss_timeseries_and_npv(
                             discounted_values,
                         )
                     )
-
-                timeseries_csv = os.path.join(
-                    timeseries_results,
-                    f"{asset_prefix}_{risk_type}_timeseries_{val_type}.csv"
+            else:
+                damages_time_series, discounted_values = (
+                    estimate_time_series(
+                        summarised_damages,
+                        asset_id,
+                        index_columns,
+                        risk_type,
+                        val_type,
+                        baseline_year,
+                        projection_end_year,
+                        growth_rates,
+                        discounting_rate,
+                        discounted_values,
+                    )
                 )
-                damages_time_series.to_csv(
-                    timeseries_csv,
-                    index=False,
-                )
-                logging.info(timeseries_csv)
 
-        dfs = [df.set_index(asset_id) for df in discounted_values]
-        discounted_values = pd.concat(dfs, axis=1).fillna(0)
-        discounted_values = discounted_values.reset_index()
-        discounted_values["damage_cost_unit"] = summarised_damages[
-            "damage_cost_unit"
-        ].values[0]
-        discounted_values["economic_loss_unit"] = summarised_damages[
-            "economic_loss_unit"
-        ].values[0]
-        discounted_values_csv = os.path.join(
-            discounted_results,
-            f"{asset_prefix}_EAD_EAEL_npvs.csv"
-        )
-        discounted_values.to_csv(
-            discounted_values_csv,
-            index=False,
-        )
+            timeseries_csv = os.path.join(
+                timeseries_results,
+                f"{asset_prefix}_{risk_type}_timeseries_{val_type}.csv"
+            )
+            damages_time_series.to_csv(
+                timeseries_csv,
+                index=False,
+            )
+            logging.info(timeseries_csv)
 
-        logging.info(discounted_values_csv)
+    dfs = [df.set_index(asset_id) for df in discounted_values]
+    discounted_values = pd.concat(dfs, axis=1).fillna(0)
+    discounted_values = discounted_values.reset_index()
+    discounted_values["damage_cost_unit"] = summarised_damages[
+        "damage_cost_unit"
+    ].values[0]
+    discounted_values["economic_loss_unit"] = summarised_damages[
+        "economic_loss_unit"
+    ].values[0]
+    discounted_values_csv = os.path.join(
+        discounted_results,
+        f"{asset_prefix}_EAD_EAEL_npvs.csv"
+    )
+    discounted_values.to_csv(
+        discounted_values_csv,
+        index=False,
+    )
+
+    logging.info(discounted_values_csv)
 
 
 if __name__ == "__main__":
