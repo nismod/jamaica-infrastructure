@@ -48,9 +48,7 @@ def route_areas_to_nearest_ports(
         connection_type,
         "road",
     )
-    nearest_roads["edge_id"] = nearest_roads.progress_apply(
-        lambda x: f"{connection_type}roade_{x.name}", axis=1
-    )
+    nearest_roads["edge_id"] = nearest_roads.progress_apply(lambda x: f"{connection_type}roade_{x.name}", axis=1)
     nearest_roads["speed"] = 10.0
     nearest_roads["time"] = 0.001 * nearest_roads["length_m"] / nearest_roads["speed"]
 
@@ -63,18 +61,12 @@ def route_areas_to_nearest_ports(
             connection_type,
             "rail",
         )
-        nearest_stations["edge_id"] = nearest_stations.progress_apply(
-            lambda x: f"{connection_type}raile_{x.name}", axis=1
-        )
+        nearest_stations["edge_id"] = nearest_stations.progress_apply(lambda x: f"{connection_type}raile_{x.name}", axis=1)
         nearest_stations["speed"] = 10.0
-        nearest_stations["time"] = (
-            0.001 * nearest_stations["length_m"] / nearest_stations["speed"]
-        )
+        nearest_stations["time"] = 0.001 * nearest_stations["length_m"] / nearest_stations["speed"]
 
         multi_edges = edges[edges["from_mode"] != edges["to_mode"]]
-        multi_edges = multi_edges[multi_edges["length_m"] >= 5000][
-            "edge_id"
-        ].values.tolist()
+        multi_edges = multi_edges[multi_edges["length_m"] >= 5000]["edge_id"].values.tolist()
         edges = edges[~edges["edge_id"].isin(multi_edges)]
         network = pd.concat(
             [
@@ -100,17 +92,12 @@ def route_areas_to_nearest_ports(
         area_edges = nearest_roads[network_columns]
         # edges = edges[(edges["from_mode"] != "rail") & (edges["to_mode"] != "rail")]
 
-    G = ig.Graph.TupleList(
-        network.itertuples(index=False), edge_attrs=list(network.columns)[2:]
-    )
+    G = ig.Graph.TupleList(network.itertuples(index=False), edge_attrs=list(network.columns)[2:])
 
     all_ports = ports["node_id"].values.tolist()
 
     # od_pairs = [list(zip([b]*len(all_ports),all_ports)) for b in areas[areas_id].values.tolist()]
-    od_pairs = [
-        list(zip(all_ports, [b] * len(all_ports)))
-        for b in areas[areas_id].values.tolist()
-    ]
+    od_pairs = [list(zip(all_ports, [b] * len(all_ports))) for b in areas[areas_id].values.tolist()]
     od_pairs = [item for sublist in od_pairs for item in sublist]
     od_pairs = pd.DataFrame(od_pairs, columns=["origin_id", "destination_id"])
     od_pairs = pd.merge(
@@ -120,14 +107,10 @@ def route_areas_to_nearest_ports(
         left_on=["destination_id"],
         right_on=[areas_id],
     )
-    flow_paths = network_od_paths_assembly(
-        od_pairs[["origin_id", "destination_id", areas_gdp]], G, "time", areas_gdp
-    )
+    flow_paths = network_od_paths_assembly(od_pairs[["origin_id", "destination_id", areas_gdp]], G, "time", areas_gdp)
     flow_paths = flow_paths.sort_values(by="gcost")
     flow_paths = flow_paths.drop_duplicates(subset=["destination_id"], keep="first")
-    flow_paths = flow_paths[
-        ["origin_id", "destination_id", "edge_path", "gcost", areas_gdp]
-    ]
+    flow_paths = flow_paths[["origin_id", "destination_id", "edge_path", "gcost", areas_gdp]]
 
     flow_paths_areas = flow_paths.groupby(["origin_id"])[areas_gdp].sum().reset_index()
     flow_paths_areas.rename(columns={areas_gdp: "tot_GDP"}, inplace=True)
@@ -140,12 +123,8 @@ def route_areas_to_nearest_ports(
         left_on=["origin_id"],
         right_on=["node_id"],
     )
-    flow_paths["trade_wt"] = (
-        flow_paths[port_weight] * flow_paths[areas_gdp] / flow_paths["tot_GDP"]
-    )
-    flow_paths = flow_paths[
-        ["origin_id", "destination_id", "edge_path", "gcost", "trade_wt"]
-    ]
+    flow_paths["trade_wt"] = flow_paths[port_weight] * flow_paths[areas_gdp] / flow_paths["tot_GDP"]
+    flow_paths = flow_paths[["origin_id", "destination_id", "edge_path", "gcost", "trade_wt"]]
 
     if trade_type == "export":
         flow_paths.columns = [
@@ -171,31 +150,32 @@ def port_import_exports(ports, tons_column, trade_type):
 
 def filter_sector_from_buildings(buildings_dataframe, sector_code, subsector_code):
     get_sector = buildings_dataframe[buildings_dataframe[f"{sector_code}_GDP"] > 0]
-    get_sector["find_subsector"] = get_sector.progress_apply(
-        lambda x: 1 if subsector_code in str(x.subsector_code) else 0, axis=1
-    )
+    get_sector["find_subsector"] = get_sector.progress_apply(lambda x: 1 if subsector_code in str(x.subsector_code) else 0, axis=1)
     return get_sector[get_sector["find_subsector"] == 1]
 
 
 @click.command()
 @click.version_option("1.0.0")
 @click.option(
-    "--network-file", "-n", required=True, type=click.Path(exists=True, dir_okay=False, readable=True),
-    help="Jamaican Multimodal Network GeoPackage file"
+    "--network-file",
+    "-n",
+    required=True,
+    type=click.Path(exists=True, dir_okay=False, readable=True),
+    help="Jamaican Multimodal Network GeoPackage file",
 )
 @click.option(
     "--buildings-file",
     "-b",
     type=click.Path(exists=True, file_okay=True, dir_okay=False, readable=True),
     required=True,
-    help="Path to the building economic activity GeoPackage file."
+    help="Path to the building economic activity GeoPackage file.",
 )
 @click.option(
     "--population-file",
     "-p",
     type=click.Path(exists=True, file_okay=True, dir_okay=False, readable=True),
     required=True,
-    help="Path to the population projections GeoPackage file."
+    help="Path to the population projections GeoPackage file.",
 )
 @click.option(
     "--out-dir",
@@ -227,9 +207,7 @@ def commuter_flow_mapping(network_file, buildings_file, population_file, out_dir
         "time",
         "geometry",
     ]
-    network = edges[(edges["from_mode"] == "road") & (edges["to_mode"] == "road")][
-        columns
-    ]
+    network = edges[(edges["from_mode"] == "road") & (edges["to_mode"] == "road")][columns]
 
     # 0.6 - 2.1% of the value per day
     # so we need to make an assumption on the average wage per working person,
@@ -238,9 +216,7 @@ def commuter_flow_mapping(network_file, buildings_file, population_file, out_dir
     # So corrected for inflation in 2019 values, this would be 1.2-2.9 USD per hour of value of time for business related trips
 
     logging.info("Build network graph")
-    graph = ig.Graph.TupleList(
-        network.itertuples(index=False), edge_attrs=list(network.columns)[2:]
-    )
+    graph = ig.Graph.TupleList(network.itertuples(index=False), edge_attrs=list(network.columns)[2:])
 
     buildings["osm_id"] = buildings.progress_apply(lambda x: f"building_{x.osm_id}", axis=1)
     buildings["geometry"] = buildings.progress_apply(lambda x: x.geometry.centroid, axis=1)
@@ -248,9 +224,7 @@ def commuter_flow_mapping(network_file, buildings_file, population_file, out_dir
 
     population_year = 2019
     population.columns = population.columns.map(str)
-    population["working_frac"] = (
-            population[f"working_{population_year}"] / population[f"{population_year}"]
-    )
+    population["working_frac"] = population[f"working_{population_year}"] / population[f"{population_year}"]
 
     logging.info("Assign buildings to road nodes")
     buildings = pd.merge(
@@ -259,26 +233,16 @@ def commuter_flow_mapping(network_file, buildings_file, population_file, out_dir
         how="left",
         on=["ED_ID", "ED"],
     )
-    buildings["working_population"] = (
-            buildings["residential_population"] * buildings["working_frac"]
-    )
+    buildings["working_population"] = buildings["residential_population"] * buildings["working_frac"]
 
     # Assign the closest roads to buildings
     buildings_to_roads = ckdnearest(buildings, nodes[["node_id", "geometry"]])
 
     population_threshold = 50
     gdp_threshold = 50000
-    nodes_population = (
-        buildings_to_roads.groupby(["node_id"])["working_population"]
-        .sum()
-        .reset_index()
-    )
-    nodes_population = pd.merge(
-        nodes_population, nodes[["node_id", "geometry"]], how="left", on=["node_id"]
-    )
-    nodes_population = gpd.GeoDataFrame(
-        nodes_population, geometry="geometry", crs=f"EPSG:{epsg_jamaica}"
-    )
+    nodes_population = buildings_to_roads.groupby(["node_id"])["working_population"].sum().reset_index()
+    nodes_population = pd.merge(nodes_population, nodes[["node_id", "geometry"]], how="left", on=["node_id"])
+    nodes_population = gpd.GeoDataFrame(nodes_population, geometry="geometry", crs=f"EPSG:{epsg_jamaica}")
 
     logging.info("Write out working population at road nodes")
     nodes_population.to_file(
@@ -287,9 +251,7 @@ def commuter_flow_mapping(network_file, buildings_file, population_file, out_dir
         driver="GPKG",
     )
 
-    nodes_economic_activity = (
-        buildings_to_roads.groupby(["node_id"])["total_GDP"].sum().reset_index()
-    )
+    nodes_economic_activity = buildings_to_roads.groupby(["node_id"])["total_GDP"].sum().reset_index()
     nodes_economic_activity = gpd.GeoDataFrame(
         pd.merge(
             nodes_economic_activity,
@@ -308,28 +270,18 @@ def commuter_flow_mapping(network_file, buildings_file, population_file, out_dir
     )
 
     logging.info("Build radiation model")
-    nodes_population = nodes_population[
-        nodes_population["working_population"] >= population_threshold
-        ]
-    nodes_economic_activity = nodes_economic_activity[
-        nodes_economic_activity["total_GDP"] >= gdp_threshold
-        ]
+    nodes_population = nodes_population[nodes_population["working_population"] >= population_threshold]
+    nodes_economic_activity = nodes_economic_activity[nodes_economic_activity["total_GDP"] >= gdp_threshold]
     buffer_distance = 10000  # 10 km distance buffer
     logging.info("Buffer nodes")
-    nodes_population["geometry"] = nodes_population.apply(
-        lambda x: x.geometry.buffer(buffer_distance), axis=1
-    )
+    nodes_population["geometry"] = nodes_population.apply(lambda x: x.geometry.buffer(buffer_distance), axis=1)
     nodes_population.rename(columns={"node_id": "origin_id"}, inplace=True)
     nodes_economic_activity.rename(columns={"node_id": "destination_id"}, inplace=True)
     logging.info("Spatially join economic activity proximate population (create OD)")
-    od_pairs = gpd.sjoin(
-        nodes_economic_activity, nodes_population, how="inner", predicate="within"
-    ).reset_index()
+    od_pairs = gpd.sjoin(nodes_economic_activity, nodes_population, how="inner", predicate="within").reset_index()
 
     logging.info("Find shortest paths for OD over network")
-    flow_paths = network_od_paths_assembly(
-        od_pairs[["origin_id", "destination_id", "total_GDP"]], graph, "time", "total_GDP"
-    )
+    flow_paths = network_od_paths_assembly(od_pairs[["origin_id", "destination_id", "total_GDP"]], graph, "time", "total_GDP")
     flow_paths = flow_paths[flow_paths["gcost"] <= 1.0]
     flow_paths = pd.merge(
         flow_paths,
@@ -349,28 +301,18 @@ def commuter_flow_mapping(network_file, buildings_file, population_file, out_dir
 
     flow_paths = pd.merge(flow_paths, flow_radius, how="left", on=["origin_id"])
 
-    flow_paths["t_ij_ext"] = flow_paths.progress_apply(
-        lambda x: x["total_GDP"] / (x["radius_GDP"] - x["total_GDP"]), axis=1
-    )
+    flow_paths["t_ij_ext"] = flow_paths.progress_apply(lambda x: x["total_GDP"] / (x["radius_GDP"] - x["total_GDP"]), axis=1)
     flow_paths_sums = flow_paths.groupby(["origin_id"])["t_ij_ext"].sum().reset_index()
     flow_paths_sums.rename(columns={"t_ij_ext": "t_ij_ext_sums"}, inplace=True)
-    flow_paths = pd.merge(
-        flow_paths, flow_paths_sums, how="left", on=["origin_id"]
-    ).fillna(0)
+    flow_paths = pd.merge(flow_paths, flow_paths_sums, how="left", on=["origin_id"]).fillna(0)
 
     flow_paths["working_trips"] = flow_paths.progress_apply(
         lambda x: x["working_population"] * (x["t_ij_ext"] / x["t_ij_ext_sums"]), axis=1
     )
     # flow_paths.drop("t_ij_ext_sums",axis=1,inplace=True)
-    flow_paths_sums_wt = (
-        flow_paths.groupby(["destination_id"])["working_trips"].sum().reset_index()
-    )
-    flow_paths_sums_wt.rename(
-        columns={"working_trips": "working_trips_sums"}, inplace=True
-    )
-    flow_paths = pd.merge(
-        flow_paths, flow_paths_sums_wt, how="left", on=["destination_id"]
-    ).fillna(0)
+    flow_paths_sums_wt = flow_paths.groupby(["destination_id"])["working_trips"].sum().reset_index()
+    flow_paths_sums_wt.rename(columns={"working_trips": "working_trips_sums"}, inplace=True)
+    flow_paths = pd.merge(flow_paths, flow_paths_sums_wt, how="left", on=["destination_id"]).fillna(0)
 
     flow_paths["GDP_to_trips"] = flow_paths.progress_apply(
         lambda x: x["total_GDP"] * (x["working_trips"] / x["working_trips_sums"]),
@@ -389,30 +331,13 @@ def commuter_flow_mapping(network_file, buildings_file, population_file, out_dir
     )
 
     common_nodes = flow_paths[flow_paths["origin_id"] == flow_paths["destination_id"]]
-    common_nodes = (
-        common_nodes.groupby(["origin_id"])[["working_trips", "GDP_to_trips"]]
-        .sum()
-        .reset_index()
-    )
+    common_nodes = common_nodes.groupby(["origin_id"])[["working_trips", "GDP_to_trips"]].sum().reset_index()
 
     uncommon_nodes = flow_paths[flow_paths["origin_id"] != flow_paths["destination_id"]]
-    origin_trips = (
-        uncommon_nodes.groupby(["origin_id"])[["working_trips", "GDP_to_trips"]]
-        .sum()
-        .reset_index()
-    )
-    destination_trips = (
-        uncommon_nodes.groupby(["destination_id"])[["working_trips", "GDP_to_trips"]]
-        .sum()
-        .reset_index()
-    )
+    origin_trips = uncommon_nodes.groupby(["origin_id"])[["working_trips", "GDP_to_trips"]].sum().reset_index()
+    destination_trips = uncommon_nodes.groupby(["destination_id"])[["working_trips", "GDP_to_trips"]].sum().reset_index()
     od_diff = pd.DataFrame(
-        list(
-            set(
-                origin_trips["origin_id"].values.tolist()
-                + destination_trips["destination_id"].values.tolist()
-            )
-        ),
+        list(set(origin_trips["origin_id"].values.tolist() + destination_trips["destination_id"].values.tolist())),
         columns=["node_id"],
     )
     od_diff = pd.merge(
@@ -433,16 +358,10 @@ def commuter_flow_mapping(network_file, buildings_file, population_file, out_dir
     od_diff.rename(columns={"working_trips": "d_trip"}, inplace=True)
 
     destination_trips.rename(columns={"destination_id": "origin_id"}, inplace=True)
-    node_activity = pd.concat(
-        [common_nodes, origin_trips, destination_trips], axis=0, ignore_index=True
-    )
+    node_activity = pd.concat([common_nodes, origin_trips, destination_trips], axis=0, ignore_index=True)
     node_activity.rename(columns={"origin_id": "node_id"}, inplace=True)
 
-    node_activity = (
-        node_activity.groupby(["node_id"])[["working_trips", "GDP_to_trips"]]
-        .sum()
-        .reset_index()
-    )
+    node_activity = node_activity.groupby(["node_id"])[["working_trips", "GDP_to_trips"]].sum().reset_index()
     node_activity = pd.merge(
         node_activity,
         od_diff[["node_id", "o_trip", "d_trip"]],
