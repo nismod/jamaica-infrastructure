@@ -441,7 +441,7 @@ def benefit_cost_ratio(
         f"{asset_gpkg}_{asset_layer}_EAD_EAEL_npvs.csv"
     )
 
-    risk_file = os.path.join(
+    no_adapt_risk_file = os.path.join(
         output_dir, risk_filepath
     )
 
@@ -482,14 +482,14 @@ def benefit_cost_ratio(
     asset_info = asset_data_details.squeeze()
 
     asset_id = asset_info.asset_id_column
-    if (os.path.isfile(cost_file) is True) and (
-        os.path.isfile(risk_file) is True
+    if (os.path.isfile(cost_file)) and (
+        os.path.isfile(no_adapt_risk_file)
     ):
         logging.info(
             f"* Starting with {hazard['hazard']} {asset_gpkg} {asset_layer}"
         )
         cost_df = pd.read_csv(cost_file)
-        no_adapt_risk = pd.read_csv(risk_file)
+        no_adapt_risk = pd.read_csv(no_adapt_risk_file)
 
         adaptation_options = list(
             set(cost_df["adaptation_option"].values.tolist())

@@ -64,7 +64,7 @@ def get_risk_dir(hazard: str, threshold: str) -> str:
     """
     return f"{OUTPUT}/{'flood_threshold' if hazard == 'flooding' else 'cyclone_damage_curve_change'}_{threshold}"
 
-risk_dirs = []
+risk_dirs = [OUTPUT]
 for hazard in HAZARD_TYPES:
     risk_dirs = [
         *risk_dirs,
