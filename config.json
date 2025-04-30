@@ -16,5 +16,11 @@
     "single_link_failure_chunk_count": 128,
     "USD_per_JMD": 0.0064,
     "road_cost_USD_per_lane_per_km": 0.75E6,
-    "bridge_cost_USD_per_meter": 1.5E4
+    "bridge_cost_USD_per_meter": 1.5E4,
+    "adaptation_options": {
+        "baseline_year": 2019,
+        "projection_end_year": 2100,
+        "discounting_rate": 10,
+        "espg_jamaica": 3448
+    }
 }
