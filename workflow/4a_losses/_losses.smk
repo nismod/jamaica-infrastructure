@@ -53,7 +53,7 @@ def get_single_failure_scenario_file(wildcards):
         return []
     if row.sector == "buildings":
         return f"{DATA}/{sfs}"
-    return f"{wildcards.output_path}/{sfs}"
+    return f"{OUTPUT}/{sfs}"
 
 
 rule EAD_EAEL:
