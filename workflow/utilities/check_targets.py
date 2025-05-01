@@ -186,7 +186,30 @@ EAD_EAEL = [
     "results/direct_damages_summary_uids/waste_water_facilities_NWC_nodes_EAD_EAEL.parquet",
 ]
 
-TARGETS = EXPOSURE + DAMAGES + LOSSES + EAD_EAEL
+ADAPTATIONS = [
+    'results/adaptation_benefits_costs_bcr/flooding_airport_polygon_areas_adaptation_benefits_costs_bcr.csv',
+    'results/adaptation_benefits_costs_bcr/flooding_airport_polygon_areas_adaptation_costs_avoided_EAD_EAEL.csv',
+    'results/adaptation_benefits_costs_bcr/flooding_electricity_network_v3.1_nodes_adaptation_benefits_costs_bcr.csv',
+    'results/adaptation_benefits_costs_bcr/flooding_electricity_network_v3.1_edges_adaptation_costs_avoided_EAD_EAEL.csv',
+    'results/adaptation_benefits_costs_bcr/flooding_irrigation_assets_NIC_nodes_adaptation_benefits_costs_bcr.csv',
+    'results/adaptation_benefits_costs_bcr/flooding_irrigation_assets_NIC_nodes_adaptation_costs_avoided_EAD_EAEL.csv',
+    'results/adaptation_benefits_costs_bcr/flooding_port_polygon_areas_adaptation_benefits_costs_bcr.csv',
+    'results/adaptation_benefits_costs_bcr/flooding_port_polygon_areas_adaptation_costs_avoided_EAD_EAEL.csv',
+    'results/adaptation_benefits_costs_bcr/flooding_potable_facilities_NWC_nodes_adaptation_benefits_costs_bcr.csv',
+    'results/adaptation_benefits_costs_bcr/flooding_potable_facilities_NWC_nodes_adaptation_costs_avoided_EAD_EAEL.csv',
+    'results/adaptation_benefits_costs_bcr/flooding_rail_edges_adaptation_benefits_costs_bcr.csv',
+    'results/adaptation_benefits_costs_bcr/flooding_rail_edges_adaptation_costs_avoided_EAD_EAEL.csv',
+    'results/adaptation_benefits_costs_bcr/flooding_roads_edges_adaptation_benefits_costs_bcr.csv',
+    'results/adaptation_benefits_costs_bcr/flooding_roads_edges_adaptation_costs_avoided_EAD_EAEL.csv',
+    'results/adaptation_benefits_costs_bcr/flooding_roads_nodes_adaptation_benefits_costs_bcr.csv',
+    'results/adaptation_benefits_costs_bcr/flooding_roads_nodes_adaptation_costs_avoided_EAD_EAEL.csv',
+    'results/adaptation_benefits_costs_bcr/flooding_waste_water_facilities_NWC_nodes_adaptation_benefits_costs_bcr.csv',
+    'results/adaptation_benefits_costs_bcr/flooding_waste_water_facilities_NWC_nodes_adaptation_costs_avoided_EAD_EAEL.csv',
+    'results/adaptation_benefits_costs_bcr/TC_electricity_network_v3.1_nodes_adaptation_benefits_costs_bcr.csv',
+    'results/adaptation_benefits_costs_bcr/TC_electricity_network_v3.1_edges_adaptation_costs_avoided_EAD_EAEL.csv'
+]
+
+TARGETS = EXPOSURE + DAMAGES + LOSSES + EAD_EAEL + ADAPTATIONS
 
 if __name__ == "__main__":
     n_okay = 0
