@@ -131,7 +131,7 @@ rule adaptation_options_costs:
             --hazard-label {wildcards.hazard} \
             --asset-gpkg {wildcards.gpkg} \
             --asset-layer {wildcards.layer} \
-            --output-dir {OUTPUT}
+            --output-dir {OUTPUT} \
             --baseline-year {params.baseline_year} \
             --projection-end-year {params.projection_end_year} \
             --discounting-rate {params.discounting_rate} \
