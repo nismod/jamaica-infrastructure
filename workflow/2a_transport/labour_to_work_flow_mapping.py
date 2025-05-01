@@ -9,7 +9,7 @@ from tqdm import tqdm
 
 from jamaica_infrastructure.transport.utils import (
     ckdnearest,
-    map_nearest_locations_and_create_lines,
+    get_flow_on_edges,
     network_od_paths_assembly,
 )
 
@@ -153,8 +153,8 @@ def commuter_flow_mapping(network_file, buildings_file, population_file, out_dir
         on=["origin_id"],
     )
     logging.info("Write out OD and shortest paths to disk")
-    flow_paths.to_csv(
-        os.path.join(out_dir, "labour_to_sectors_flow_paths.csv"),
+    flow_paths.to_parquet(
+        os.path.join(out_dir, "labour_to_sectors_flow_paths.pq"),
         index=False,
     )
 
@@ -184,10 +184,6 @@ def commuter_flow_mapping(network_file, buildings_file, population_file, out_dir
     flow_paths.drop(["t_ij_ext_sums", "working_trips_sums"], axis=1, inplace=True)
 
     logging.info("Write out flows to disk")
-    flow_paths.to_csv(
-        os.path.join(out_dir, "labour_to_sectors_trips_and_activity.csv"),
-        index=False,
-    )
     flow_paths.to_parquet(
         os.path.join(out_dir, "labour_to_sectors_trips_and_activity.pq"),
         index=False,
@@ -224,6 +220,7 @@ def commuter_flow_mapping(network_file, buildings_file, population_file, out_dir
     node_activity = pd.concat([common_nodes, origin_trips, destination_trips], axis=0, ignore_index=True)
     node_activity.rename(columns={"origin_id": "node_id"}, inplace=True)
 
+    logging.info("Write out nodal economic activity")
     node_activity = node_activity.groupby(["node_id"])[["working_trips", "GDP_to_trips"]].sum().reset_index()
     node_activity = pd.merge(
         node_activity,
@@ -235,6 +232,16 @@ def commuter_flow_mapping(network_file, buildings_file, population_file, out_dir
         os.path.join(out_dir, "origins_destinations_labour_economic_activity.csv"),
         index=False,
     )
+
+    logging.info("Accumulate flows to edges")
+    flow_paths = flow_paths[flow_paths["working_trips"] >= 1]
+    edge_flows_trips = get_flow_on_edges(flow_paths, "edge_id", "edge_path", "working_trips")
+    edge_flows_gdp = get_flow_on_edges(flow_paths, "edge_id", "edge_path", "GDP_to_trips")
+    network = network.merge(edge_flows_trips, how="left", on=["edge_id"]) \
+        .merge(edge_flows_gdp, how="left", on=["edge_id"]).fillna(0)
+
+    logging.info("Write out accumulated flows on edges")
+    network.to_parquet(os.path.join(out_dir, "labour_trips_and_activity.gpq"))
 
 
 if __name__ == "__main__":

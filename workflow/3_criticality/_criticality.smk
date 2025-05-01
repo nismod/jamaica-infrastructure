@@ -155,23 +155,6 @@ rule single_point_failure_road_rail:
     
     Test with:
     snakemake -c1 results/economic_losses/single_failure_scenarios/single_point_failure_road_rail_edges_economic_losses.csv
-
-    TODO: There's a question which script we should use here:
-        transport_failure_results_combine.py looks ideal to parse the chunked
-            results and output road and rail failures however it ignores bridges and
-            doesn't output the other required files (as per this rule, e.g. bridge,
-            ports, airports)
-        transport_single_point_failure_results_combine.py requires bridge data
-            which we don't know how to produce
-
-    If we need to produce the bridge output files, we need some bridge input
-    data. Workflow currently set up to expect bridges as nodes in road network.
-
-    We may need to reinsert a road nodes asset class row into the coordinating
-    network CSV and trace the rulegraph that follows.
-
-    There's also an argument that bridges, ports, rail stations and airports
-    should be considered by another rule entirely.
     """
     input:
         script = "workflow/3_criticality/transport_single_point_failure_results_combine.py",
@@ -181,7 +164,7 @@ rule single_point_failure_road_rail:
         ),
         station_failures = f"{OUTPUT}/transport_failures/single_station_failures_scenarios.csv",
         bridge_failures = f"{OUTPUT}/transport_failures/single_bridge_failures_scenarios.csv",
-        labour_flows = f"{OUTPUT}/flow_mapping/labour_trips_and_activity.pq",
+        labour_flows = f"{OUTPUT}/flow_mapping/labour_trips_and_activity.gpq",
         bridges = f"{DATA}/networks/transport/roads.gpkg",  # assumed to be road nodes, alas not yet
         edges = f"{DATA}/networks/transport/multi_modal_network.gpkg",
         bridge_labour_trips = f"{OUTPUT}/flow_mapping/origins_destinations_labour_economic_activity.csv",

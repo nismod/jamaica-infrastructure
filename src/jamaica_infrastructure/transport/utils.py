@@ -9,7 +9,7 @@ import logging
 import pandas as pd
 import geopandas as gpd
 from scipy.spatial import Voronoi
-from shapely.geometry import Polygon, shape, LineString
+from shapely.geometry import Polygon, LineString
 from tqdm import tqdm
 import numpy as np
 from scipy.spatial import cKDTree
@@ -28,6 +28,17 @@ def load_config():
     with open(config_path, "r") as config_fh:
         config = json.load(config_fh)
     return config
+
+
+def get_flow_on_edges(save_paths_df, edge_id_column, edge_path_column, flow_column):
+    edge_flows = defaultdict(float)
+    for row in save_paths_df.itertuples():
+        for item in getattr(row, edge_path_column):
+            edge_flows[item] += getattr(row, flow_column)
+
+    return pd.DataFrame(
+        [(k, v) for k, v in edge_flows.items()], columns=[edge_id_column, flow_column]
+    )
 
 
 def geopandas_read_file_type(file_path, file_layer, file_database=None):

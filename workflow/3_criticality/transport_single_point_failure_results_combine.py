@@ -74,7 +74,7 @@ def main(*, processed_data_dir, results_dir):
     all_failures = pd.concat(all_failures, axis=0, ignore_index=True).fillna(0)
 
     logging.info("Reading labour OD and routes")
-    labour_flows = pd.read_parquet(os.path.join(results_dir, "flow_mapping", "labour_trips_and_activity.pq"))
+    labour_flows = gpd.read_parquet(os.path.join(results_dir, "flow_mapping", "labour_trips_and_activity.gpq"))
 
     logging.info("Processing bridges")
     bridge_failures = pd.read_csv(os.path.join(transport_failures_dir, "single_bridge_failures_scenarios.csv")).fillna(0)
@@ -111,7 +111,6 @@ def main(*, processed_data_dir, results_dir):
     # bridge_failures = pd.merge(bridge_failures,
     #                         bridge_trade_trips,
     #                         how="left",on=["node_id"])
-    breakpoint()
     all_failures = pd.merge(
         all_failures,
         labour_flows[["edge_id", "working_trips", "GDP_to_trips"]],
