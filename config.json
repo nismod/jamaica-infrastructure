@@ -15,8 +15,25 @@
     },
     "single_link_failure_chunk_count": 128,
     "USD_per_JMD": 0.0064,
-    "road_cost_USD_per_lane_per_km": 0.75E6,
-    "bridge_cost_USD_per_meter": 1.5E4,
+    "road_classification": {
+        "default_NWA": "UNCLASSIFIED",
+        "OSM_to_NWA": {
+            "motorway": "MOTORWAY",
+            "primary": "CLASS A",
+            "trunk": "CLASS A",
+            "secondary": "CLASS B",
+            "tertiary": "CLASS C",
+            "residential": "RESIDENTIAL",
+            "unclassified": "UNCLASSIFIED"
+        }
+    },
+    "damages": {
+        "rehabilitation_costs": {
+            "road_cost_USD_per_lane_per_km": 0.75E6,
+            "bridge_cost_USD_per_meter": 1.5E4
+        },
+        "bridge_flood_design_RP_years": 50
+    },
     "adaptation_options": {
         "baseline_year": 2019,
         "projection_end_year": 2100,

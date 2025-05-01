@@ -71,6 +71,8 @@ rule EAD_EAEL:
         gpkg = lambda wildcards: f"{DATA}/{get_asset_metadata(wildcards).path}",
         damage_file = "{output_path}/direct_damages/{gpkg}_{layer}/{gpkg}_{layer}_direct_damages_{parameter_set}.parquet",
         single_failure_scenarios = get_single_failure_scenario_file,
+    params:
+        bridge_flood_design_RP_years = config["damages"]["bridge_flood_design_RP_years"]
     output:
         EAD_EAEL = "{output_path}/direct_damages/{gpkg}_{layer}/{gpkg}_{layer}_EAD_EAEL_{parameter_set}.csv",
     shell:
@@ -82,6 +84,7 @@ rule EAD_EAEL:
             --asset-layer {wildcards.layer} \
             --damage-file {input.damage_file} \
             --single-failure-scenarios {input.single_failure_scenarios} \
+            --bridge-flood-design-rp-years {params.bridge_flood_design_RP_years} \
             --output-path {output.EAD_EAEL}
         """
 

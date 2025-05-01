@@ -100,7 +100,6 @@ def split_assets(network_csv, hazard_csv, data_dir, asset_gpkg, asset_layer, out
             logging.info("Skipping %s with no data.", os.path.basename(fname))
         else:
             logging.info(os.path.basename(fname))
-            logging.info("Node CRS %s", nodes.crs)
             logging.info("Edge CRS %s", edges.crs)
             edges = process_edges(edges, transforms, hazard_transforms, data_dir)
             # edges.to_file(out_fname, driver="GPKG", layer="edges")
