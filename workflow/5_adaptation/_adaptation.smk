@@ -118,7 +118,7 @@ rule adaptation_options_costs:
         baseline_year = config["adaptation_options"]["baseline_year"],
         projection_end_year = config["adaptation_options"]["projection_end_year"],
         discounting_rate = config["adaptation_options"]["discounting_rate"],
-        epsg = config["adaptation_options"]["epsg"]
+        epsg = config["adaptation_options"]["epsg_jamaica"]
     output:
         npv = f"{OUTPUT}/adaptation_costs/{{hazard}}_costs/{{gpkg}}_{{layer}}_adaptation_timeseries_and_npvs.csv",
         unit_costs = f"{OUTPUT}/adaptation_costs/{{hazard}}_costs/{{gpkg}}_{{layer}}_adaptation_unit_costs.csv",
