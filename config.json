@@ -21,6 +21,6 @@
         "baseline_year": 2019,
         "projection_end_year": 2100,
         "discounting_rate": 10,
-        "espg_jamaica": 3448
+        "epsg_jamaica": 3448
     }
 }
