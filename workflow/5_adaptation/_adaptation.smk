@@ -115,10 +115,10 @@ rule adaptation_options_costs:
         asset_data = config["paths"]["network_layers"],
         asset_file = lambda wildcards: f"{DATA}/{get_asset_metadata(wildcards).path}",  # gpkg
     params:
-        baseline_year = 2019,
-        projection_end_year = 2100,
-        discounting_rate = 10,
-        epsg = 3448
+        baseline_year = config["adaptation_options"]["baseline_year"],
+        projection_end_year = config["adaptation_options"]["projection_end_year"],
+        discounting_rate = config["adaptation_options"]["discounting_rate"],
+        epsg = config["adaptation_options"]["epsg"]
     output:
         npv = f"{OUTPUT}/adaptation_costs/{{hazard}}_costs/{{gpkg}}_{{layer}}_adaptation_timeseries_and_npvs.csv",
         unit_costs = f"{OUTPUT}/adaptation_costs/{{hazard}}_costs/{{gpkg}}_{{layer}}_adaptation_unit_costs.csv",
@@ -160,9 +160,9 @@ rule damage_loss_timeseries_and_NPV:
         growth_rates = f"{DATA}/macroeconomic_data/gdp_growth_rates.xlsx",
         summarised_damages = f"{{output_path}}/direct_damages_summary/{{gpkg}}_{{layer}}_EAD_EAEL.csv",
     params:
-        baseline_year = 2019,
-        projection_end_year = 2100,
-        discounting_rate = 10
+        baseline_year = config["adaptation_options"]["baseline_year"],
+        projection_end_year = config["adaptation_options"]["projection_end_year"],
+        discounting_rate = config["adaptation_options"]["discounting_rate"]
     output:
         NPV = f"{{output_path}}/loss_damage_npvs/{{gpkg}}_{{layer}}_EAD_EAEL_npvs.csv",
         timeseries = [
