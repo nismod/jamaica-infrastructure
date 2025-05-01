@@ -150,8 +150,6 @@ rule trade_activity_flow_mapping:
     """
     Create a mapping of trade activity to flows.
 
-    scripts/transport_model/trade_activity_flow_mapping.py
-
     Test with:
     snakemake -c1 results/flow_mapping/sector_imports_exports_to_ports_flows.gpkg
     """
@@ -199,11 +197,11 @@ rule labour_to_work_flow_mapping:
         population = f"{DATA}/population/population_projections.gpkg",
     output:
         [
-            "{output_path}/flow_mapping/road_nodes_labour_economic_activity_aggregations.gpkg",
-            "{output_path}/flow_mapping/labour_to_sectors_flow_paths.csv",
-            "{output_path}/flow_mapping/labour_to_sectors_trips_and_activity.csv",
-            "{output_path}/flow_mapping/labour_to_sectors_trips_and_activity.pq",
             "{output_path}/flow_mapping/origins_destinations_labour_economic_activity.csv",
+            "{output_path}/flow_mapping/road_nodes_labour_economic_activity_aggregations.gpkg",
+            "{output_path}/flow_mapping/labour_to_sectors_flow_paths.pq",
+            "{output_path}/flow_mapping/labour_to_sectors_trips_and_activity.pq",
+            "{output_path}/flow_mapping/labour_trips_and_activity.gpq",
         ]
     shell:
         """
@@ -213,25 +211,3 @@ rule labour_to_work_flow_mapping:
             --population-file {input.population} \
             --out-dir {wildcards.output_path}/flow_mapping
         """
-
-
-rule RENAME_LABOUR_FILE:
-    """
-    There's a potential mismatch between
-    {{output_path}}/flow_mapping/labour_to_sectors_trips_and_activity.pq created in labour_to_work_flow_mapping and
-    {{output_path}}/flow_mapping/labour_trips_and_activity.pq required by single_point_failure_road_rail
-
-    This rule renames the former to the latter.
-    """
-    input:
-        "{output_path}/flow_mapping/labour_to_sectors_trips_and_activity.pq",
-    output:
-        "{output_path}/flow_mapping/labour_trips_and_activity.pq",
-    shell:
-        """
-        if [ ! -s "{output}" ]; then
-            echo "WARNING: Renaming {input} to {output}"
-            cp {input} {output}
-        fi
-        """
-
