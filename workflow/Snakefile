@@ -36,7 +36,7 @@ include: "4a_losses/_losses.smk"
 include: "5_adaptation/_adaptation.smk"
 include: "6_etl/_etl.smk"
 
-from check_targets import EXPOSURE, DAMAGES, LOSSES, EAD_EAEL, TARGETS
+from check_targets import EXPOSURE, DAMAGES, LOSSES, EAD_EAEL, ADAPTATIONS, TARGETS
 
 rule all_exposure:
     input: EXPOSURE
@@ -49,6 +49,9 @@ rule all_losses:
 
 rule all_ead_eael:
     input: EAD_EAEL
+
+rule all_adaptations:
+    input: ADAPTATIONS
 
 rule all_targets:
     input: TARGETS
