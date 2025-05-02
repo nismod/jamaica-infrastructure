@@ -156,7 +156,7 @@ rule damage_loss_timeseries_and_NPV:
     """
     input:
         script = "workflow/5_adaptation/damage_loss_timeseries_and_npv.py",
-        network_csv = config["paths"]["network_layers"],
+        asset_data = config["paths"]["network_layers"],
         growth_rates = f"{DATA}/macroeconomic_data/gdp_growth_rates.xlsx",
         summarised_damages = f"{{output_path}}/direct_damages_summary/{{gpkg}}_{{layer}}_EAD_EAEL.csv",
     params:
@@ -172,7 +172,7 @@ rule damage_loss_timeseries_and_NPV:
     shell:
         """
         python {input.script} \
-            --network-csv {input.network_csv} \
+            --asset-data {input.asset_data} \
             --growth-rates-xls {input.growth_rates} \
             --asset-gpkg {wildcards.gpkg} \
             --asset-layer {wildcards.layer} \
