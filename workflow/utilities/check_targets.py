@@ -219,7 +219,6 @@ if __name__ == "__main__":
         sys.exit("Please remove .tmp folder before running.")
     else:
         os.makedirs(".tmp/rulegraphs")
-        os.makedirs(".tmp/dag")
 
     for target in TARGETS:
 
@@ -249,12 +248,6 @@ if __name__ == "__main__":
                     input=run.stdout,
                 )
 
-                # create the DAG, plot and write to disk
-                subprocess.run(
-                    f"snakemake --cores 1 --dag {target} | dot -Tpng -o .tmp/dag/{fname}",
-                    check=True,
-                    shell=True,
-                )
                 print("OK")
         else:
             print("FAILED:")
