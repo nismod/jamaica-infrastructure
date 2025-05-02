@@ -11,20 +11,15 @@ import pandas as pd
 import numpy as np
 from tqdm import tqdm
 
-from analysis_utils import get_asset
+from jamaica_infrastructure.analysis.utils import get_asset
 
 tqdm.pandas()
 
+
 def quantiles(dataframe, grouping_by_columns, grouped_columns):
-    grouped = (
-        dataframe.groupby(grouping_by_columns, dropna=False)[grouped_columns]
-        .agg([np.min, np.mean, np.max])
-        .reset_index()
-    )
+    grouped = dataframe.groupby(grouping_by_columns, dropna=False)[grouped_columns].agg([np.min, np.mean, np.max]).reset_index()
     grouped.columns = grouping_by_columns + [
-        f"{prefix}_{agg_name}"
-        for prefix, agg_name in grouped.columns
-        if prefix not in grouping_by_columns
+        f"{prefix}_{agg_name}" for prefix, agg_name in grouped.columns if prefix not in grouping_by_columns
     ]
 
     return grouped
@@ -103,16 +98,16 @@ def quantiles(dataframe, grouping_by_columns, grouped_columns):
     help="Path to write summarised EAD and EAEL to",
 )
 def loss_summary(
-        network_csv,
-        damages,
-        ead_eael,
-        single_failure_scenarios,
-        asset_gpkg,
-        asset_layer,
-        output_exposures,
-        output_damages,
-        output_losses,
-        output_ead_eael,
+    network_csv,
+    damages,
+    ead_eael,
+    single_failure_scenarios,
+    asset_gpkg,
+    asset_layer,
+    output_exposures,
+    output_damages,
+    output_losses,
+    output_ead_eael,
 ):
     """
     Collate direct damages and losses to an asset across all hazards under all parameter sets.
@@ -136,10 +131,7 @@ def loss_summary(
             single_failure_df = gpd.read_file(single_failure_scenarios)
             if asset_gpkg == "potable_facilities_NWC":
                 single_failure_df[asset.asset_id_column] = single_failure_df.progress_apply(
-                    lambda x: str(x[asset.asset_id_column])
-                    .lower()
-                    .replace(" ", "_")
-                    .replace(".0", ""),
+                    lambda x: str(x[asset.asset_id_column]).lower().replace(" ", "_").replace(".0", ""),
                     axis=1,
                 )
     else:
@@ -151,26 +143,21 @@ def loss_summary(
         c
         for c in exposures.columns.values.tolist()
         if c
-           not in [
-               asset.asset_id_column,
-               "exposure_unit",
-               "damage_cost_unit",
-               "damage_uncertainty_parameter",
-               "cost_uncertainty_parameter",
-               "exposure",
-           ]
+        not in [
+            asset.asset_id_column,
+            "exposure_unit",
+            "damage_cost_unit",
+            "damage_uncertainty_parameter",
+            "cost_uncertainty_parameter",
+            "exposure",
+        ]
     ]
-    exposures[hazard_columns] = exposures["exposure"].to_numpy()[:, None] \
-        * np.where(exposures[hazard_columns] > 0, 1, 0)
+    exposures[hazard_columns] = exposures["exposure"].to_numpy()[:, None] * np.where(exposures[hazard_columns] > 0, 1, 0)
 
     sum_dict = dict([(hk, "sum") for hk in hazard_columns])
-    exposures = (
-        exposures.groupby([asset.asset.asset_id_column_column, "exposure_unit"], dropna=False)
-        .agg(sum_dict)
-        .reset_index()
-    )
+    exposures = exposures.groupby([asset.asset.asset_id_column_column, "exposure_unit"], dropna=False).agg(sum_dict).reset_index()
     exposures.to_parquet(output_exposures, index=False)
-    
+
     logging.info("Collating damages and losses")
     damages = []
     losses = []
@@ -196,12 +183,8 @@ def loss_summary(
             ).fillna(0)
             df["economic_loss_unit"] = "J$/day"
             loss = df.copy()
-            loss[hazard_columns] = loss["economic_loss"].to_numpy()[
-                                   :, None
-                                   ] * np.where(loss[hazard_columns] > 0, 1, 0)
-            losses.append(
-                loss[[asset.asset_id_column, "economic_loss_unit"] + hazard_columns]
-            )
+            loss[hazard_columns] = loss["economic_loss"].to_numpy()[:, None] * np.where(loss[hazard_columns] > 0, 1, 0)
+            losses.append(loss[[asset.asset_id_column, "economic_loss_unit"] + hazard_columns])
 
     logging.info("Writing outputs to disk")
     damages = pd.concat(damages, axis=0, ignore_index=True)
@@ -226,43 +209,20 @@ def loss_summary(
         df["rcp"] = df["rcp"].astype(str)
         df["epoch"] = df["epoch"].astype(str)
 
-    haz_rcp_epochs = list(
-        set(
-            EAD_EAEL_damages[0]
-            .set_index(["hazard", "rcp", "epoch"])
-            .index.values.tolist()
-        )
-    )
+    haz_rcp_epochs = list(set(EAD_EAEL_damages[0].set_index(["hazard", "rcp", "epoch"]).index.values.tolist()))
     summarised_damages = []
     for i, (haz, rcp, epoch) in enumerate(haz_rcp_epochs):
-        damages = [
-            df[(df.hazard == haz) & (df.rcp == rcp) & (df.epoch == epoch)]
-            for df in EAD_EAEL_damages
-        ]
+        damages = [df[(df.hazard == haz) & (df.rcp == rcp) & (df.epoch == epoch)] for df in EAD_EAEL_damages]
         damages = pd.concat(damages, axis=0, ignore_index=True)
         damages.drop("confidence", axis=1, inplace=True)
 
-        index_columns = [
-            c
-            for c in damages.columns.values.tolist()
-            if ("EAD_" not in c) and ("EAEL_" not in c)
-        ]
-        index_columns = [
-            i for i in index_columns if i not in ["cost_uncertainty_parameter", "damage_uncertainty_parameter"]
-        ]
-        damage_columns = [
-            c
-            for c in damages.columns.values.tolist()
-            if ("EAD_" in c) or ("EAEL_" in c)
-        ]
+        index_columns = [c for c in damages.columns.values.tolist() if ("EAD_" not in c) and ("EAEL_" not in c)]
+        index_columns = [i for i in index_columns if i not in ["cost_uncertainty_parameter", "damage_uncertainty_parameter"]]
+        damage_columns = [c for c in damages.columns.values.tolist() if ("EAD_" in c) or ("EAEL_" in c)]
 
         if len(damages.index) > 0:
-            summarised_damages.append(
-                quantiles(damages, index_columns, damage_columns)
-            )
-    summarised_damages = pd.concat(
-        summarised_damages, axis=0, ignore_index=True
-    )
+            summarised_damages.append(quantiles(damages, index_columns, damage_columns))
+    summarised_damages = pd.concat(summarised_damages, axis=0, ignore_index=True)
     summarised_damages.to_csv(output_ead_eael, index=False)
 
 
