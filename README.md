@@ -14,7 +14,7 @@ Clone or download this repository from
 
     git clone git@github.com:nismod/jamaica-infrastructure.git
 
-Next, install required python packages:
+Next, install required Python packages:
 
 We recommend using [`micromamba`](https://mamba.readthedocs.io/en/latest/user_guide/micromamba.html)
 to install the packages and manage installing libraries into a conda
@@ -37,10 +37,13 @@ management system that can be used to break up complex modelling chains and
 improve the reproducibility of analyses. To invoke a rule, call `snakemake`
 followed by the file you want to produce.
 
+Some functionality is contained within a helper Python module, located in
+`src/jamaica_infrastructure`.
+
 ### Environment
 
-To make snakemake and other software dependencies available, activate the
-environment we previously created.
+To make snakemake, the helper Python module and other software dependencies
+available, activate the environment we previously created.
 ```shell
 micromamba activate jsrat
 ```
@@ -67,13 +70,26 @@ are parallelised and can make use more than one processor themselves.
 See `.smk` files in `workflow/` for available rules and their required input and
 output files.
 
+While this workflow is in development, some of the rules are placeholders.
+
+### Tests
+
 To check the validity of the rules and which target files have rules, try
 running:
 ```shell
 python workflow/utilities/check_targets.py
 ```
 
-While this workflow is in development, some of the rules are placeholders.
+This will not run any calculations, but rather check if there are available
+rules to generate the desired output. It takes a few minutes.
+
+The helper Python libary contained in `src/jamaica_infrastructure` also has
+tests. These can be run with:
+```shell
+python -m pytest src/jamaica_infrastructure
+```
+
+These take a few seconds.
 
 ### Required data
 

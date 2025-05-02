@@ -14,6 +14,11 @@ from tqdm import tqdm
 tqdm.pandas()
 
 
+def numeric_only_dataframe(df: pd.DataFrame) -> bool:
+    """Does a DataFrame contain only numeric columns?"""
+    return df.dtypes.map(pd.api.types.is_numeric_dtype).all()
+
+
 def get_asset(network_csv_path: str, asset_gpkg: str, asset_layer: str) -> pd.Series:
     """
     Get the path of an asset by its gpkg and layer strings.
