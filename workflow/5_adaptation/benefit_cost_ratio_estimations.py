@@ -360,8 +360,8 @@ def get_ead_eael_costs(
 @click.command()
 @click.version_option("1.0")
 @click.option(
-    "--asset-data",
-    "-a",
+    "--network-csv",
+    "-n",
     required=True,
     type=click.Path(
         exists=True,
@@ -414,7 +414,7 @@ def get_ead_eael_costs(
     help="Path to the output directory",
 )
 def benefit_cost_ratio(
-    asset_data,
+    network_csv,
     cost_file,
     hazard_label,
     asset_gpkg,
@@ -472,7 +472,7 @@ def benefit_cost_ratio(
         (h for h in adapt_hazards if h["hazard"] == hazard_label), None
     )
 
-    asset_df = pd.read_csv(asset_data)
+    asset_df = pd.read_csv(network_csv)
     asset_data_details = asset_df[
         (asset_df["asset_gpkg"] == asset_gpkg) &
         (asset_df["asset_layer"] == asset_layer)

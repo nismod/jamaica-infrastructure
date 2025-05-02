@@ -201,8 +201,8 @@ def get_adaptation_options_costs_roads(asset_df, adapt_costs, asset_id):
 @click.command()
 @click.version_option("1.0")
 @click.option(
-    "--asset-data",
-    "-a",
+    "--network-csv",
+    "-n",
     required=True,
     type=click.Path(
         exists=True,
@@ -299,7 +299,7 @@ def get_adaptation_options_costs_roads(asset_df, adapt_costs, asset_id):
     help="EPSG",
 )
 def adaptation_options_costs(
-    asset_data,
+    network_csv,
     asset_file,
     cost_file,
     hazard_label,
@@ -318,7 +318,7 @@ def adaptation_options_costs(
         sheet_name="Sheet1",
     ).fillna(0)
 
-    asset_df = pd.read_csv(asset_data)
+    asset_df = pd.read_csv(network_csv)
     asset_data_details = asset_df[
         (asset_df["asset_gpkg"] == asset_gpkg)
         & (asset_df["asset_layer"] == asset_layer)
