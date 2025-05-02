@@ -82,7 +82,7 @@ rule benefit_cost_ratio:
     """
     input:
         script = "workflow/5_adaptation/benefit_cost_ratio_estimations.py",
-        asset_data = config["paths"]["network_layers"],
+        network_csv = config["paths"]["network_layers"],
         cost_file = f"{OUTPUT}/adaptation_costs/{{hazard}}_costs/{{gpkg}}_{{layer}}_adaptation_timeseries_and_npvs.csv",
         risk_files = lambda wildcards: [f"{dir}/loss_damage_npvs/{wildcards.gpkg}_{wildcards.layer}_EAD_EAEL_npvs.csv" for dir in risk_dirs],
     output:
@@ -91,7 +91,7 @@ rule benefit_cost_ratio:
     shell:
         """
         python {input.script} \
-            --asset-data {input.asset_data} \
+            --network-csv {input.network_csv} \
             --cost-file {input.cost_file} \
             --hazard-label {hazard} \
             --asset-gpkg {wildcards.gpkg} \
@@ -112,7 +112,7 @@ rule adaptation_options_costs:
     input:
         script = "workflow/5_adaptation/adaptation_options_costs.py",
         cost_file = f"{DATA}/adaptation/adaptation_options_and_costs_jamaica.xlsx",
-        asset_data = config["paths"]["network_layers"],
+        network_csv = config["paths"]["network_layers"],
         asset_file = lambda wildcards: f"{DATA}/{get_asset_metadata(wildcards).path}",  # gpkg
     params:
         baseline_year = config["adaptation_options"]["baseline_year"],
@@ -125,7 +125,7 @@ rule adaptation_options_costs:
     shell:
         """
         python {input.script} \
-            --asset-data {input.asset_data} \
+            --network-csv {input.network_csv} \
             --asset-file {input.asset_file} \
             --cost-file {input.cost_file} \
             --hazard-label {wildcards.hazard} \

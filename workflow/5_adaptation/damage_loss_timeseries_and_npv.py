@@ -138,8 +138,8 @@ def estimate_time_series(
 @click.command()
 @click.version_option("1.0")
 @click.option(
-    "--asset-data",
-    "-a",
+    "--network-csv",
+    "-n",
     required=True,
     type=click.Path(
         exists=True,
@@ -210,7 +210,7 @@ def estimate_time_series(
     help="Path to the output directory",
 )
 def damage_loss_timeseries_and_npv(
-    asset_data,
+    network_csv,
     growth_rates_xls,
     asset_gpkg,
     asset_layer,
@@ -219,7 +219,7 @@ def damage_loss_timeseries_and_npv(
     discounting_rate,
     output_path
 ):
-    asset_df = pd.read_csv(asset_data)
+    asset_df = pd.read_csv(network_csv)
     asset_data_details = asset_df[
         (asset_df["asset_gpkg"] == asset_gpkg) &
         (asset_df["asset_layer"] == asset_layer)
