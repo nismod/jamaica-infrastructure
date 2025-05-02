@@ -63,6 +63,10 @@ tqdm.pandas()
     help="Path to single failure scenarios",
 )
 @click.option(
+    "--bridge-flood-design-rp-years", "-b", "bridge_flood_protection", required=True, type=int,
+    help="Assume bridges are designed to withstand a flood which recurs (on average) with this frequency (in years)."
+)
+@click.option(
     "--output-path",
     "-o",
     required=True,
@@ -76,12 +80,9 @@ def damage_and_loss(
     asset_layer,
     single_failure_scenarios,
     damage_file,
+    bridge_flood_protection,
     output_path,
 ):
-
-    bridge_flood_protection = (
-        50  # Bridges in Jamaica are designed to withstand 1 in 50 year floods
-    )
 
     logging.info("Read asset data")
     asset_data_details = pd.read_csv(network_csv)
@@ -175,7 +176,8 @@ def damage_and_loss(
             ),
         )
 
-        haz_prob = [1.0 / rp for rp in haz_rps]
+        haz_prob: list[float] = [1.0 / rp for rp in haz_rps]
+        haz_prob_cols: list[str] = [str(decimal) for decimal in haz_prob]
         damages = df[index_columns + loss_column + haz_cols]
         damages["hazard"] = haz
         damages["rcp"] = rcp
@@ -184,11 +186,11 @@ def damage_and_loss(
         damages.columns = (
             index_columns
             + loss_column
-            + haz_prob
+            + haz_prob_cols
             + ["hazard", "rcp", "epoch", "confidence"]
         )
         index_columns += ["hazard", "rcp", "epoch", "confidence"]
-        damages = damages[damages[haz_prob].sum(axis=1) > 0]
+        damages = damages[damages[haz_prob_cols].sum(axis=1) > 0]
         # expected_damage_df = risks(damages,index_columns,haz_prob,
         #                             None,'EAD',
         #                             flood_protection=None)
@@ -198,9 +200,9 @@ def damage_and_loss(
             losses = damages.copy()
             # for hz in haz_prob:
             #     losses[str(hz)] = losses["economic_loss"]*np.where(losses[str(hz)]>0,1,0)
-            losses[haz_prob] = losses["economic_loss"].to_numpy()[
+            losses[haz_prob_cols] = losses["economic_loss"].to_numpy()[
                 :, None
-            ] * np.where(losses[haz_prob] > 0, 1, 0)
+            ] * np.where(losses[haz_prob_cols] > 0, 1, 0)
             # economic_loss_df = risks(losses,index_columns,haz_prob,
             #                         None,'EAEL',
             #                         flood_protection=None)
@@ -267,18 +269,20 @@ def damage_and_loss(
         expected_damages.append(expected_damage_df)
         del expected_damage_df
 
-    expected_damages = pd.concat(
-        expected_damages, axis=0, ignore_index=True
-    )
+    expected_damages = pd.concat(expected_damages, axis=0, ignore_index=True)
     expected_loss_columns = [
         c
         for c in expected_damages.columns.values.tolist()
         if "EAD_" in c or "EAEL_" in c
     ]
-    expected_damages = expected_damages[
-        expected_damages[expected_loss_columns].sum(axis=1) > 0
-    ]
+    expected_damages = expected_damages[expected_damages[expected_loss_columns].sum(axis=1) > 0]
+
+    logging.info(f"Expected damages:\n{expected_damages}")
+
+    logging.info("Writing damages to disk")
     expected_damages.to_csv(output_path, index=False)
+
+    logging.info("Done")
 
 
 if __name__ == "__main__":

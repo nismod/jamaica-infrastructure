@@ -70,19 +70,24 @@ rule preprocess_road_network:
         edges.lanes = edges.lanes.astype(int)
         edges[edges.lanes == 0] = 1
 
+        logging.info("Infer NWA road classification from mapping")
+        edges["road_class"] = edges.tag_highway.map(config["road_classification"]["OSM_to_NWA"]) \
+            .fillna(config["road_classification"]["default_NWA"])
+
         logging.info("Assign rebuild costs from config")
         USD_per_JMD = config["USD_per_JMD"]
-        road_cost_JMD_per_lane_per_meter = (config["road_cost_USD_per_lane_per_km"] / 1.0e3) / USD_per_JMD
-        bridge_cost_JMD_per_meter = config["bridge_cost_USD_per_meter"] / USD_per_JMD
-        edges["cost_unit"] = "J$"
+        bridge_cost_JMD_per_meter = config["damages"]["rehabilitation_costs"]["bridge_cost_USD_per_meter"] / USD_per_JMD
+        road_cost_JMD_per_lane_per_meter = (config["damages"]["rehabilitation_costs"]["road_cost_USD_per_lane_per_km"] / 1.0e3) / USD_per_JMD
         edges["mean_damage_cost"] = np.where(
             edges["asset_type"] == "road_bridge",
-            bridge_cost_JMD_per_meter * edges["length_m"],
-            road_cost_JMD_per_lane_per_meter * edges["length_m"] * edges["lanes"],
-        )
+            bridge_cost_JMD_per_meter,
+            road_cost_JMD_per_lane_per_meter * edges["lanes"],
+        ) 
         edges["min_damage_cost"] = 0.8 * edges["mean_damage_cost"]
         edges["max_damage_cost"] = 1.2 * edges["mean_damage_cost"]
+        edges["cost_unit"] = "J$/m"
 
+        logging.info("Reading nodes")
         nodes = gpd.read_file(input.raw_roads, layer="nodes")
         nodes = nodes.to_crs(epsg=3448)
         if "node_id" in nodes.columns:
@@ -110,7 +115,11 @@ rule preprocess_road_network:
             ["from_id", "length_m", "min_damage_cost", "mean_damage_cost", "max_damage_cost", "cost_unit"]
         ].rename(columns={"from_id": "id"})
         network.nodes = network.nodes.merge(bridge_edges_to_merge, how="outer", on="id")
-        network.nodes.loc[~network.nodes.mean_damage_cost.isna(), "asset_type"] = "bridge"
+        bridge_mask = ~network.nodes.mean_damage_cost.isna()
+        network.nodes.loc[bridge_mask, "asset_type"] = "bridge"
+        for cost_column in [f"{agg}_damage_cost" for agg in ["min", "mean", "max"]]:
+            network.nodes[cost_column] *= network.nodes["length_m"]
+        network.nodes.loc[bridge_mask, "cost_unit"] = "J$"
 
         logging.info("Label road network with components")
         network = snkit.network.add_component_ids(network)
@@ -118,6 +127,9 @@ rule preprocess_road_network:
             columns={"from_id": "from_node", "to_id": "to_node", "id": "edge_id"},
         )
         network.nodes = network.nodes.rename(columns={"id": "node_id"})
+
+        logging.info(f"Edges:\n{network.edges}")
+        logging.info(f"Nodes:\n{network.nodes}")
 
         logging.info("Write processed road network to disk")
         network.edges.to_file(output.processed_roads, layer="edges", driver="GPKG")

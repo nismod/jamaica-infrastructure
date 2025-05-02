@@ -54,7 +54,7 @@ def expected_risks_pivot(
             prob_risk = [pr for pr in prob_risk if pr[0] <= 1.0 / probability_threshold]
 
     if len(prob_risk) > 1:
-        risks = integrate.trapz(
+        risks = integrate.trapezoid(
             np.array([x[1] for x in prob_risk]), np.array([x[0] for x in prob_risk])
         )
     elif len(prob_risk) == 1:
@@ -140,7 +140,7 @@ def risks(
 
     dataframe.columns = dataframe.columns.astype(str)
     dataframe[expected_risk_column] = list(
-        integrate.trapz(
+        integrate.trapezoid(
             dataframe[probability_columns].to_numpy(),
             np.array([probabilities * len(dataframe.index)]).reshape(
                 dataframe[probability_columns].shape

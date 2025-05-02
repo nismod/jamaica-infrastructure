@@ -371,8 +371,8 @@ def direct_damages(
         else:
             logging.info(f"{asset_info.asset_gpkg} {asset_info.asset_layer} not affected by {hazard_info.hazard}")
 
-    hazard_damages = pd.concat(hazard_damages, axis=0, ignore_index=True).fillna(0)
     logging.info(f"Writing to {output_path}\n")
+    hazard_damages = pd.concat(hazard_damages, axis=0, ignore_index=True).fillna(0)
     hazard_damages.to_parquet(output_path, index=False)
 
 
