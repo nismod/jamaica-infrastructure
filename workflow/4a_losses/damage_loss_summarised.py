@@ -3,6 +3,7 @@
 """
 
 import logging
+import os
 from pathlib import Path
 
 import click
@@ -11,17 +12,17 @@ import pandas as pd
 import numpy as np
 from tqdm import tqdm
 
-from jamaica_infrastructure.analysis.utils import get_asset
+from jamaica_infrastructure.analysis.utils import get_asset, numeric_only_dataframe
 
 tqdm.pandas()
 
 
 def quantiles(dataframe, grouping_by_columns, grouped_columns):
-    grouped = dataframe.groupby(grouping_by_columns, dropna=False)[grouped_columns].agg([np.min, np.mean, np.max]).reset_index()
+    assert numeric_only_dataframe(dataframe[grouped_columns])
+    grouped = dataframe.groupby(grouping_by_columns, dropna=False)[grouped_columns].agg(["min", "mean", "max"]).reset_index()
     grouped.columns = grouping_by_columns + [
         f"{prefix}_{agg_name}" for prefix, agg_name in grouped.columns if prefix not in grouping_by_columns
     ]
-
     return grouped
 
 
@@ -124,11 +125,16 @@ def loss_summary(
 
     logging.info("Reading single failure scenarios")
     if single_failure_scenarios:
+        _, ext = os.path.splitext(single_failure_scenarios)
         if asset.sector == "buildings":
+            if ext.lower() != ".gpkg":
+                raise ValueError(f"Expect buildings single_failure_scenarios files to be GPKG format, received: {ext}")
             single_failure_df = gpd.read_file(single_failure_scenarios, layer="areas")
             single_failure_df = single_failure_df.rename(columns={"total_GDP": "economic_loss"}, inplace=True)
         else:
-            single_failure_df = gpd.read_file(single_failure_scenarios)
+            if ext.lower() != ".csv":
+                raise ValueError(f"Expect most single_failure_scenarios files to be CSV format, received: {ext}")
+            single_failure_df = pd.read_csv(single_failure_scenarios)
             if asset_gpkg == "potable_facilities_NWC":
                 single_failure_df[asset.asset_id_column] = single_failure_df.progress_apply(
                     lambda x: str(x[asset.asset_id_column]).lower().replace(" ", "_").replace(".0", ""),
@@ -155,7 +161,7 @@ def loss_summary(
     exposures[hazard_columns] = exposures["exposure"].to_numpy()[:, None] * np.where(exposures[hazard_columns] > 0, 1, 0)
 
     sum_dict = dict([(hk, "sum") for hk in hazard_columns])
-    exposures = exposures.groupby([asset.asset.asset_id_column_column, "exposure_unit"], dropna=False).agg(sum_dict).reset_index()
+    exposures = exposures.groupby([asset.asset_id_column, "exposure_unit"], dropna=False).agg(sum_dict).reset_index()
     exposures.to_parquet(output_exposures, index=False)
 
     logging.info("Collating damages and losses")
@@ -177,9 +183,9 @@ def loss_summary(
         if single_failure_df is not None:
             df = pd.merge(
                 df,
-                single_failure_df[[asset.asset.asset_id_column_column, "economic_loss"]],
+                single_failure_df[[asset.asset_id_column, "economic_loss"]],
                 how="left",
-                on=[asset.asset.asset_id_column_column],
+                on=[asset.asset_id_column],
             ).fillna(0)
             df["economic_loss_unit"] = "J$/day"
             loss = df.copy()
