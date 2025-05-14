@@ -11,3 +11,4 @@ dependencies:
     - --editable .
     - -r requirements.txt
   - bioconda::snakemake~=8.30.0
+  - graphviz
