@@ -47,7 +47,8 @@ rule split_assets_by_hotspots_grid:
         # if not, duplicate and adapt it
         script = "workflow/1_damage/split_networks.py",
         networks = config["paths"]["network_layers"],
-        hazards = "?",  # a CSV with header and one data row with path to hotspots grid -- see `workflow/hazard_layers.csv` for example
+        hotspots_grid_metadata = "workflow/hotspots_layers.csv",
+        grid = f"{OUTPUT}/hotspots/grid.tiff",
         gpkg = lambda wildcards: f"{DATA}/{get_asset_metadata(wildcards).path}",
     output:
         splits = f"{OUTPUT}/hotspots/splits/{gpkg}_splits__hazard_layers__{layer}.geoparquet",
@@ -55,7 +56,7 @@ rule split_assets_by_hotspots_grid:
         """
         python {input.script} \
             --network-csv {input.networks} \
-            --hazard-csv {input.hazards} \
+            --hazard-csv {input.hotspots_grid_metadata} \
             --data-dir {DATA} \
             --asset-gpkg {wildcards.gpkg} \
             --asset-layer {wildcards.layer} \
