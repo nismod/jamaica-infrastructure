@@ -53,7 +53,7 @@ micromamba activate jsrat
 To invoke the rule (and all necessary predecessor rules) to compute commuter
 flows across the transport network:
 ```shell
-snakemake --dry-run --cores 1 -- results/flow_mapping/labour_to_sectors_flow_paths.csv
+snakemake --dry-run --cores 1 -- results/flow_mapping/labour_to_sectors_flow_paths.pq
 ```
 
 Note that the `--dry-run` flag asks `snakemake` to report on what work (if any)
