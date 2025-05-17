@@ -258,7 +258,7 @@ def damage_loss_timeseries_and_npv(
 
     discounted_values = []
     for risk_type in ["EAD", "EAEL"]:
-        for val_type in ["amin", "mean", "amax"]:
+        for val_type in ["min", "mean", "max"]:
             if risk_type == "EAEL":
                 eael_exists = [
                     c
