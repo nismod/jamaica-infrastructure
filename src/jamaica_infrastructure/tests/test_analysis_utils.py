@@ -1,7 +1,7 @@
 import numpy as np
 import pandas as pd
 
-from jamaica_infrastructure.analysis.utils import numeric_only_dataframe
+from jamaica_infrastructure.analysis.utils import numeric_only_dataframe, is_sole_value
 
 
 class Test_numeric_only_dataframe:
@@ -14,3 +14,15 @@ class Test_numeric_only_dataframe:
 
         df = pd.DataFrame({"a": [1, "2", 3]})
         assert not numeric_only_dataframe(df)
+
+
+class Test_is_sole_value:
+    def test_is_sole_value(self):
+        assert is_sole_value(pd.Series([1, 1, 1]), 1)
+        assert is_sole_value(pd.Series(["a", "a"]), "a")
+        assert is_sole_value(pd.Series([np.nan, 1]), 1)
+        assert not is_sole_value(pd.Series([1, 2, 2]), 2)
+        assert not is_sole_value(pd.Series([1, 2, 2]), 2)
+        assert not is_sole_value(pd.Series([1, 2, 2]), 4)
+        assert not is_sole_value(pd.Series([np.nan, 1]), 2)
+        assert not is_sole_value(pd.Series([np.nan, np.nan]), 1)

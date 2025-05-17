@@ -17,19 +17,24 @@ rule generate_hotspots_grid:
     Create grid for hotspots analysis.
 
     Test with:
-    snakemake -c1 results/hotspots/grid.tiff
+    snakemake -c1 processed_data/hotspots/grid.tiff
     """
     input:
         script = "workflow/4b_hotspots/generate_grid.py",
         boundary = f"{DATA}/boundaries/jamaica.gpkg",
     params:
-        cell_length = 1_000,
-        boundary_buffer = 10_000,
+        # must be in units of boundary CRS
+        cell_length = config["hotspots"]["grid"]["cell_length_meters"],
+        boundary_buffer = config["hotspots"]["grid"]["boundary_buffer_meters"],
     output:
-        grid = f"{OUTPUT}/hotspots/grid.tiff",
+        grid = f"{DATA}/hotspots/grid.tiff",
     shell:
         """
-        python {input.script} {input.boundary} {params.cell_length} {params.boundary_buffer} {output.grid}
+        python {input.script} \
+            --boundary-path {input.boundary} \
+            --cell-length-meters {params.cell_length} \
+            --boundary-buffer-meters {params.boundary_buffer} \
+            --output-path {output.grid}
         """
 
 
@@ -43,15 +48,14 @@ rule split_assets_by_hotspots_grid:
     snakemake -c1 results/hotspots/splits/roads_splits__hazard_layers__edges.geoparquet
     """
     input:
-        # hopefully this script can be made to work here without breaking changes
-        # if not, duplicate and adapt it
         script = "workflow/1_damage/split_networks.py",
         networks = config["paths"]["network_layers"],
         hotspots_grid_metadata = "workflow/hotspots_layers.csv",
-        grid = f"{OUTPUT}/hotspots/grid.tiff",
+        # split_networks.py assumes file paths (in hotspots_grid_metadata) are in DATA
+        grid = f"{DATA}/hotspots/grid.tiff",
         gpkg = lambda wildcards: f"{DATA}/{get_asset_metadata(wildcards).path}",
     output:
-        splits = f"{OUTPUT}/hotspots/splits/{gpkg}_splits__hazard_layers__{layer}.geoparquet",
+        splits = f"{OUTPUT}/hotspots/splits/{{gpkg}}_splits__hazard_layers__{{layer}}.geoparquet",
     shell:
         """
         python {input.script} \
@@ -71,21 +75,75 @@ rule hotspots_exposure:
     asset class in networks table under `asset_mean_cost_column`.
 
     Test with:
-    snakemake -c1 results/hotspots/exposure/roads_edges_exposed_value.tiff
+    snakemake -c1 results/hotspots/exposure/roads__edges.tiff
     """
     input:
         script = "workflow/4b_hotspots/exposure.py",
         networks = config["paths"]["network_layers"],
-        splits = f"{OUTPUT}/hotspots/splits/{gpkg}_splits__hazard_layers__{layer}.geoparquet",
+        splits = f"{OUTPUT}/hotspots/splits/{{gpkg}}_splits__hazard_layers__{{layer}}.geoparquet",
+        grid = f"{DATA}/hotspots/grid.tiff",
     output:
-        exposure = f"{OUTPUT}/hotspots/exposure/{gpkg}__{layer}.geoparquet",
+        exposure = f"{OUTPUT}/hotspots/exposure/{{gpkg}}__{{layer}}.tiff",
     shell:
         """
         python {input.script} \
-            --splits {input.splits} \
             --network-csv {input.networks} \
-            --exposure {output.exposure}
+            --splits-path {input.splits} \
+            --grid-path {input.grid} \
+            --asset-gpkg {wildcards.gpkg} \
+            --asset-layer {wildcards.layer} \
+            --output-path {output.exposure}
         """
+
+
+def exposure_paths_for_sector(wildcards) -> list[str]:
+    """
+    Given e.g. 'energy', return the paths to all matching sector exposre files.
+    """
+    df = pd.read_csv(config["paths"]["network_layers"])
+    asset_classes_in_sector = df[df['sector'] == wildcards.sector]
+    if len(asset_classes_in_sector) == 0:
+        raise ValueError(f"No assets found for {wildcards.sector=}")
+    exposure_paths = []
+    for asset_class in asset_classes_in_sector.itertuples():
+        # as for `hotspots_exposure` rule
+        exposure_paths.append(f"{OUTPUT}/hotspots/exposure/{asset_class.asset_gpkg}__{asset_class.asset_layer}.tiff")
+    return exposure_paths
+
+rule hotspots_exposure_by_sector:
+    """
+    Sum exposed value of all asset classes for each sector
+
+    Test with:
+    snakemake -c1 results/hotspots/exposure/water.tiff
+    """
+    input:
+        asset_classes = exposure_paths_for_sector
+    output:
+        sector_sum = f"{OUTPUT}/hotspots/exposure/{{sector}}.tiff"
+    run:
+        from jamaica_infrastructure.raster import sum_rasters
+
+        sum_rasters(input.asset_classes, output.sector_sum)
+
+
+rule hotspots_exposure_all_sectors:
+    """
+    Sum exposed value of assets from water, energy and transport sectors.
+
+    Test with:
+    snakemake -c1 results/hotspots/exposure/all_sectors.tiff
+    """
+    input:
+        water = f"{OUTPUT}/hotspots/exposure/water.tiff",
+        energy = f"{OUTPUT}/hotspots/exposure/energy.tiff",
+        transport = f"{OUTPUT}/hotspots/exposure/transport.tiff",
+    output:
+        all_sector_sum = f"{OUTPUT}/hotspots/exposure/all_sectors.tiff"
+    run:
+        from jamaica_infrastructure.raster import sum_rasters
+
+        sum_rasters([input.water, input.energy, input.transport], output.all_sector_sum)
 
 
 rule economic_loss_transport_hotspots_per_cell:
@@ -103,7 +161,7 @@ rule economic_loss_transport_hotspots_per_cell:
         rail_edges = f"{OUTPUT}/hotspots/splits/roads_edges_splits__hazard_layers__edges.geoparquet",
         flow_data_dir = f"{OUTPUT}/transport_failures/nominal",
     output:
-        per_cell_loss = f"{OUTPUT}/hotspots/transport/cell/{cell_id}.tiff",
+        per_cell_loss = f"{OUTPUT}/hotspots/transport/cell/{{cell_id}}.tiff",
     shell:
         """
         python {input.script} \

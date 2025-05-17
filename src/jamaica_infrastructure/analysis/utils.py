@@ -2,6 +2,7 @@
 """
 
 import os
+from typing import Any
 
 import pandas as pd
 import geopandas as gpd
@@ -12,6 +13,11 @@ import numpy as np
 from tqdm import tqdm
 
 tqdm.pandas()
+
+
+def is_sole_value(series: pd.Series, value: Any) -> bool:
+    """Check the non-null entries of a pandas Series all match `value`."""
+    return set(series.dropna().unique()) == {value}
 
 
 def numeric_only_dataframe(df: pd.DataFrame) -> bool:
