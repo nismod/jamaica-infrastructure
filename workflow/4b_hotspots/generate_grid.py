@@ -4,25 +4,24 @@ integer IDs as pixel values.
 """
 
 
-from pathlib import Path
-import sys
+import logging
 
+import click
 import geopandas as gpd
 import numpy as np
 import rasterio
-import rasterio.crs
 
 
 def harmonise_grid(
-    minimum: float, maximum: float, cell_length: float
+    minimum: float, maximum: float, cell_length_meters: float
 ) -> tuple[int, float, float]:
     """
-    Grow grid dimensions to encompass whole number of `cell_length`
+    Grow grid dimensions to encompass whole number of `cell_length_meters`
 
     Args:
         minimum: Minimum dimension value
         maximum: Maximum dimension value
-        cell_length: Length of cell side
+        cell_length_meters: Length of cell side
 
     Returns:
         Number of cells
@@ -32,18 +31,36 @@ def harmonise_grid(
     assert maximum > minimum
 
     span: float = maximum - minimum
-    n_cells: int = int(np.ceil(span / cell_length))
-    delta: float = n_cells * cell_length - span
+    n_cells: int = int(np.ceil(span / cell_length_meters))
+    delta: float = n_cells * cell_length_meters - span
     buffer: float = delta / 2
 
     return n_cells, minimum - buffer, maximum + buffer
 
 
+@click.command()
+@click.version_option("1.0")
+@click.option(
+    "--boundary-path", "-b", required=True, help="Path to country boundary file. Should be readable by geopandas.",
+    type=click.Path(exists=True, dir_okay=False, file_okay=True, readable=True),
+)
+@click.option(
+    "--cell-length-meters", "-c", required=True, type=float,
+    help="Width and height of grid spacing. In meters."
+)
+@click.option(
+    "--boundary-buffer-meters", "-b", required=True, type=float,
+    help="Approximate buffer to extend grid beyond boundary by. In meters.", 
+)
+@click.option(
+    "--output-path", "-o", required=True, help="Path to write the output grid file",
+    type=click.Path(exists=False, dir_okay=False, file_okay=True, readable=True),
+)
 def create_grid(
-    boundary_path: Path,
-    cell_length: float,
-    boundary_buffer: float,
-    output_grid: Path,
+    boundary_path: str,
+    cell_length_meters: float,
+    boundary_buffer_meters: float,
+    output_path: str,
 ) -> None:
     """
     Given a 2D boundary, generate a raster grid encompassing the provided
@@ -52,30 +69,36 @@ def create_grid(
     Args:
         boundary_path: Path to geospatial file containing single geometry. The
             output grid will be the bounding box of this geometry.
-        cell_length: Length of each output grid cell side. In units of boundary CRS.
-        boundary_buffer: Distance to buffer the boundary geometry by. In units of boundary CRS.
-        output_grid: Path to write the created grid to as GeoTIFF.
+        cell_length_meters: Length of each output grid cell side.
+        boundary_buffer_meters: Distance to buffer the boundary geometry by.
+        output_path: Path to write the created grid to as GeoTIFF.
     """
 
-    assert cell_length > 0
-    assert boundary_buffer > 0
+    assert cell_length_meters > 0
+    assert boundary_buffer_meters > 0
 
     boundary: gpd.GeoDataFrame = gpd.read_file(boundary_path)
+    boundary = boundary.to_crs(epsg=3448)  # ensure we are working in meters
     bounding_geometry, = boundary.loc[:, "geometry"]
 
     minx, miny, maxx, maxy = bounding_geometry.bounds
-    minx -= boundary_buffer
-    miny -= boundary_buffer
-    maxx += boundary_buffer
-    maxy += boundary_buffer
+    minx -= boundary_buffer_meters
+    miny -= boundary_buffer_meters
+    maxx += boundary_buffer_meters
+    maxy += boundary_buffer_meters
 
     # determine grid bounding box to fit an integer number of grid cells in each dimension
-    i, minx, maxx = harmonise_grid(minx, maxx, cell_length)
-    j, miny, maxy = harmonise_grid(miny, maxy, cell_length)
+    i, minx, maxx = harmonise_grid(minx, maxx, cell_length_meters)
+    j, miny, maxy = harmonise_grid(miny, maxy, cell_length_meters)
+
+    transform = rasterio.Affine(cell_length_meters, 0, minx, 0, cell_length_meters, miny)
+
+    logging.info(f"Writing grid to disk with {cell_length_meters=}, {i=} and {j=}")
+    logging.info(f"Transform:\n{transform}")
 
     # export grid_ids as .tiff file
     with rasterio.open(
-        output_grid,
+        output_path,
         "w",
         driver="GTiff",
         height=j,
@@ -83,22 +106,11 @@ def create_grid(
         count=1,
         dtype="int32",
         crs=boundary.crs,
-        transform=rasterio.Affine(cell_length, 0, minx, 0, cell_length, miny)
+        transform=transform
     ) as dataset:
         dataset.write(np.zeros((j, i)), 1)
 
 
 if __name__ == "__main__":
-    try:
-        boundary_path = Path(sys.argv[1])
-        cell_length = float(sys.argv[2])
-        buffer = float(sys.argv[3])
-        output_grid = Path(sys.argv[4])
-    except IndexError:
-        print(
-            "Usage: \npython generate_grid.py <input_boundary_path> <cell_length> <boundary_buffer> <output_grid_path>\n"
-            "Note that <cell_length> and <boundary_buffer> must be in units of the boundary CRS."
-        )
-        sys.exit()
-
-    create_grid(boundary_path, cell_length, buffer, output_grid)
+    logging.basicConfig(format="%(asctime)s %(message)s", level=logging.INFO)
+    create_grid()
