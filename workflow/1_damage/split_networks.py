@@ -5,7 +5,6 @@ import os
 import warnings
 
 import click
-import fiona
 import geopandas
 import numpy
 import pandas
