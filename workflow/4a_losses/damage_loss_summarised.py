@@ -12,7 +12,7 @@ import pandas as pd
 import numpy as np
 from tqdm import tqdm
 
-from jamaica_infrastructure.analysis.utils import get_asset, numeric_only_dataframe
+from jamaica_infrastructure.utils import get_asset, numeric_only_dataframe
 
 tqdm.pandas()
 

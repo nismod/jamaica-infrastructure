@@ -1,7 +1,7 @@
 import numpy as np
 import pandas as pd
 
-from jamaica_infrastructure.analysis.utils import numeric_only_dataframe, is_sole_value
+from jamaica_infrastructure.utils import numeric_only_dataframe, is_sole_value
 
 
 class Test_numeric_only_dataframe:
