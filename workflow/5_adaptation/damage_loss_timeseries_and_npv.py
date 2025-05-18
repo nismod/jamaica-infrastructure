@@ -1,7 +1,3 @@
-"""Estimate damage and loss timeseries and NPVs
-
-"""
-
 import logging
 import os
 import warnings
@@ -11,7 +7,7 @@ import pandas as pd
 import numpy as np
 from tqdm import tqdm
 
-from jamaica_infrastructure.analysis.utils import (
+from jamaica_infrastructure.adaptation import (
     calculate_discounting_rate_factor,
     calculate_growth_rate_factor,
     extract_growth_rate_info,

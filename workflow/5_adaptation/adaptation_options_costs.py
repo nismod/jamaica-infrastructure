@@ -1,7 +1,3 @@
-"""Estimate adaptation options costs and benefits
-
-"""
-
 import click
 import os
 import logging
@@ -13,7 +9,7 @@ import geopandas as gpd
 import numpy as np
 from tqdm import tqdm
 
-from jamaica_infrastructure.analysis.utils import (
+from jamaica_infrastructure.adaptation import (
     calculate_discounting_rate_factor,
 )
 
