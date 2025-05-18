@@ -21,8 +21,13 @@ class Test_is_sole_value:
         assert is_sole_value(pd.Series([1, 1, 1]), 1)
         assert is_sole_value(pd.Series(["a", "a"]), "a")
         assert is_sole_value(pd.Series([np.nan, 1]), 1)
+        assert is_sole_value(pd.Series([np.nan, 1]), 1)
+        assert is_sole_value(pd.Series([np.nan, np.nan]), np.nan)
+
         assert not is_sole_value(pd.Series([1, 2, 2]), 2)
         assert not is_sole_value(pd.Series([1, 2, 2]), 2)
         assert not is_sole_value(pd.Series([1, 2, 2]), 4)
         assert not is_sole_value(pd.Series([np.nan, 1]), 2)
         assert not is_sole_value(pd.Series([np.nan, np.nan]), 1)
+        assert not is_sole_value(pd.Series([np.nan, "a", 1]), "a")
+        assert not is_sole_value(pd.Series([np.nan, "a", 1]), np.nan)

@@ -1,11 +1,18 @@
 from typing import Any
 
+import numpy as np
 import pandas as pd
 
 
 def is_sole_value(series: pd.Series, value: Any) -> bool:
-    """Check the non-null entries of a pandas Series all match `value`."""
-    return set(series.dropna().unique()) == {value}
+    """
+    Check the non-null entries of a pandas Series all match `value`. If `value`
+    is null, check the Series is entirely null.
+    """
+    if isinstance(value, float) and np.isnan(value):
+        return all(series.isna())
+    else:
+        return set(series.dropna().unique()) == {value}
 
 
 def numeric_only_dataframe(df: pd.DataFrame) -> bool:
