@@ -98,6 +98,15 @@ that has been cleaned and can be consumed by the rules. Contact the maintainers
 for access to this folder. Outputs are written to the `results/` folder. These
 paths can be configured by editing the `config.json` file.
 
+### Development
+
+Outstanding work may be seen the [issues](https://github.com/nismod/jamaica-infrastructure/)
+on the GitHub repository.
+
+If you are resurrecting scripts pertaining to this repository, they may rely on
+functionality since removed. Checkout v1.0 for the state of the project as of
+2023 (prior to the rewrite of this repository in phase 3).
+
 ## Related repositories
 
 ### Energy

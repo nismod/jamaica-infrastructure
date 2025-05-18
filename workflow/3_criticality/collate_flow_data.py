@@ -6,7 +6,7 @@ import click
 import geopandas as gpd
 import pandas as pd
 
-import jamaica_infrastructure.transport.flow as tf
+from jamaica_infrastructure.transport.flow import get_flow_paths_indexes_of_edges
 
 
 @click.command()
@@ -83,7 +83,7 @@ def collate_flow_data(results_dir: str, processed_data_dir: str):
         ["origin_id", "destination_id", "gcost", "working_trips", "GDP_to_trips"]
         + [f"{t}_trade" for t in trade_sectors]
     ]
-    labour_flow_path_indexes = tf.get_flow_paths_indexes_of_edges(
+    labour_flow_path_indexes = get_flow_paths_indexes_of_edges(
         labour_flows, "edge_path"
     )
     network_dictionary = {}
@@ -116,7 +116,7 @@ def collate_flow_data(results_dir: str, processed_data_dir: str):
         ].reset_index()
         # TODO: it would be nice if this function just gave us a dataframe we
         # could easily serialise to parquet, rather than a dict
-        sector_flow_path_indexes = tf.get_flow_paths_indexes_of_edges(
+        sector_flow_path_indexes = get_flow_paths_indexes_of_edges(
             sector_flows, "edge_path"
         )
         network_dictionary[f"trade_{t}"] = {
