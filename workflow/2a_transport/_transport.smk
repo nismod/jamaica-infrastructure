@@ -152,9 +152,9 @@ rule create_multi_modal_network:
     output:
         multi_modal_network = f"{DATA}/networks/transport/multi_modal_network.gpkg",
     shell:
-        """
-        # TODO: Provide paths as script (click) arguments
-        python {input.script}
+        f"""
+        python {{input.script}} \
+            --processed-data-dir {DATA}
         """
 
 

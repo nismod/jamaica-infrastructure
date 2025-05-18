@@ -1,17 +1,15 @@
-"""Map mining flows onto the rail network of Jamaica
+"""
+Connect ports, airports, railways and roads together into a multi-modal transport network.
 """
 
-import sys
 import os
 
+import click
 import pandas as pd
 import geopandas as gpd
-import numpy as np
-from shapely.geometry import LineString
 from tqdm import tqdm
 
 from jamaica_infrastructure.transport.utils import (
-    load_config,
     map_nearest_locations_and_create_lines,
     polygon_to_points,
 )
@@ -20,12 +18,21 @@ tqdm.pandas()
 epsg_jamaica = 3448
 
 
+@click.command()
+@click.version_option("1.0.0")
+@click.option(
+    "--processed-data-dir",
+    "-p",
+    required=True,
+    type=click.Path(dir_okay=True, file_okay=False, exists=True),
+    help="Designated processed data directory.",
+)
 def main(config):
-    processed_data_path = config["paths"]["data"]
+    processed_data_dir = config["paths"]["data"]
 
     airports = gpd.read_file(
         os.path.join(
-            processed_data_path, "networks", "transport", "airport_polygon.gpkg"
+            processed_data_dir, "networks", "transport", "airport_polygon.gpkg"
         ),
         layer="areas",
     )
@@ -34,14 +41,14 @@ def main(config):
     airports["mode"] = "air"
 
     ports = gpd.read_file(
-        os.path.join(processed_data_path, "networks", "transport", "port_polygon.gpkg"),
+        os.path.join(processed_data_dir, "networks", "transport", "port_polygon.gpkg"),
         layer="areas",
     )
     ports = polygon_to_points(ports)
     ports["mode"] = "port"
 
     rail_nodes = gpd.read_file(
-        os.path.join(processed_data_path, "networks", "transport", "rail.gpkg"),
+        os.path.join(processed_data_dir, "networks", "transport", "rail.gpkg"),
         layer="nodes",
     )
     # rail_nodes.loc[rail_nodes["node_id"]=="railn_124","asset_type"] = "station"
@@ -53,7 +60,7 @@ def main(config):
     rail_nodes["mode"] = "rail"
 
     road_nodes = gpd.read_file(
-        os.path.join(processed_data_path, "networks", "transport", "roads.gpkg"),
+        os.path.join(processed_data_dir, "networks", "transport", "roads.gpkg"),
         layer="nodes",
     )
     road_nodes = road_nodes[road_nodes["component_id"] == 1]
@@ -101,7 +108,7 @@ def main(config):
     print(multi_modal)
 
     rail_edges = gpd.read_file(
-        os.path.join(processed_data_path, "networks", "transport", "rail.gpkg"),
+        os.path.join(processed_data_dir, "networks", "transport", "rail.gpkg"),
         layer="edges",
     )
     rail_edges = rail_edges[rail_edges["status"] == "Functional"]
@@ -110,7 +117,7 @@ def main(config):
     rail_edges["time"] = 0.001 * rail_edges["length_m"] / rail_edges["speed"]
 
     road_edges = gpd.read_file(
-        os.path.join(processed_data_path, "networks", "transport", "roads.gpkg"),
+        os.path.join(processed_data_dir, "networks", "transport", "roads.gpkg"),
         layer="edges",
     )
     road_edges_max_id = max(
@@ -153,7 +160,7 @@ def main(config):
     print(multi_modal)
     multi_modal.to_file(
         os.path.join(
-            processed_data_path, "networks", "transport", "multi_modal_network.gpkg"
+            processed_data_dir, "networks", "transport", "multi_modal_network.gpkg"
         ),
         layer="edges",
         driver="GPKG",
@@ -176,7 +183,7 @@ def main(config):
     print(multi_modal)
     multi_modal.to_file(
         os.path.join(
-            processed_data_path, "networks", "transport", "multi_modal_network.gpkg"
+            processed_data_dir, "networks", "transport", "multi_modal_network.gpkg"
         ),
         layer="nodes",
         driver="GPKG",
@@ -184,5 +191,4 @@ def main(config):
 
 
 if __name__ == "__main__":
-    CONFIG = load_config()
-    main(CONFIG)
+    main()
