@@ -14,7 +14,8 @@ from shapely.geometry import mapping, shape
 from shapely.ops import linemerge, polygonize
 from snail.core.intersections import get_cell_indices, split_linestring, split_polygon
 from tqdm import tqdm
-from jamaica_infrastructure.transform import read_transforms
+
+from jamaica_infrastructure.raster import read_transforms
 
 
 @click.command()

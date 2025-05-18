@@ -16,7 +16,7 @@ rule write_hazard_transforms:
     output:
         hazard_transforms_csv = "{hazard_csv}__with_transforms.csv"
     run:
-        from jamaica_infrastructure.transform import read_transforms
+        from jamaica_infrastructure.raster import read_transforms
 
         hazards = pd.read_csv(input.hazard_csv)
         hazard_transforms, transforms = read_transforms(hazards, input.data_dir)
