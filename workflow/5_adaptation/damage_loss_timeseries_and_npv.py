@@ -5,6 +5,7 @@ import warnings
 import click
 import pandas as pd
 import numpy as np
+from scipy.interpolate import interp1d
 from tqdm import tqdm
 
 from jamaica_infrastructure.adaptation import (
@@ -12,7 +13,6 @@ from jamaica_infrastructure.adaptation import (
     calculate_growth_rate_factor,
     extract_growth_rate_info,
 )
-from jamaica_infrastructure.direct_damages import interp1d
 
 warnings.simplefilter(action="ignore", category=FutureWarning)
 pd.options.mode.chained_assignment = None  # default='warn'
