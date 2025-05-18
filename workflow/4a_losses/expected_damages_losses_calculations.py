@@ -10,14 +10,60 @@ import click
 import geopandas as gpd
 import numpy as np
 import pandas as pd
+from scipy import integrate
 from tqdm import tqdm
-
-from jamaica_infrastructure.analysis.utils import risks
 
 warnings.simplefilter(action="ignore", category=FutureWarning)
 pd.options.mode.chained_assignment = None
 warnings.simplefilter(action="ignore", category=pd.errors.PerformanceWarning)
 tqdm.pandas()
+
+
+def risks(
+    dataframe,
+    index_columns,
+    probabilities,
+    expected_risk_column,
+    flood_protection_period=0,
+    flood_protection_name=None,
+):
+    """
+    Organise the dataframe to pivot with respect to index columns
+    Find the expected risks
+    """
+    if flood_protection_name is None and flood_protection_period == 0:
+        # When there is no flood protection at all
+        expected_risk_column = f"{expected_risk_column}_undefended"
+        probability_columns = [str(p) for p in probabilities]
+
+    elif flood_protection_period > 0:
+        if flood_protection_name is None:
+            expected_risk_column = (
+                f"{expected_risk_column}_{flood_protection_period}_year_protection"
+            )
+        else:
+            expected_risk_column = f"{expected_risk_column}_{flood_protection_name}"
+
+        probabilities = [
+            pr for pr in probabilities if pr <= 1.0 / flood_protection_period
+        ]
+        probability_columns = [str(p) for p in probabilities]
+    else:
+        # When there is no flood protection at all
+        expected_risk_column = f"{expected_risk_column}_{flood_protection_name}"
+        probability_columns = [str(p) for p in probabilities]
+
+    dataframe.columns = dataframe.columns.astype(str)
+    dataframe[expected_risk_column] = list(
+        integrate.trapezoid(
+            dataframe[probability_columns].to_numpy(),
+            np.array([probabilities * len(dataframe.index)]).reshape(
+                dataframe[probability_columns].shape
+            ),
+        )
+    )
+
+    return dataframe[index_columns + [expected_risk_column]]
 
 
 @click.command()

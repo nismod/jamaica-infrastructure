@@ -1,4 +1,4 @@
-"""Estimate direct damages to physical assets exposed to hazards"""
+"""Estimate direct damages to physical assets exposed to hazards."""
 
 import logging
 import os
@@ -8,9 +8,9 @@ import click
 import pandas as pd
 import geopandas as gpd
 import numpy as np
+from scipy.interpolate import interp1d
 from tqdm import tqdm
 
-from jamaica_infrastructure.direct_damages import interp1d
 
 warnings.simplefilter(action="ignore", category=FutureWarning)
 warnings.simplefilter(action="ignore", category=pd.errors.PerformanceWarning)

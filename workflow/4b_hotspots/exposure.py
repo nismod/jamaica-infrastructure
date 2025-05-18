@@ -1,12 +1,11 @@
 import logging
-from typing import Any
 
 import click
 import geopandas as gpd
 import rioxarray
 import pandas as pd
 
-from jamaica_infrastructure.analysis.utils import is_sole_value
+from jamaica_infrastructure.utils import is_sole_value
 
 
 @click.command()
