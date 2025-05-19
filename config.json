@@ -25,6 +25,16 @@
             "tertiary": "CLASS C",
             "residential": "RESIDENTIAL",
             "unclassified": "UNCLASSIFIED"
+        },
+        "OSM_to_damage_curve": {
+            "bridge": "road_bridge",
+            "motorway": "road_paved",
+            "trunk": "road_paved",
+            "primary": "road_paved",
+            "secondary": "road_paved",
+            "tertiary": "road_paved",
+            "residential": "road_paved",
+            "unclassified": "road_unpaved"
         }
     },
     "damages": {

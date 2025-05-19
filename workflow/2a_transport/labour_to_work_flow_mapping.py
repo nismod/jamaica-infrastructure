@@ -72,12 +72,6 @@ def commuter_flow_mapping(network_file, buildings_file, population_file, out_dir
     ]
     network = edges[(edges["from_mode"] == "road") & (edges["to_mode"] == "road")][columns]
 
-    # 0.6 - 2.1% of the value per day
-    # so we need to make an assumption on the average wage per working person,
-    # say 200 USD per day. Then if a road is disrupted which has 1000 daily trips and
-    # they have to be rerouted with an hour, the cost would be: 0.4 * 200 * 1/24 * 100 = 333 USD
-    # So corrected for inflation in 2019 values, this would be 1.2-2.9 USD per hour of value of time for business related trips
-
     logging.info("Build network graph")
     graph = ig.Graph.TupleList(network.itertuples(index=False), edge_attrs=list(network.columns)[2:])
 
