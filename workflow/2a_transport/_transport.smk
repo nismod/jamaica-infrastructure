@@ -21,11 +21,10 @@ rule preprocess_road_network:
         - Project to EPSG 3448
         - Explode multilinestrings
         - Calculate edge lengths
+        - Assign asset_type for damage curve lookup
+        - Estimate NWA road classification from OSM tag_highway
         - Gap-fill speed limit data
         - Add topology and component labels
-
-        TODO: Add government road categorisation data (could spatial join
-        against NWA as Raghav did in scripts/preprocess/updated_road_network.py)
         """
 
         import logging
@@ -70,7 +69,10 @@ rule preprocess_road_network:
         edges.lanes = edges.lanes.astype(int)
         edges[edges.lanes == 0] = 1
 
-        logging.info("Infer NWA road classification from mapping")
+        logging.info("Set asset_type (for damage curve lookup)")
+        edges["asset_type"] = edges.tag_highway.map(config["road_classification"]["OSM_to_damage_curve"])
+
+        logging.info("Guess at NWA road classification from supplied mapping")
         edges["road_class"] = edges.tag_highway.map(config["road_classification"]["OSM_to_NWA"]) \
             .fillna(config["road_classification"]["default_NWA"])
 
@@ -109,7 +111,7 @@ rule preprocess_road_network:
         # the downstream workflow is written assuming that bridges are nodes
         # we take the from_node of the OSM bridge edge to be the bridge node
         # this is not central to the span, but to one side of it
-        bridge_edges = network.edges[network.edges.asset_type=="road_bridge"]
+        bridge_edges = network.edges[network.edges.bridge]
         bridge_edges_to_merge = bridge_edges.loc[
             :,
             ["from_id", "length_m", "min_damage_cost", "mean_damage_cost", "max_damage_cost", "cost_unit"]
