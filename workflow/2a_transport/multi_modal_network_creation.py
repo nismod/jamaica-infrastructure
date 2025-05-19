@@ -2,7 +2,7 @@
 Connect ports, airports, railways and roads together into a multi-modal transport network.
 """
 
-import os
+import logging
 
 import click
 import pandas as pd
@@ -21,54 +21,60 @@ epsg_jamaica = 3448
 @click.command()
 @click.version_option("1.0.0")
 @click.option(
-    "--processed-data-dir",
-    "-p",
-    required=True,
-    type=click.Path(dir_okay=True, file_okay=False, exists=True),
-    help="Designated processed data directory.",
+    "--road-network-path", "-r", required=True,
+    type=click.Path(dir_okay=False, file_okay=True, exists=True),
+    help="Path to road network geopackage.",
 )
-def main(config):
-    processed_data_dir = config["paths"]["data"]
+@click.option(
+    "--rail-network-path", "-l", required=True,
+    type=click.Path(dir_okay=False, file_okay=True, exists=True),
+    help="Path to rail network geopackage.",
+)
+@click.option(
+    "--port-path", "-p", required=True,
+    type=click.Path(dir_okay=False, file_okay=True, exists=True),
+    help="Path to ports geopackage.",
+)
+@click.option(
+    "--airport-path", "-a", required=True,
+    type=click.Path(dir_okay=False, file_okay=True, exists=True),
+    help="Path to airports geopackage.",
+)
+@click.option(
+    "--output-path", "-o", required=True,
+    type=click.Path(dir_okay=False, file_okay=True, exists=False),
+    help="Path to write multi-modal network geopackage.",
+)
+def main(
+    road_network_path: str,
+    rail_network_path: str,
+    port_path: str,
+    airport_path: str,
+    output_path: str
+):
 
-    airports = gpd.read_file(
-        os.path.join(
-            processed_data_dir, "networks", "transport", "airport_polygon.gpkg"
-        ),
-        layer="areas",
-    )
+    airports = gpd.read_file(airport_path, layer="areas")
     airports = airports[airports["asset_type"] == "terminal"]
     airports = polygon_to_points(airports)
     airports["mode"] = "air"
 
-    ports = gpd.read_file(
-        os.path.join(processed_data_dir, "networks", "transport", "port_polygon.gpkg"),
-        layer="areas",
-    )
+    ports = gpd.read_file(port_path, layer="areas")
     ports = polygon_to_points(ports)
     ports["mode"] = "port"
 
-    rail_nodes = gpd.read_file(
-        os.path.join(processed_data_dir, "networks", "transport", "rail.gpkg"),
-        layer="nodes",
-    )
-    # rail_nodes.loc[rail_nodes["node_id"]=="railn_124","asset_type"] = "station"
-    # rail_nodes.loc[rail_nodes["node_id"]=="railn_44","status"] = "Functional"
+    rail_nodes = gpd.read_file(rail_network_path, layer="nodes")
     rail_nodes = rail_nodes[
         (rail_nodes["asset_type"] == "station") & (rail_nodes["status"] == "Functional")
     ]
     rail_nodes = rail_nodes.to_crs(epsg=epsg_jamaica)
     rail_nodes["mode"] = "rail"
 
-    road_nodes = gpd.read_file(
-        os.path.join(processed_data_dir, "networks", "transport", "roads.gpkg"),
-        layer="nodes",
-    )
+    road_nodes = gpd.read_file(road_network_path, layer="nodes")
     road_nodes = road_nodes[road_nodes["component_id"] == 1]
     road_nodes = road_nodes.to_crs(epsg=epsg_jamaica)
     road_nodes["mode"] = "road"
 
-    """Creating linkages
-    """
+    # create linkages
     multi_modal = []
     multi_modal.append(
         map_nearest_locations_and_create_lines(
@@ -91,9 +97,7 @@ def main(config):
         )
     )
 
-    """Add road and rail
-    """
-
+    # road and rail
     multi_modal = gpd.GeoDataFrame(
         pd.concat(multi_modal, axis=0, ignore_index=True),
         geometry="geometry",
@@ -105,34 +109,22 @@ def main(config):
     )
     multi_modal["speed"] = 40.0
     multi_modal["time"] = 0.001 * multi_modal["length_m"] / multi_modal["speed"]
-    print(multi_modal)
 
-    rail_edges = gpd.read_file(
-        os.path.join(processed_data_dir, "networks", "transport", "rail.gpkg"),
-        layer="edges",
-    )
+    rail_edges = gpd.read_file(rail_network_path, layer="edges")
     rail_edges = rail_edges[rail_edges["status"] == "Functional"]
     rail_edges["from_mode"] = "rail"
     rail_edges["to_mode"] = "rail"
     rail_edges["time"] = 0.001 * rail_edges["length_m"] / rail_edges["speed"]
 
-    road_edges = gpd.read_file(
-        os.path.join(processed_data_dir, "networks", "transport", "roads.gpkg"),
-        layer="edges",
-    )
-    road_edges_max_id = max(
-        [int(c.split("_")[1]) for c in road_edges["edge_id"].values.tolist()]
-    )
+    road_edges = gpd.read_file(road_network_path, layer="edges")
     road_edges = road_edges[road_edges["component_id"] == 1]
     road_edges["from_mode"] = "road"
     road_edges["to_mode"] = "road"
-    """Add road to fix lack of connectivity
-    """
 
     road_edges["time"] = 0.001 * road_edges["length_m"] / road_edges["speed_kph"]
     road_edges = road_edges.rename(columns={"speed_kph": "speed"})
-    print(rail_edges)
-    print(road_edges)
+
+    logging.info(f"Writing multi-modal network to disk: {output_path}")
     columns = [
         "from_node",
         "to_node",
@@ -157,14 +149,8 @@ def main(config):
         geometry="geometry",
         crs=f"EPSG:{epsg_jamaica}",
     )
-    print(multi_modal)
-    multi_modal.to_file(
-        os.path.join(
-            processed_data_dir, "networks", "transport", "multi_modal_network.gpkg"
-        ),
-        layer="edges",
-        driver="GPKG",
-    )
+    multi_modal.to_file(output_path, layer="edges", driver="GPKG")
+
     columns = ["node_id", "mode", "geometry"]
     multi_modal = gpd.GeoDataFrame(
         pd.concat(
@@ -180,15 +166,9 @@ def main(config):
         geometry="geometry",
         crs=f"EPSG:{epsg_jamaica}",
     )
-    print(multi_modal)
-    multi_modal.to_file(
-        os.path.join(
-            processed_data_dir, "networks", "transport", "multi_modal_network.gpkg"
-        ),
-        layer="nodes",
-        driver="GPKG",
-    )
+    multi_modal.to_file(output_path, layer="nodes", driver="GPKG")
 
 
 if __name__ == "__main__":
+    logging.basicConfig(format="%(asctime)s %(message)s", level=logging.INFO)
     main()

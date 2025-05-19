@@ -156,7 +156,11 @@ rule create_multi_modal_network:
     shell:
         f"""
         python {{input.script}} \
-            --processed-data-dir {DATA}
+            --road-network-path {{input.road}} \
+            --rail-network-path {{input.rail}} \
+            --port-path {{input.ports}} \
+            --airport-path {{input.airports}} \
+            --output-path {{output.multi_modal_network}}
         """
 
 
