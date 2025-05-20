@@ -121,7 +121,7 @@ def loss_summary(
     direct_damages = [pd.read_parquet(file) for file in damages]
 
     logging.info("Reading EAD and EAEL")
-    EAD_EAEL_damages = [pd.read_csv(file) for file in ead_eael]
+    EAD_EAEL_damages = [pd.read_csv(file, dtype={"rcp": str}) for file in ead_eael]
 
     logging.info("Reading single failure scenarios")
     if single_failure_scenarios:
