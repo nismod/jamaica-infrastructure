@@ -1,18 +1,15 @@
-configfile: "config.json"
+configfile: "config.yaml"
 
 import pandas as pd
 import geopandas as gpd
 import os
 
-HAZARD_TYPES = (
-    "TC",
-    "flooding",
-)
+HAZARD_TYPES = ("TC", "flooding")
 
 # assign globals to these paths, they're used frequently
 RAW = config["paths"]["incoming_data"]
 DATA = config["paths"]["data"]
-OUTPUT = config["paths"]["output"]  # We use a wildcard for this instead
+OUTPUT = config["paths"]["output"]
 
 wildcard_constraints:
     hazard="[^_/]+",  # no slash or underscore
@@ -24,9 +21,6 @@ wildcard_constraints:
     output_path=f"{OUTPUT}(/.+[^/])?",
     parameter_set=r"parameter_set_\d+",
     sector=r"(water|energy|transport)",
-
-# container: "docker://nismod/jamaica-infrastructure"
-# container: "docker://geo-test"
 
 include: "utilities/_utilities.smk"
 include: "1_damage/_damage.smk"

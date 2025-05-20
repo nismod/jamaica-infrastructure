@@ -1,0 +1,127 @@
+# This file contains configuration options for jamaica-infrastructure analyses.
+#
+# These values are used by snakemake rules and Python scripts located in the
+# `workflow/` directory.
+
+### FILE AND DIRECTORY LOCATIONS ###
+# Paths on disk required directories and files
+# The contents of incoming_data and data are required to run an analysis
+# TODO: Rationalise the IO directories
+paths:
+  # Location of some input data (road network from open-gira)
+  incoming_data: "incoming_data"
+  # Principally input data (but also some outputs)
+  data: "processed_data"
+  # Location of most intermediate analyses and output results
+  output: "results"
+  # Metadata table of hazard raster attributes and locations
+  hazard_layers: "workflow/hazard_layers.csv"
+  # Metadata table of infrastructure assets, one row per asset class (e.g. road segments,
+  # ports, electricity transmission lines etc.)
+  network_layers: "workflow/network_layers_hazard_intersections_details.csv"
+
+### DAMAGES ###
+# The direct damages step attempts to calculate a likely rebuild/rehabilitation
+# cost for assets experiencing hazards at given return periods. Expected Annual
+# Damages (EAD) are also computed.
+#
+# Pertaining to direct damages to assets
+damages:
+  # Flooding return period that bridges are assumed to withstand without damage
+  bridge_flood_design_RP_years: 50
+  # Transport network rehabilitation costs
+  rehabilitation_costs:
+    bridge_cost_USD_per_meter: 15000.0
+    road_cost_USD_per_lane_per_km: 750000.0
+#
+# Whether to run a sensitivity analysis over rehabilitation costs and fragility
+# of assets. If true, direct damages will be calculated for several ensemble
+# members. Results will be present for min/mean/max aggregations of these members.
+#
+# See `workflow/_damage.smk`, rule sensitivity_parameters for more information.
+sensitivity_analysis: true
+
+### ROAD NETWORK GENERATION ###
+# The road (and therefore the multi-modal) transport network is derived from an
+# OpenStreetMap extract, created with the nismod/open-gira repository.
+road_classification:
+  # The OpenStreetMap derived road network comes with a 'highway' tag that
+  # contains information about what kind of road any given segment is.
+  # We make an informed guess at the mapping from OpenStreetMap highway
+  # classification to the Government of Jamaicas. This will not be perfect.
+  OSM_to_NWA:
+    motorway: "MOTORWAY"
+    trunk: "CLASS A"
+    primary: "CLASS A"
+    secondary: "CLASS B"
+    tertiary: "CLASS C"
+    residential: "RESIDENTIAL"
+    unclassified: "UNCLASSIFIED"
+  # Any OpenStreetMap highway tag value that is not listed in `OSM_to_NWA`
+  # will be given this value.
+  default_NWA: "UNCLASSIFIED"
+
+  # The OpenStreetMap highway tag is also used to select appropriate damage
+  # curves. The mapping is configurable here. Damage curves keyed on the values
+  # below are located in the damage_curves directory.
+  OSM_to_damage_curve:
+    bridge: "road_bridge"
+    motorway: "road_paved"
+    primary: "road_paved"
+    residential: "road_paved"
+    secondary: "road_paved"
+    tertiary: "road_paved"
+    trunk: "road_paved"
+    unclassified: "road_unpaved"
+
+### ECONOMICS ###
+# Exchange rate to use when converting rehabilitation costs, losses, etc.
+USD_per_JMD: 0.0064
+# TODO: Include `hourly_wage` and `trade_effect`
+
+### CRITICALITY ###
+# The transport criticality analysis removes single links from the network and
+# quantifies how this affects trade and labour flows.
+#
+# The transport network is processed in chunks. This option defines the number
+# of chunks. Rules may be invoked in parallel to operate on multiple chunks
+# simulatenously.
+#
+# See `workflow/_criticality.smk`, specifically rules `transport_scenario_edge_map`
+# and `single_point_failure_road_rail` for more details.
+single_link_failure_chunk_count: 128
+
+### HOTSPOTS ###
+# The hotspots analyses identify which areas are critical for transport network
+# performance.
+#
+# We first define a grid. Then, remove all assets within a grid cell from the
+# network, then quantify the reduction in network performance. This is repeated
+# for all grid cells. We also identify the monetary value of assets within each
+# cell, for every sector.
+hotspots:
+  # Defining the raster grid to perform a hotspots analysis on.
+  grid:
+    # Buffer around bounding box of Jamaican coastline in meters
+    boundary_buffer_meters: 10000
+    # Width and heght of grid cells in meters
+    cell_length_meters: 2500
+#
+# N.B. There is a distinct hotspots analysis available for the energy network
+# in the nismod/JEM repository.
+
+### ADAPTATION OPTIONS ###
+# We explore a variety of per-asset adaptation options to mitigate the effects
+# of hazards.
+#
+# These interventions may avoid damage and loss, but they will require initial
+# investment. The entries below are the configurable financial parameters of
+# the adaptation options.
+adaptation_options:
+  baseline_year: 2019
+  projection_end_year: 2100
+  # Percentage discount rate
+  discounting_rate: 10
+  # TODO: Store this in src/constants.py or similar, it should not be configurable
+  epsg_jamaica: 3448
+
