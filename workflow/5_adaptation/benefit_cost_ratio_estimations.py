@@ -1,5 +1,5 @@
-"""Estimate adaptation options costs and benefits
-
+"""
+Calculate Benefit Cost Ratio (BCR) of adaptation options for given asset class.
 """
 
 import logging
@@ -209,7 +209,6 @@ def get_bcr_values(
     protection_type_name,
     days=10,
 ):
-    # print (option_df)
     for idx, (ft, cmf) in enumerate(
         list(zip(hazard_thresholds, cost_multiplication_factors))
     ):
@@ -492,12 +491,15 @@ def benefit_cost_ratio(
 
     asset_id = asset_info.asset_id_column
 
-    logging.info(
-        f"* Starting with {hazard['hazard']} {asset_gpkg} {asset_layer}"
-    )
+    logging.info(f"{hazard['hazard']} {asset_gpkg} {asset_layer}")
+
+    logging.info("Reading costs")
     cost_df = pd.read_csv(cost_file)
+
+    logging.info("Reading risks with no adaptation")
     no_adapt_risk = pd.read_csv(no_adapt_risk_file)
 
+    logging.info("Calculate BCR")
     adaptation_options = list(
         set(cost_df["adaptation_option"].values.tolist())
     )
@@ -643,9 +645,9 @@ def benefit_cost_ratio(
                 option_df,
                 ead_eael_df,
                 "flood_protection_level",
-                adapt_ead_eael_columns,
             )
             ead_eael_results.append(ead_eael_r)
+
     if len(bcr_results) > 0:
         bcr_results = pd.concat(bcr_results, axis=0, ignore_index=False)
 
@@ -654,7 +656,7 @@ def benefit_cost_ratio(
             index=False,
         )
 
-        logging.info(output_bcr)
+        logging.info(f"Writing BCR results to disk: {output_bcr}")
 
     if len(ead_eael_results) > 0:
         ead_eael_results = pd.concat(
@@ -666,7 +668,7 @@ def benefit_cost_ratio(
             index=False,
         )
 
-        logging.info(output_ead)
+        logging.info(f"Writing EAD & EAEL results to disk: {output_ead}")
 
 
 if __name__ == "__main__":

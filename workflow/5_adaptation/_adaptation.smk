@@ -6,47 +6,87 @@ from typing import List
 import pandas
 
 
-rule flood_threshold_EAD_EAEL:
-    """
-    Calculate Estimated Annual Damages and Expected Annual Economic Losses for
-    assets across all hazards with a given parameter set and flood threshold.
-    The flood threshold is used to screen out flood depths, allowing the
-    later analysis of flood defence measures (adaptation options).
+timeseries_files = []
+for risk_type in ["EAD", "EAEL"]:
+        timeseries_files = [
+            *timeseries_files,
+            *[f"{risk_type}_timeseries_{val_type}" for val_type in ["min", "mean", "max"]]
+        ]
 
-    The nominal calculation is largely the same, but with threshold of zero.
-    However it is treated as a special case with its own rules elsewhere (see
-    4a_losses). Unifying these two approaches could reduce the number of rules,
-    but would require reworking the results folder structure.
+rule damage_loss_timeseries_and_NPV:
+    """
+    Estimate the damage loss timeseries and NPV for an asset with an adaptation.
     
-    Old orchestration script that we want to preproduce the functionality of:
-    scripts/analysis/flood_changes_setup.py
+    scripts/analysis/damage_loss_timeseries_and_npv.py
+    
+    Test with:
+    snakemake -c1 results/flood_threshold_1p0/loss_damage_npvs/waste_water_facilities_NWC_nodes_EAD_EAEL_npvs.csv
     """
     input:
-        script = "?",
+        script = "workflow/5_adaptation/damage_loss_timeseries_and_npv.py",
         network_csv = config["paths"]["network_layers"],
-        hazard_csv = config["paths"]["hazard_layers"],
-        sensitivity_parameters = f"{DATA}/sensitivity_parameters.csv",
-        gpkg = lambda wildcards: f"{DATA}/{get_asset_metadata(wildcards).path}",
-        damage_file = "{output_path}/{flood_threshold}/direct_damages/{gpkg}_{layer}/{gpkg}_{layer}_direct_damages_{parameter_set}.parquet",
-        single_failure_scenarios = get_single_failure_scenario_file,
+        growth_rates = f"{DATA}/macroeconomic_data/gdp_growth_rates.xlsx",
+        summarised_damages = f"{{output_path}}/direct_damages_summary/{{gpkg}}_{{layer}}_EAD_EAEL.csv",
     params:
-        sensitivity_id = sensitivity_id_from_slug,
+        baseline_year = config["adaptation_options"]["baseline_year"],
+        projection_end_year = config["adaptation_options"]["projection_end_year"],
+        discounting_rate = config["adaptation_options"]["discounting_rate"]
     output:
-        EAD_EAEL = "{output_path}/{flood_threshold}/direct_damages/{gpkg}_{layer}/{gpkg}_{layer}_EAD_EAEL_{parameter_set}.csv",
+        NPV = f"{{output_path}}/loss_damage_npvs/{{gpkg}}_{{layer}}_EAD_EAEL_npvs.csv",
+        timeseries = [
+            f"{{output_path}}/loss_damage_timeseries/{{gpkg}}_{{layer}}_{file_suffix}.csv"
+            for file_suffix in timeseries_files
+        ],
     shell:
         """
-        # You probably want something like this?
-
         python {input.script} \
             --network-csv {input.network_csv} \
-            --hazard-csv {input.hazard_csv} \
-            --sensitivity-csv {input.sensitivity_parameters} \
-            --sensitivity-id {params.sensitivity_id} \
-            --asset-gpkg-label {wildcards.gpkg} \
+            --growth-rates-xls {input.growth_rates} \
+            --asset-gpkg {wildcards.gpkg} \
             --asset-layer {wildcards.layer} \
-            --damage-file {input.damage_file} \
-            --single-failure-scenarios {input.single_failure_scenarios} \
-            --output-path {output.EAD_EAEL}
+            --baseline-year {params.baseline_year} \
+            --projection-end-year {params.projection_end_year} \
+            --discounting-rate {params.discounting_rate} \
+            --output-path {wildcards.output_path}
+        """
+
+
+rule adaptation_options_costs:
+    """
+    Generate the adaptation options for each asset.
+    
+    scripts/analysis/adaptation_options_costs.py
+    
+    Test with:
+    snakemake -c1 results/adaptation_costs/flooding_costs/waste_water_facilities_NWC_nodes_adaptation_timeseries_and_npvs.csv
+    """
+    input:
+        script = "workflow/5_adaptation/adaptation_options_costs.py",
+        cost_file = f"{DATA}/adaptation/adaptation_options_and_costs_jamaica.xlsx",
+        network_csv = config["paths"]["network_layers"],
+        asset_file = lambda wildcards: f"{DATA}/{get_asset_metadata(wildcards).path}",  # gpkg
+    params:
+        baseline_year = config["adaptation_options"]["baseline_year"],
+        projection_end_year = config["adaptation_options"]["projection_end_year"],
+        discounting_rate = config["adaptation_options"]["discounting_rate"],
+        epsg = config["adaptation_options"]["epsg_jamaica"]
+    output:
+        npv = f"{OUTPUT}/adaptation_costs/{{hazard}}_costs/{{gpkg}}_{{layer}}_adaptation_timeseries_and_npvs.csv",
+        unit_costs = f"{OUTPUT}/adaptation_costs/{{hazard}}_costs/{{gpkg}}_{{layer}}_adaptation_unit_costs.csv",
+    shell:
+        """
+        python {input.script} \
+            --network-csv {input.network_csv} \
+            --asset-file {input.asset_file} \
+            --cost-file {input.cost_file} \
+            --hazard-label {wildcards.hazard} \
+            --asset-gpkg {wildcards.gpkg} \
+            --asset-layer {wildcards.layer} \
+            --output-dir {OUTPUT} \
+            --baseline-year {params.baseline_year} \
+            --projection-end-year {params.projection_end_year} \
+            --discounting-rate {params.discounting_rate} \
+            --epsg {params.epsg}
         """
 
 
@@ -97,87 +137,4 @@ rule benefit_cost_ratio:
             --asset-gpkg {wildcards.gpkg} \
             --asset-layer {wildcards.layer} \
             --output-dir {OUTPUT}
-        """
-
-
-rule adaptation_options_costs:
-    """
-    Generate the adaptation options for each asset.
-    
-    scripts/analysis/adaptation_options_costs.py
-    
-    Test with:
-    snakemake -c1 results/adaptation_costs/flooding_costs/waste_water_facilities_NWC_nodes_adaptation_timeseries_and_npvs.csv
-    """
-    input:
-        script = "workflow/5_adaptation/adaptation_options_costs.py",
-        cost_file = f"{DATA}/adaptation/adaptation_options_and_costs_jamaica.xlsx",
-        network_csv = config["paths"]["network_layers"],
-        asset_file = lambda wildcards: f"{DATA}/{get_asset_metadata(wildcards).path}",  # gpkg
-    params:
-        baseline_year = config["adaptation_options"]["baseline_year"],
-        projection_end_year = config["adaptation_options"]["projection_end_year"],
-        discounting_rate = config["adaptation_options"]["discounting_rate"],
-        epsg = config["adaptation_options"]["epsg_jamaica"]
-    output:
-        npv = f"{OUTPUT}/adaptation_costs/{{hazard}}_costs/{{gpkg}}_{{layer}}_adaptation_timeseries_and_npvs.csv",
-        unit_costs = f"{OUTPUT}/adaptation_costs/{{hazard}}_costs/{{gpkg}}_{{layer}}_adaptation_unit_costs.csv",
-    shell:
-        """
-        python {input.script} \
-            --network-csv {input.network_csv} \
-            --asset-file {input.asset_file} \
-            --cost-file {input.cost_file} \
-            --hazard-label {wildcards.hazard} \
-            --asset-gpkg {wildcards.gpkg} \
-            --asset-layer {wildcards.layer} \
-            --output-dir {OUTPUT} \
-            --baseline-year {params.baseline_year} \
-            --projection-end-year {params.projection_end_year} \
-            --discounting-rate {params.discounting_rate} \
-            --epsg {params.epsg}
-        """
-
-
-timeseries_files = []
-for risk_type in ["EAD", "EAEL"]:
-        timeseries_files = [
-            *timeseries_files,
-            *[f"{risk_type}_timeseries_{val_type}" for val_type in ["min", "mean", "max"]]
-        ]
-rule damage_loss_timeseries_and_NPV:
-    """
-    Estimate the damage loss timeseries and NPV for an asset with an adaptation.
-    
-    scripts/analysis/damage_loss_timeseries_and_npv.py
-    
-    Test with:
-    snakemake -c1 results/flood_threshold_1p0/loss_damage_npvs/waste_water_facilities_NWC_nodes_EAD_EAEL_npvs.csv
-    """
-    input:
-        script = "workflow/5_adaptation/damage_loss_timeseries_and_npv.py",
-        network_csv = config["paths"]["network_layers"],
-        growth_rates = f"{DATA}/macroeconomic_data/gdp_growth_rates.xlsx",
-        summarised_damages = f"{{output_path}}/direct_damages_summary/{{gpkg}}_{{layer}}_EAD_EAEL.csv",
-    params:
-        baseline_year = config["adaptation_options"]["baseline_year"],
-        projection_end_year = config["adaptation_options"]["projection_end_year"],
-        discounting_rate = config["adaptation_options"]["discounting_rate"]
-    output:
-        NPV = f"{{output_path}}/loss_damage_npvs/{{gpkg}}_{{layer}}_EAD_EAEL_npvs.csv",
-        timeseries = [
-            f"{{output_path}}/loss_damage_timeseries/{{gpkg}}_{{layer}}_{file_suffix}.csv"
-            for file_suffix in timeseries_files
-        ],
-    shell:
-        """
-        python {input.script} \
-            --network-csv {input.network_csv} \
-            --growth-rates-xls {input.growth_rates} \
-            --asset-gpkg {wildcards.gpkg} \
-            --asset-layer {wildcards.layer} \
-            --baseline-year {params.baseline_year} \
-            --projection-end-year {params.projection_end_year} \
-            --discounting-rate {params.discounting_rate} \
-            --output-path {wildcards.output_path}
         """
