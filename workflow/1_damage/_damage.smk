@@ -57,7 +57,7 @@ checkpoint sensitivity_parameters:
     snakemake -c1 processed_data/sensitivity_parameters.csv
     """
     input:
-        config = "config.json"
+        config = "config.yaml"
     output:
         sensitivity_parameters = f"{DATA}/sensitivity_parameters.csv"
     run:
