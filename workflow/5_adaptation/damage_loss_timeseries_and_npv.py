@@ -233,7 +233,7 @@ def damage_loss_timeseries_and_npv(
         "direct_damages_summary",
         f"{asset_prefix}_EAD_EAEL.csv"
     )
-    summarised_damages = pd.read_csv(summarised_damages_csv)
+    summarised_damages = pd.read_csv(summarised_damages_csv, dtype={"rcp": str})
 
     discounted_results = os.path.join(
         output_path,
