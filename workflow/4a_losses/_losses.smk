@@ -119,9 +119,6 @@ def EAD_EAEL_ensemble_files(wildcards):
 rule loss_summary:
     """
     Summarise all the loss files for an asset.
-
-    TODO: Does this rule need to prooduce damages and exposures? These are
-    created in collapse_sensitivity (albeit as CSV, not parquet).
     
     Test with:
     snakemake -c1 results/direct_damages_summary/roads_edges_losses.parquet

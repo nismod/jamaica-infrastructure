@@ -21,9 +21,8 @@ to install the packages and manage installing libraries into a conda
 environment, usually handling non-Python dependencies well.
 
 Create a conda environment once (per machine/user):
-```shell
-micromamba create --file environment.yml
-```
+
+    micromamba create --file environment.yaml
 
 ## Usage
 
@@ -47,6 +46,11 @@ available, activate the environment we previously created.
 ```shell
 micromamba activate jsrat
 ```
+
+### Configuration
+
+Analysis options can be configured using the `config.yaml` file. See it for
+inline documentation.
 
 ### Invoke rules
 
@@ -76,18 +80,16 @@ While this workflow is in development, some of the rules are placeholders.
 
 To check the validity of the rules and which target files have rules, try
 running:
-```shell
-python workflow/utilities/check_targets.py
-```
+
+    python workflow/utilities/check_targets.py
 
 This will not run any calculations, but rather check if there are available
 rules to generate the desired output. It takes a few minutes.
 
 The helper Python libary contained in `src/jamaica_infrastructure` also has
 tests. These can be run with:
-```shell
-python -m pytest src/jamaica_infrastructure
-```
+
+    python -m pytest src/jamaica_infrastructure
 
 These take a few seconds.
 
@@ -95,8 +97,11 @@ These take a few seconds.
 
 To run any rules you will need the `processed_data/` folder which contains data
 that has been cleaned and can be consumed by the rules. Contact the maintainers
-for access to this folder. Outputs are written to the `results/` folder. These
-paths can be configured by editing the `config.json` file.
+for access to this folder.
+
+Most(!) outputs are written to the `results/` folder.
+
+These paths can be configured by editing the `config.yaml` file.
 
 ### Development
 
