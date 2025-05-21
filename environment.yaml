@@ -1,5 +1,5 @@
 # to install this environment:
-# micromamba create -f environment.yml -y
+# micromamba create -f environment.yaml -y
 name: jsrat
 channels:
   - conda-forge  # majority of dependencies

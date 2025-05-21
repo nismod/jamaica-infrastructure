@@ -17,8 +17,6 @@ rule damage_loss_timeseries_and_NPV:
     """
     Estimate the damage loss timeseries and NPV for an asset with an adaptation.
     
-    scripts/analysis/damage_loss_timeseries_and_npv.py
-    
     Test with:
     snakemake -c1 results/flood_threshold_1p0/loss_damage_npvs/waste_water_facilities_NWC_nodes_EAD_EAEL_npvs.csv
     """
@@ -54,8 +52,6 @@ rule damage_loss_timeseries_and_NPV:
 rule adaptation_options_costs:
     """
     Generate the adaptation options for each asset.
-    
-    scripts/analysis/adaptation_options_costs.py
     
     Test with:
     snakemake -c1 results/adaptation_costs/flooding_costs/waste_water_facilities_NWC_nodes_adaptation_timeseries_and_npvs.csv
@@ -114,8 +110,6 @@ for hazard in HAZARD_TYPES:
 rule benefit_cost_ratio:
     """
     Generate the benefit cost ratio for each adaptation option.
-
-    scripts/analysis/benefit_cost_ratio_estimations.py
     
     Test with:
     snakemake -c1 results/adaptation_benefits_costs_bcr/flooding_waste_water_facilities_NWC_nodes_adaptation_costs_avoided_EAD_EAEL.csv
