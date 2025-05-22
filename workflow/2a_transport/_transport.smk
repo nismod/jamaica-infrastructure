@@ -77,7 +77,7 @@ rule preprocess_road_network:
             .fillna(config["road_classification"]["default_NWA"])
 
         logging.info("Assign rebuild costs from config")
-        USD_per_JMD = config["USD_per_JMD"]
+        USD_per_JMD = config["economics"]["USD_per_JMD"]
         bridge_cost_JMD_per_meter = config["damages"]["rehabilitation_costs"]["bridge_cost_USD_per_meter"] / USD_per_JMD
         road_cost_JMD_per_lane_per_meter = (config["damages"]["rehabilitation_costs"]["road_cost_USD_per_lane_per_km"] / 1.0e3) / USD_per_JMD
         edges["mean_damage_cost"] = np.where(

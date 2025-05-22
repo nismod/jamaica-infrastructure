@@ -10,6 +10,12 @@ import numpy as np
 import pandas as pd
 
 
+# Avoids warning triggered by line: `select_flows["access"] = 0`
+# SettingWithCopyWarning: A value is trying to be set on a copy of a slice from
+# a DataFrame.  Try using .loc[row_indexer,col_indexer] = value instead
+pd.options.mode.copy_on_write = True
+
+
 def swap_min_max(x, min_col, max_col):
     """Swap columns if necessary"""
     if x[min_col] < 0 and x[max_col] < 0:
@@ -195,9 +201,6 @@ def igraph_scenario_edge_failures_premade_network(
             on=["origin_id", "destination_id"],
         ).fillna(0)
     else:
-        # TODO: SettingWithCopyWarning: 
-        # A value is trying to be set on a copy of a slice from a DataFrame.
-        # Try using .loc[row_indexer,col_indexer] = value instead
         select_flows["access"] = 0
 
     no_access = select_flows[select_flows["access"] == 0]
