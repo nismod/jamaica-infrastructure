@@ -24,7 +24,7 @@ checkpoint generate_hotspots_grid:
         boundary = f"{DATA}/boundaries/jamaica.gpkg",
     params:
         # must be in units of boundary CRS
-        cell_length = config["hotspots"]["grid"]["cell_length_meters"],
+        resolution = config["hotspots"]["grid"]["resolution_meters"],
         boundary_buffer = config["hotspots"]["grid"]["boundary_buffer_meters"],
     output:
         grid = f"{DATA}/hotspots/grid.tiff",
@@ -32,7 +32,7 @@ checkpoint generate_hotspots_grid:
         """
         python {input.script} \
             --boundary-path {input.boundary} \
-            --cell-length-meters {params.cell_length} \
+            --cell-length-meters {params.resolution} \
             --boundary-buffer-meters {params.boundary_buffer} \
             --output-path {output.grid}
         """
@@ -201,6 +201,8 @@ rule economic_loss_transport_hotspots:
         labour_cost = config["economics"]["labour_cost_JMD_per_hour"]
     output:
         economic_loss = f"{OUTPUT}/hotspots/transport/economic_loss.tiff",
+        rerouting_loss = f"{OUTPUT}/hotspots/transport/rerouting_loss.tiff",
+        isolation_loss = f"{OUTPUT}/hotspots/transport/isolation_loss.tiff",
     run:
         import numpy as np
         import pandas as pd
@@ -225,17 +227,45 @@ rule economic_loss_transport_hotspots:
 
         with rasterio.open(input.grid) as grid_dataset:
             arr: np.ndarray[float] = grid_dataset.read()[0].astype(np.float32)
-            arr[loss.cell_index_y, loss.cell_index_x] = loss.economic_loss
 
-            with rasterio.open(
-                output.economic_loss,
-                "w",
-                driver="GTiff",
-                height=arr.shape[0],
-                width=arr.shape[1],
-                count=1,
-                dtype=rasterio.float32,
-                crs=grid_dataset.crs,
-                transform=grid_dataset.transform
-            ) as output_dataset:
+        write_kwargs = {
+            "driver": "GTiff",
+            "height": arr.shape[0],
+            "width": arr.shape[1],
+            "count": 1,
+            "dtype": rasterio.float32,
+            "crs": grid_dataset.crs,
+            "transform": grid_dataset.transform
+        }
+
+        for variable in ("economic_loss", "isolation_loss", "rerouting_loss"):
+            with rasterio.open(output[variable], "w", **write_kwargs) as output_dataset:
+                arr[loss.cell_index_y, loss.cell_index_x] = loss[variable]
                 output_dataset.write(arr, 1)
+
+
+rule economic_loss_transport_hotspots_gaussian_kernel:
+    """
+    Apply quantity preserving smoothing Gaussian kernel to hotspots quantities.
+
+    Test with:
+    snakemake -c1 results/hotspots/transport/economic_loss.tiff",
+    """
+    input:
+        script = "workflow/4b_hotspots/kde.py",
+        coarse = f"{OUTPUT}/hotspots/transport/{{hotspots_variable}}_loss.tiff",
+    params:
+        resolution = config["hotspots"]["kernel_density_estimation"]["resolution_meters"],
+        bandwidth = config["hotspots"]["kernel_density_estimation"]["bandwidth_meters"],
+    output:
+        smoothed = f"{OUTPUT}/hotspots/transport/{{hotspots_variable}}_loss_smoothed.tiff",
+    wildcard_constraints:
+        hotspots_variable="(economic|isolation|rerouting)"
+    shell:
+        """
+        python {input.script} \
+            --input-raster-path {input.coarse} \
+            --output-raster-path {output.smoothed} \
+            --output-resolution {params.resolution} \
+            --bandwidth {params.bandwidth}
+        """

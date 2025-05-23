@@ -101,17 +101,28 @@ single_link_failure_chunk_count: 128
 # The hotspots analyses identify which areas are critical for transport network
 # performance.
 #
-# We first define a grid. Then, remove all assets within a grid cell from the
-# network, then quantify the reduction in network performance. This is repeated
-# for all grid cells. We also identify the monetary value of assets within each
-# cell, for every sector.
+# We first define a grid.
+# Then, remove all assets within a grid cell from the network, then quantify the
+# reduction in network performance. This is repeated for all grid cells. The
+# output is optionally smoothed using Kernel Density Estimation.
+# We can also identify the monetary value of assets within each cell (exposure
+# value), for every sector.
 hotspots:
-  # Defining the raster grid to perform a hotspots analysis on.
+  # Defining the raster grid to perform a hotspots analysis on. This is the grid
+  # on which assets are removed, cell-by-cell from.
   grid:
     # Buffer around bounding box of Jamaican coastline in meters
     boundary_buffer_meters: 10000
     # Width and heght of grid cells in meters
-    cell_length_meters: 2500
+    resolution_meters: 2500
+  # Options for applying a smoothing Gaussian kernel process to economic loss
+  # hotspots in transport sector
+  kernel_density_estimation:
+    # Measure of width Gaussian kernel 
+    bandwidth_meters: 1500
+    # Resolution of grid to evaluate sum of Gaussian kernels (typically finer
+    # than above grid)
+    resolution_meters: 500
 #
 # N.B. There is a distinct hotspots analysis available for the energy network
 # in the nismod/JEM repository.

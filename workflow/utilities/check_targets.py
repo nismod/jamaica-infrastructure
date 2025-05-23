@@ -209,7 +209,16 @@ ADAPTATIONS = [
     'results/adaptation_benefits_costs_bcr/TC_electricity_network_v3.1_edges_adaptation_costs_avoided_EAD_EAEL.csv'
 ]
 
-TARGETS = EXPOSURE + DAMAGES + LOSSES + EAD_EAEL + ADAPTATIONS
+HOTSPOTS = [
+    "results/hotspots/exposure/all_sector.tiff",
+    "results/hotspots/exposure/water.tiff",
+    "results/hotspots/exposure/transport.tiff",
+    "results/hotspots/exposure/energy.tiff",
+    "results/hotspots/transport/isolation_loss_smoothed.tiff",
+    "results/hotspots/transport/rerouting_loss_smoothed.tiff",
+]
+
+TARGETS = EXPOSURE + DAMAGES + LOSSES + EAD_EAEL + ADAPTATIONS + HOTSPOTS
 
 if __name__ == "__main__":
     n_okay = 0
