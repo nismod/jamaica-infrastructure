@@ -9,7 +9,7 @@ def economic_losses_from_network_damage(
     trade_sectors: list[str],
     trade_effect: float,
     hourly_wage: float,
-):
+) -> pd.DataFrame:
 
     index_cols: list[str] = [id_col, no_access_col]
 

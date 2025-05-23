@@ -6,13 +6,13 @@ The rules in this file produce raster maps of 'hotspots' of infrastructure risk.
 2) Calculate the sum of asset value in each grid cell (exposure). This will
     require looking up the cost column from the networks table and multiplying by
     the appropriate exposure dimension, e.g. split length for edges.
-3) Perform a criticality assessment where all assets within a cell are failed
-    and calculate the resulting wider economic losses
-4) Sum results over asset classes for each sector
+3) Sum exposure results over asset classes for each sector
+4) Perform a transport criticality assessment where assets within a cell are
+    failed and calculate the resulting wider economic losses
 """
 
 
-rule generate_hotspots_grid:
+checkpoint generate_hotspots_grid:
     """
     Create grid for hotspots analysis.
 
@@ -24,7 +24,7 @@ rule generate_hotspots_grid:
         boundary = f"{DATA}/boundaries/jamaica.gpkg",
     params:
         # must be in units of boundary CRS
-        cell_length = config["hotspots"]["grid"]["cell_length_meters"],
+        resolution = config["hotspots"]["grid"]["resolution_meters"],
         boundary_buffer = config["hotspots"]["grid"]["boundary_buffer_meters"],
     output:
         grid = f"{DATA}/hotspots/grid.tiff",
@@ -32,7 +32,7 @@ rule generate_hotspots_grid:
         """
         python {input.script} \
             --boundary-path {input.boundary} \
-            --cell-length-meters {params.cell_length} \
+            --cell-length-meters {params.resolution} \
             --boundary-buffer-meters {params.boundary_buffer} \
             --output-path {output.grid}
         """
@@ -146,46 +146,126 @@ rule hotspots_exposure_all_sectors:
         sum_rasters([input.water, input.energy, input.transport], output.all_sector_sum)
 
 
-rule economic_loss_transport_hotspots_per_cell:
+rule transport_hotspots_economic_loss_chunked_by_latitude_slice:
     """
-    Find economic losses associated with the loss of road and rail edges
+    Find economic losses associated with the loss of road and rail edges.
+    Chunked on hotspots grid row.
 
     Test with:
-    snakemake -c1 results/hotspots/transport/cell/0.tiff
+    snakemake -c1 results/hotspots/transport/y/12.parquet
     """
     input:
-        script = "?",  # an adapted version of `workflow/3_criticality/single_link_failure.py`
-        airport_areas = f"{OUTPUT}/hotspots/splits/airport_polygon_splits__hazard_layers_areas.geoparquet",
-        port_areas = f"{OUTPUT}/hotspots/splits/port_polygon_splits__hazard_layers_areas.geoparquet",
-        road_edges = f"{OUTPUT}/hotspots/splits/rail_edges_splits__hazard_layers__edges.geoparquet",
-        rail_edges = f"{OUTPUT}/hotspots/splits/roads_edges_splits__hazard_layers__edges.geoparquet",
+        script = "workflow/4b_hotspots/transport.py",
+        road_splits = f"{OUTPUT}/hotspots/splits/roads_splits__hazard_layers__edges.geoparquet",
+        rail_splits = f"{OUTPUT}/hotspots/splits/rail_splits__hazard_layers__edges.geoparquet",
         flow_data_dir = f"{OUTPUT}/transport_failures/nominal",
+    params:
+        labour_cost = config["economics"]["labour_cost_JMD_per_hour"],
+        trade_rerouting = config["economics"]["disrupted_trade_fraction"],
     output:
-        per_cell_loss = f"{OUTPUT}/hotspots/transport/cell/{{cell_id}}.tiff",
+        slice_loss = f"{OUTPUT}/hotspots/transport/y/{{grid_y_index}}.parquet",
     shell:
         """
         python {input.script} \
-            --airport-splits {input.airport_areas} \
-            --port-splits {input.port_areas} \
-            --road-splits {input.road_edges} \
-            --rail-splits {input.rail_edges} \
+            --labour-cost-JMD-per-hour {params.labour_cost} \
+            --trade-rerouting-fraction {params.trade_rerouting} \
+            --grid-y-index {wildcards.grid_y_index} \
+            --road-splits-path {input.road_splits} \
+            --rail-splits-path {input.rail_splits} \
             --flow-data-dir {input.flow_data_dir} \
-            --cell-id {wildcards.cell_id} \
-            --output {output.per_cell_loss}
+            --output-path {output.slice_loss}
         """
 
+
+def hotspots_grid_latitude_slices(*args, **kwargs) -> list[str]:
+    import rasterio
+    import numpy as np
+    grid_path = checkpoints.generate_hotspots_grid.get().output.grid
+    with rasterio.open(grid_path) as grid_dataset:
+        arr: np.ndarray[float] = grid_dataset.read()[0]
+        y, x = arr.shape
+    return expand(f"{OUTPUT}/hotspots/transport/y/{{grid_y_index}}.parquet", grid_y_index=range(0, y))
 
 rule economic_loss_transport_hotspots:
     """
     Output per-cell economic loss hotspots results as single raster.
+
+    Test with:
+    snakemake -c1 results/hotspots/transport/economic_loss.tiff
     """
     input:
-        script = "?",
-        cells = "?",  # expand call over f"{OUTPUT}/hotspots/transport/cell/{cell_id}.tiff", for all cell_id in grid
+        latitude_slices = hotspots_grid_latitude_slices,
+        labour_flows = f"{OUTPUT}/flow_mapping/labour_trips_and_activity.gpq",
+        grid = f"{DATA}/hotspots/grid.tiff",
+    params:
+        labour_cost = config["economics"]["labour_cost_JMD_per_hour"]
     output:
         economic_loss = f"{OUTPUT}/hotspots/transport/economic_loss.tiff",
+        rerouting_loss = f"{OUTPUT}/hotspots/transport/rerouting_loss.tiff",
+        isolation_loss = f"{OUTPUT}/hotspots/transport/isolation_loss.tiff",
+    run:
+        import numpy as np
+        import pandas as pd
+        import rasterio
+
+        labour_flows = pd.read_parquet(input.labour_flows, columns=["edge_id", "working_trips", "GDP_to_trips"])
+        rerouting = pd.concat([pd.read_parquet(path) for path in input.latitude_slices])
+        df = pd.merge(rerouting, labour_flows, how="left", on=["edge_id"]).fillna(0)
+
+        df["mean_labour_rerouting_loss"] = params.labour_cost * df["mean_trip_time_loss"] * df["working_trips"]
+        df["labour_gdp_loss"] = df["no_access"] * df["GDP_to_trips"]
+        df["rerouting_loss"] = (1 - df["no_access"]) * (
+            df["mean_labour_rerouting_loss"] + df["trade_rerouting_loss"]
+        )
+        df["isolation_loss"] = df["no_access"] * (df["labour_gdp_loss"] + df["trade_loss"])
+        df["economic_loss"] = df["rerouting_loss"] + df["isolation_loss"]
+        df["loss_unit"] = "J$/day"
+
+        index_cols = ["cell_index_y", "cell_index_x"]
+        loss = df.loc[:, index_cols + ["rerouting_loss", "isolation_loss", "economic_loss"]] \
+            .groupby(index_cols).sum().reset_index()
+
+        with rasterio.open(input.grid) as grid_dataset:
+            arr: np.ndarray[float] = grid_dataset.read()[0].astype(np.float32)
+
+        write_kwargs = {
+            "driver": "GTiff",
+            "height": arr.shape[0],
+            "width": arr.shape[1],
+            "count": 1,
+            "dtype": rasterio.float32,
+            "crs": grid_dataset.crs,
+            "transform": grid_dataset.transform
+        }
+
+        for variable in ("economic_loss", "isolation_loss", "rerouting_loss"):
+            with rasterio.open(output[variable], "w", **write_kwargs) as output_dataset:
+                arr[loss.cell_index_y, loss.cell_index_x] = loss[variable]
+                output_dataset.write(arr, 1)
+
+
+rule economic_loss_transport_hotspots_gaussian_kernel:
+    """
+    Apply quantity preserving smoothing Gaussian kernel to hotspots quantities.
+
+    Test with:
+    snakemake -c1 results/hotspots/transport/economic_loss.tiff",
+    """
+    input:
+        script = "workflow/4b_hotspots/kde.py",
+        coarse = f"{OUTPUT}/hotspots/transport/{{hotspots_variable}}_loss.tiff",
+    params:
+        resolution = config["hotspots"]["kernel_density_estimation"]["resolution_meters"],
+        bandwidth = config["hotspots"]["kernel_density_estimation"]["bandwidth_meters"],
+    output:
+        smoothed = f"{OUTPUT}/hotspots/transport/{{hotspots_variable}}_loss_smoothed.tiff",
+    wildcard_constraints:
+        hotspots_variable="(economic|isolation|rerouting)"
     shell:
         """
-        ?
+        python {input.script} \
+            --input-raster-path {input.coarse} \
+            --output-raster-path {output.smoothed} \
+            --output-resolution {params.resolution} \
+            --bandwidth {params.bandwidth}
         """
-
