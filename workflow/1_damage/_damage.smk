@@ -109,7 +109,7 @@ rule direct_damage:
         ),
         hazard_intersection_file = "{output_path}/hazard_asset_intersection/{gpkg}_splits__hazard_layers__{layer}.geoparquet",
     params:
-        USD_per_JMD = config["USD_per_JMD"],
+        USD_per_JMD = config["economics"]["USD_per_JMD"],
         sensitivity_id = sensitivity_id_from_slug,
     output:
         damages = "{output_path}/direct_damages/{gpkg}_{layer}/{gpkg}_{layer}_direct_damages_{parameter_set}.parquet",

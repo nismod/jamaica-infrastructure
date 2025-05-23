@@ -75,9 +75,15 @@ road_classification:
     unclassified: "road_unpaved"
 
 ### ECONOMICS ###
-# Exchange rate to use when converting rehabilitation costs, losses, etc.
-USD_per_JMD: 0.0064
-# TODO: Include `hourly_wage` and `trade_effect`
+economics:
+  # Exchange rate to use when converting rehabilitation costs, losses, etc.
+  USD_per_JMD: 0.0064
+  # Labour cost, used to put a value on disruption cost of labour rerouting
+  # Average wage is 200~500 JMD for 2012 stats, with a 45.4% inflation in currency
+  # 0.4 * (1 + 0.454) * 235.25 = 136.82
+  labour_cost_JMD_per_hour: 136.82
+  # Multiplied by additional rerouting time and trade value to find a lost value of trade
+  disrupted_trade_fraction: 0.02
 
 ### CRITICALITY ###
 # The transport criticality analysis removes single links from the network and
@@ -95,17 +101,28 @@ single_link_failure_chunk_count: 128
 # The hotspots analyses identify which areas are critical for transport network
 # performance.
 #
-# We first define a grid. Then, remove all assets within a grid cell from the
-# network, then quantify the reduction in network performance. This is repeated
-# for all grid cells. We also identify the monetary value of assets within each
-# cell, for every sector.
+# We first define a grid.
+# Then, remove all assets within a grid cell from the network, then quantify the
+# reduction in network performance. This is repeated for all grid cells. The
+# output is optionally smoothed using Kernel Density Estimation.
+# We can also identify the monetary value of assets within each cell (exposure
+# value), for every sector.
 hotspots:
-  # Defining the raster grid to perform a hotspots analysis on.
+  # Defining the raster grid to perform a hotspots analysis on. This is the grid
+  # on which assets are removed, cell-by-cell from.
   grid:
     # Buffer around bounding box of Jamaican coastline in meters
     boundary_buffer_meters: 10000
     # Width and heght of grid cells in meters
-    cell_length_meters: 2500
+    resolution_meters: 2500
+  # Options for applying a smoothing Gaussian kernel process to economic loss
+  # hotspots in transport sector
+  kernel_density_estimation:
+    # Measure of width Gaussian kernel 
+    bandwidth_meters: 1500
+    # Resolution of grid to evaluate sum of Gaussian kernels (typically finer
+    # than above grid)
+    resolution_meters: 500
 #
 # N.B. There is a distinct hotspots analysis available for the energy network
 # in the nismod/JEM repository.
