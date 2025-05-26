@@ -108,6 +108,7 @@ rule direct_damage:
             hazard_type = HAZARD_TYPES
         ),
         hazard_intersection_file = "{output_path}/hazard_asset_intersection/{gpkg}_splits__hazard_layers__{layer}.geoparquet",
+        protection_asset_dict = f"{OUTPUT}/coastal_protection_assets/network_protection_mappings"
     params:
         USD_per_JMD = config["economics"]["USD_per_JMD"],
         sensitivity_id = sensitivity_id_from_slug,
@@ -128,5 +129,6 @@ rule direct_damage:
             --damage-curves-dir {input.damage_curves_dir} \
             --intersection {input.hazard_intersection_file} \
             --USD-per-JMD {params.USD_per_JMD} \
+            --protection-asset-dict {input.protection_asset_dict} \
             --output-path {output.damages}
         """

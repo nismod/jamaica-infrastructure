@@ -13,6 +13,7 @@ import subprocess
 def main(config):
     processed_data_path = config["paths"]["data"]
     results_path = config["paths"]["output"]
+    protection_asset_dict = f"{results_path}/coastal_protection_assets/network_protection_mappings"
 
     network_csv = os.path.join(
         processed_data_path,
@@ -27,9 +28,12 @@ def main(config):
         processed_data_path, "damage_curves", "hazard_damage_parameters.csv"
     )
 
-    flood_thresholds = [1.0, 1.5, 2.0, 2.5]
+    flood_thresholds = [1.0, 1.5, 2.0, 2.5, -999]
     for ft in flood_thresholds:
-        folder_name = f"flood_threshold_{str(ft).replace('.','p')}"
+        if ft == -999:
+            folder_name = f"flood_threshold_ca"
+        else:
+            folder_name = f"flood_threshold_{str(ft).replace('.','p')}"
         results_folder = os.path.join(results_path, folder_name)
         if os.path.exists(results_folder) == False:
             os.mkdir(results_folder)
@@ -38,6 +42,7 @@ def main(config):
         summary_folder = f"{folder_name}/direct_damages_summary"
         timeseries_results_folder = f"{folder_name}/loss_damage_timeseries"
         discounted_results_folder = f"{folder_name}/loss_damage_npvs"
+
 
         flood_protection_column = folder_name
 
@@ -54,8 +59,9 @@ def main(config):
         hazards = pd.read_csv(hazard_damage_parameters_csv)
         hazards = hazards[hazards["hazard_type"] == "flooding"]
         hazards["hazard_threshold"] = ft
+
         hazard_damage_parameters_csv = os.path.join(
-            results_folder, "hazard_damage_parameters.csv.csv"
+            results_folder, "hazard_damage_parameters.csv"
         )
         hazards.to_csv(hazard_damage_parameters_csv, index=False)
         del hazards
@@ -67,7 +73,7 @@ def main(config):
                 for p in r:
                     pv = p.split(",")
                     f.write(
-                        f"{damage_results_folder},{network_csv},{hazard_csv},{damage_curves_csv},{hazard_damage_parameters_csv},{pv[0]},{pv[1]},{pv[2]}\n"
+                        f"{damage_results_folder},{network_csv},{hazard_csv},{damage_curves_csv},{hazard_damage_parameters_csv},{protection_asset_dict},{pv[0]},{pv[1]},{pv[2]}\n"
                     )
 
         f.close()
