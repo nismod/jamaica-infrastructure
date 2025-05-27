@@ -152,6 +152,8 @@ rule bridge_failure_analysis:
 rule single_point_failure_road_rail:
     """
     Create a single point failure file for road and rail assets.
+
+    TODO: Figure out why this rule is perpetually marked as "code has changed since last execution".
     
     Test with:
     snakemake -c1 results/economic_losses/single_failure_scenarios/single_point_failure_road_rail_edges_economic_losses.csv
