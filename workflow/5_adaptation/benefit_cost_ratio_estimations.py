@@ -631,7 +631,7 @@ def benefit_cost_ratio(
                 c.replace("EAD", "avoided_EAD").replace(
                     "EAEL", "avoided_EAEL"
                 )
-                for c in risk_columns
+                for c in ead_eael_columns
             ]
             ead_eael_df = no_adapt_ead_eael_df.copy()
             ead_eael_df.rename(

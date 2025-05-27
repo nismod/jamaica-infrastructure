@@ -1,5 +1,6 @@
-"""Estimate direct damages to physical assets exposed to hazards
-
+"""
+Find summary statistics of direct damages and losses over various realisations
+of cost and uncertainty input data.
 """
 
 import logging
@@ -17,12 +18,23 @@ from jamaica_infrastructure.utils import get_asset, numeric_only_dataframe
 tqdm.pandas()
 
 
+def prepend_a_to_min_max(x: str) -> str:
+    if x.endswith("_min"):
+        return x[:-4] + "_amin"
+    elif x.endswith("_max"):
+        return x[:-4] + "_amax"
+    else:
+        return x
+
+
 def quantiles(dataframe, grouping_by_columns, grouped_columns):
     assert numeric_only_dataframe(dataframe[grouped_columns])
     grouped = dataframe.groupby(grouping_by_columns, dropna=False)[grouped_columns].agg(["min", "mean", "max"]).reset_index()
     grouped.columns = grouping_by_columns + [
         f"{prefix}_{agg_name}" for prefix, agg_name in grouped.columns if prefix not in grouping_by_columns
     ]
+    # downstream processes (including in irv-jamaica) assume 'amin' and 'amax' naming scheme
+    grouped = grouped.rename(columns=prepend_a_to_min_max)
     return grouped
 
 
