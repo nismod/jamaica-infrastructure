@@ -1,5 +1,6 @@
-"""Estimate direct damages to physical assets exposed to hazards
-
+"""
+Find summary statistics of direct damages and losses over various realisations
+of cost and uncertainty input data.
 """
 
 import logging
