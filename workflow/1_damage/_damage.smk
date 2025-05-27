@@ -112,6 +112,7 @@ rule direct_damage:
     params:
         USD_per_JMD = config["economics"]["USD_per_JMD"],
         sensitivity_id = sensitivity_id_from_slug,
+        flood_threshold = get_flood_threshold_from_path,
     output:
         damages = "{output_path}/direct_damages/{gpkg}_{layer}/{gpkg}_{layer}_direct_damages_{parameter_set}.parquet",
     shell:
@@ -121,6 +122,7 @@ rule direct_damage:
             --hazard-csv {input.hazard_csv} \
             --sensitivity-csv {input.sensitivity_parameters} \
             --sensitivity-id {params.sensitivity_id} \
+            --flood-threshold {params.flood_threshold} \
             --asset-gpkg-file {input.asset_gpkg} \
             --asset-gpkg-label {wildcards.gpkg} \
             --asset-layer {wildcards.layer} \

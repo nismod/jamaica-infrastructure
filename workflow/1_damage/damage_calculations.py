@@ -148,6 +148,13 @@ def estimate_direct_damage_costs_and_units(
     help="Sensitivity parameter set ID",
 )
 @click.option(
+    "--flood-threshold",
+    "-ft",
+    required=True,
+    type=float,
+    help="flood threshold for the hazard damage parameters",
+)
+@click.option(
     "--asset-gpkg-file",
     "-g",
     required=True,
@@ -221,6 +228,7 @@ def direct_damages(
     hazard_csv,
     sensitivity_csv,
     sensitivity_id,
+    flood_threshold,
     asset_gpkg_file,
     asset_gpkg_label,
     asset_layer,
@@ -252,6 +260,10 @@ def direct_damages(
     hazard_data_details = pd.read_csv(hazard_csv, encoding="latin1")
 
     hazard_attributes = pd.read_csv(damage_threshold_uplift_csv)
+    hazard_attributes.loc[hazard_attributes["hazard_type"] == "flooding", "hazard_threshold"] = flood_threshold
+
+    # print (f"-------{flood_threshold}-------{hazard_attributes}---------")
+
     flood_hazards = hazard_attributes[hazard_attributes["hazard_type"] == "flooding"]["hazard"].values.tolist()
 
     logging.info("Read damage curves")
@@ -323,7 +335,8 @@ def direct_damages(
             damages_df = damages_df[damages_df["asset_name"].isin(damaged_assets)]
             affected_assets = list(set(affected_assets_df[asset_id].values.tolist()))
 
-            if hazard_info.hazard_threshold == -999 and hazard_info.hazard == "coastal":
+            is_coastal_adaptation = "/coastal_adaptation/" in output_path
+            if is_coastal_adaptation and hazard_info.hazard == "coastal":
                 asset_desc = asset_info.asset_description.replace(" ", "_")
                 col = asset_info.asset_id_column
                 
@@ -359,9 +372,10 @@ def direct_damages(
                         hazard_effect_df = hazard_effect_df[hazard_effect_df[key] > hazard_effect_df['hazard_threshold']]
                         hazard_effect_df = hazard_effect_df[hazard_effect_df[asset_id].isin(affected_assets)]
 
-                hazard_effect_df.to_csv("test.csv", index=False)
+                # hazard_effect_df.to_csv("test.csv", index=False)
             else:
                 hazard_effect_df["hazard_threshold"] = hazard_info.hazard_threshold
+                # print (hazard_effect_df["hazard_threshold"])
 
                 if hazard_info.hazard in flood_hazards:
                     hazard_effect_df[hazard_keys] = hazard_effect_df[hazard_keys] - hazard_info.hazard_threshold
