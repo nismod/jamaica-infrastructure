@@ -77,26 +77,25 @@ rule adaptation_options_costs:
         """
 
 
-def get_hazard_thresholds(hazard: str) -> List[str]:
+def get_hazard_thresholds(hazard: str) -> list[str]:
+    """Stringify the floats from config. They will be used as paths."""
     if hazard == "TC":
-        return ["0p76"]
+        return ["p".join(str(x).split(".")) for x in config["adaptation_options"]["TC_winds_damage_curve_squash"]]
     elif hazard == "flooding":
-        return ["1p0", "1p5", "2p0", "2p5"]
+        return ["p".join(str(x).split(".")) for x in config["adaptation_options"]["flood_thresholds_meters"]]
     else:
         raise ValueError(f"Unknown hazard type: {hazard}")
 
 def get_risk_dir(hazard: str, threshold: str) -> str:
-    """
-    Get the risk directory for a hazard and threshold.
-    """
+    """Get the risk directory for a hazard and threshold."""
     return f"{OUTPUT}/{'flood_threshold' if hazard == 'flooding' else 'cyclone_damage_curve_change'}_{threshold}"
 
-risk_dirs = [OUTPUT]
-for hazard in HAZARD_TYPES:
-    risk_dirs = [
-        *risk_dirs,
-        *[get_risk_dir(hazard, threshold) for threshold in get_hazard_thresholds(hazard)]
-    ]
+def get_risk_files(wildcards) -> list[str]:
+    """Get the paths to risk files for nominal and adjusted cases for a given hazard."""
+    hazard = wildcards.hazard
+    risk_dirs = [*[OUTPUT], *[get_risk_dir(hazard, threshold) for threshold in get_hazard_thresholds(hazard)]]
+    paths = [f"{directory}/loss_damage_npvs/{wildcards.gpkg}_{wildcards.layer}_EAD_EAEL_npvs.csv" for directory in risk_dirs]
+    return paths
 
 rule benefit_cost_ratio:
     """
@@ -109,17 +108,34 @@ rule benefit_cost_ratio:
         script = "workflow/5_adaptation/benefit_cost_ratio_estimations.py",
         network_csv = config["paths"]["network_layers"],
         cost_file = f"{OUTPUT}/adaptation_costs/{{hazard}}_costs/{{gpkg}}_{{layer}}_adaptation_timeseries_and_npvs.csv",
-        risk_files = lambda wildcards: [f"{dir}/loss_damage_npvs/{wildcards.gpkg}_{wildcards.layer}_EAD_EAEL_npvs.csv" for dir in risk_dirs],
+        risk_files = get_risk_files
+    params:
+        disruption_duration = config["adaptation_options"]["disruption_duration_days"],
+        flood_thresholds = config["adaptation_options"]["flood_thresholds_meters"],
+        TC_factors = config["adaptation_options"]["TC_winds_damage_curve_squash"],
     output:
         bcr = f"{OUTPUT}/adaptation_benefits_costs_bcr/{{hazard}}_{{gpkg}}_{{layer}}_adaptation_benefits_costs_bcr.csv",
         EAD = f"{OUTPUT}/adaptation_benefits_costs_bcr/{{hazard}}_{{gpkg}}_{{layer}}_adaptation_costs_avoided_EAD_EAEL.csv",
     shell:
         """
+        FLOOD_THRESHOLDS=""
+        for VALUE in {params.flood_thresholds}; do
+            FLOOD_THRESHOLDS="$FLOOD_THRESHOLDS --flood-defence-threshold $VALUE"
+        done
+
+        TC_FACTORS=""
+        for VALUE in {params.TC_factors}; do
+            TC_FACTORS="$TC_FACTORS --tc-damage-curve-factor $VALUE"
+        done
+
         python {input.script} \
             --network-csv {input.network_csv} \
             --cost-file {input.cost_file} \
-            --hazard-label {hazard} \
+            --hazard-label {wildcards.hazard} \
             --asset-gpkg {wildcards.gpkg} \
             --asset-layer {wildcards.layer} \
+            --disruption-duration-days {params.disruption_duration} \
+            $FLOOD_THRESHOLDS \
+            $TC_FACTORS \
             --output-dir {OUTPUT}
         """
