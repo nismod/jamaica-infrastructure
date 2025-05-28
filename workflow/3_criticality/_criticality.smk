@@ -44,7 +44,7 @@ rule transport_scenario_edge_map:
         # include as a param to trigger re-run on change
         chunk_count = config["single_link_failure_chunk_count"]
     output:
-        edge_split_map = temp(f"{OUTPUT}/transport_failures/transport_scenario_edge_map.csv"),
+        edge_split_map = f"{OUTPUT}/transport_failures/transport_scenario_edge_map.csv",
     run:
         import logging
 
