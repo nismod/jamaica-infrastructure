@@ -36,7 +36,7 @@ rule rasterise_asset_layer:
         hazards = config["paths"]["hazard_layers"],
         gpkg = lambda wildcards: f"{DATA}/{get_asset_metadata(wildcards).path}",
     output:
-        splits = "{output_path}/hazard_asset_intersection/{gpkg}_splits__hazard_layers__{layer}.geoparquet",
+        splits = f"{OUTPUT}/hazard_asset_intersection/{{gpkg}}_splits__hazard_layers__{{layer}}.geoparquet",
     shell:
         """
         python {input.script} \
@@ -145,7 +145,7 @@ rule direct_damage:
             f"{DATA}/damage_curves/damage_curves_{get_asset_metadata(wildcards).sector}_{{hazard_type}}.xlsx",
             hazard_type = HAZARD_TYPES
         ),
-        hazard_intersection_file = "{output_path}/hazard_asset_intersection/{gpkg}_splits__hazard_layers__{layer}.geoparquet",
+        hazard_intersection_file = f"{OUTPUT}/hazard_asset_intersection/{{gpkg}}_splits__hazard_layers__{{layer}}.geoparquet",
     params:
         USD_per_JMD = config["economics"]["USD_per_JMD"],
         sensitivity_id = sensitivity_id_from_slug,
