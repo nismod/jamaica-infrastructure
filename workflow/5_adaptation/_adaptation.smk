@@ -3,43 +3,6 @@ Generate the files required by irv-jamaica/etl/adaptation_files.csv
 """
 
 
-rule damage_loss_timeseries_and_NPV:
-    """
-    Estimate the damage loss timeseries and NPV for an asset with an adaptation.
-    
-    Test with:
-    snakemake -c1 results/flood_threshold_1p0/loss_damage_npvs/waste_water_facilities_NWC_nodes_EAD_EAEL_npvs.csv
-    """
-    input:
-        script = "workflow/5_adaptation/damage_loss_timeseries_and_npv.py",
-        network_csv = config["paths"]["network_layers"],
-        growth_rates = f"{DATA}/macroeconomic_data/gdp_growth_rates.xlsx",
-        summarised_damages = f"{{output_path}}/direct_damages_summary/{{gpkg}}_{{layer}}_EAD_EAEL.csv",
-    params:
-        baseline_year = config["adaptation_options"]["baseline_year"],
-        projection_end_year = config["adaptation_options"]["projection_end_year"],
-        discounting_rate = config["adaptation_options"]["discounting_rate"]
-    output:
-        NPV = f"{{output_path}}/loss_damage_npvs/{{gpkg}}_{{layer}}_EAD_EAEL_npvs.csv",
-        timeseries = expand(
-            "{{output_path}}/loss_damage_timeseries/{{gpkg}}_{{layer}}_{variable}_timeseries_{aggregate}.csv",
-            variable=["EAD", "EAEL"],
-            aggregate=["amin", "mean", "amax"],
-        ),
-    shell:
-        """
-        python {input.script} \
-            --network-csv {input.network_csv} \
-            --growth-rates-xls {input.growth_rates} \
-            --asset-gpkg {wildcards.gpkg} \
-            --asset-layer {wildcards.layer} \
-            --baseline-year {params.baseline_year} \
-            --projection-end-year {params.projection_end_year} \
-            --discounting-rate {params.discounting_rate} \
-            --output-path {wildcards.output_path}
-        """
-
-
 rule adaptation_options_costs:
     """
     Generate the adaptation options for each asset.
@@ -74,6 +37,43 @@ rule adaptation_options_costs:
             --projection-end-year {params.projection_end_year} \
             --discounting-rate {params.discounting_rate} \
             --epsg {params.epsg}
+        """
+
+
+rule damage_loss_timeseries_and_NPV:
+    """
+    Estimate the damage loss timeseries and NPV for an asset with an adaptation.
+    
+    Test with:
+    snakemake -c1 results/flood_threshold_1p0/loss_damage_npvs/waste_water_facilities_NWC_nodes_EAD_EAEL_npvs.csv
+    """
+    input:
+        script = "workflow/5_adaptation/damage_loss_timeseries_and_npv.py",
+        network_csv = config["paths"]["network_layers"],
+        growth_rates = f"{DATA}/macroeconomic_data/gdp_growth_rates.xlsx",
+        summarised_damages = f"{{output_path}}/direct_damages_summary/{{gpkg}}_{{layer}}_EAD_EAEL.csv",
+    params:
+        baseline_year = config["adaptation_options"]["baseline_year"],
+        projection_end_year = config["adaptation_options"]["projection_end_year"],
+        discounting_rate = config["adaptation_options"]["discounting_rate"]
+    output:
+        NPV = f"{{output_path}}/loss_damage_npvs/{{gpkg}}_{{layer}}_EAD_EAEL_npvs.csv",
+        timeseries = expand(
+            "{{output_path}}/loss_damage_timeseries/{{gpkg}}_{{layer}}_{variable}_timeseries_{aggregate}.csv",
+            variable=["EAD", "EAEL"],
+            aggregate=["amin", "mean", "amax"],
+        ),
+    shell:
+        """
+        python {input.script} \
+            --network-csv {input.network_csv} \
+            --growth-rates-xls {input.growth_rates} \
+            --asset-gpkg {wildcards.gpkg} \
+            --asset-layer {wildcards.layer} \
+            --baseline-year {params.baseline_year} \
+            --projection-end-year {params.projection_end_year} \
+            --discounting-rate {params.discounting_rate} \
+            --output-path {wildcards.output_path}
         """
 
 
