@@ -10,7 +10,7 @@ rule coastal_flood_protection_assets:
         Generates the coastal protection areas and coastal protection segments
 
         Test with:
-        snakemake -c1 results/coastal_protection_assets/Jamaica_coastal_protection_areas.gpkg
+        snakemake -c1 coastal_flood_protection_assets
     """
     input:
         script = "workflow/5_adaptation/generate_coastal_adaptations.py",
@@ -47,8 +47,7 @@ rule map_networks_to_coastal_protection:
         required coastal protection feature'
 
         Test with:
-        snakemake -c1 results/coastal_protection_assets/network_protection_mappings/roads_coastal_filtered.parquet
-
+        snakemake -c1 results/coastal_protection_assets/network_protection_mappings/electricity_network_v3.1_nodes_coastal_filtered.parquet
     """
     input:
         script = "workflow/5_adaptation/asset_to_coastal_protection_mapping.py",
@@ -56,13 +55,15 @@ rule map_networks_to_coastal_protection:
         processed_data_path = config["paths"]["data"],
         coastal_adaptation_assets = f"{OUTPUT}/coastal_protection_assets/Jamaica_coastal_protection_areas.gpkg"
     output:
-        flood_asset_dict = f"{OUTPUT}/coastal_protection_assets/network_protection_mappings/{{network_layers}}_coastal_filtered.parquet"
+        flood_asset_dict = f"{OUTPUT}/coastal_protection_assets/network_protection_mappings/{{gpkg}}_{{layer}}_coastal_filtered.parquet"
     shell:
         """
         python {input.script} \
             --network-csv {input.network_csv} \
             --processed-data-path {input.processed_data_path} \
             --coastal-adaptation-assets {input.coastal_adaptation_assets} \
+            --asset-gpkg {wildcards.gpkg} \
+            --asset-layer {wildcards.layer} \
             --output-dir {OUTPUT} \
         """
 

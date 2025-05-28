@@ -127,8 +127,12 @@ def filter_affected_assets(networks, union_flood_area_gdf, data_path, network_fi
         fname = os.path.join(data_path, n['path'])
         id_col = n['asset_id_column']
         layer_type = n['asset_layer']
-        ref = n['asset_description']
-        ref = ref.replace(" ", "_")
+        # ref = n['asset_description']
+        # ref = ref.replace(" ", "_")
+        gpkg = n['asset_gpkg']
+        layer = n['asset_layer']
+        ref = f"{gpkg}_{layer}"
+        
 
         if network_filter and ref not in network_filter:
             continue
@@ -157,8 +161,11 @@ def map_network_assets_to_protection(RCP, RP, output, networks, data_path, netwo
         fname = os.path.join(data_path, n['path'])
         id_col = n['asset_id_column']
         layer_type = n['asset_layer']
-        ref = n['asset_description']
-        ref = ref.replace(" ", "_")
+        # ref = n['asset_description']
+        # ref = ref.replace(" ", "_")
+        gpkg = n['asset_gpkg']
+        layer = n['asset_layer']
+        ref = f"{gpkg}_{layer}"
         path = f'{output}/coastal_protection_assets/network_protection_mappings/{ref}_coastal_filtered.parquet'
 
         if network_filter and ref not in network_filter:
@@ -201,7 +208,18 @@ def map_network_assets_to_protection(RCP, RP, output, networks, data_path, netwo
     type=click.Path(exists=True, dir_okay=False, file_okay=True, readable=True),
     help="Path to GPKG with coastal protection assets",
 )
-
+@click.option(
+    "--asset-gpkg",
+    "-g",
+    required=True,
+    help="asset_gpkg value in the network CSV",
+)
+@click.option(
+    "--asset-layer",
+    "-l",
+    required=True,
+    help="asset_layer value in the network CSV",
+)
 @click.option(
     "--output-dir",
     "-o",
@@ -210,9 +228,9 @@ def map_network_assets_to_protection(RCP, RP, output, networks, data_path, netwo
     help="Path to output gpkg",
 )
 
-def main(network_csv,processed_data_path,coastal_adaptation_assets,output_dir):
+def main(network_csv,processed_data_path,coastal_adaptation_assets,asset_gpkg,asset_layer,output_dir):
     # network_filter = ["transport_rail_edges"] #filter out certain network layers (for testing)
-    network_filter = []
+    network_filter = [f"{asset_gpkg}_{asset_layer}"]
 
     RP = ['100']
     RCP = ['baseline2010', '262050', '262100', '452030', '452050', '452070', '452100', '852030', '852050', '852070', '852100']
