@@ -2,16 +2,6 @@
 Generate the files required by irv-jamaica/etl/adaptation_files.csv
 """
 
-from typing import List
-import pandas
-
-
-timeseries_files = []
-for risk_type in ["EAD", "EAEL"]:
-        timeseries_files = [
-            *timeseries_files,
-            *[f"{risk_type}_timeseries_{val_type}" for val_type in ["amin", "mean", "amax"]]
-        ]
 
 rule damage_loss_timeseries_and_NPV:
     """
@@ -31,10 +21,11 @@ rule damage_loss_timeseries_and_NPV:
         discounting_rate = config["adaptation_options"]["discounting_rate"]
     output:
         NPV = f"{{output_path}}/loss_damage_npvs/{{gpkg}}_{{layer}}_EAD_EAEL_npvs.csv",
-        timeseries = [
-            f"{{output_path}}/loss_damage_timeseries/{{gpkg}}_{{layer}}_{file_suffix}.csv"
-            for file_suffix in timeseries_files
-        ],
+        timeseries = expand(
+            "{{output_path}}/loss_damage_timeseries/{{gpkg}}_{{layer}}_{variable}_timeseries_{aggregate}.csv",
+            variable=["EAD", "EAEL"],
+            aggregate=["amin", "mean", "amax"],
+        ),
     shell:
         """
         python {input.script} \
