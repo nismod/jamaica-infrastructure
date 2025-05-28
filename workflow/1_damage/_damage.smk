@@ -73,7 +73,7 @@ checkpoint sensitivity_parameters:
                 "bounds": [[0, 1.0] for var in variables],
             }
             values = morris.sample(
-                problem, 4, num_levels=4, optimal_trajectories=2, local_optimization=False
+                problem, 10, num_levels=4, optimal_trajectories=4, local_optimization=False
             )
 
         elif config["sensitivity_analysis"] == False:
