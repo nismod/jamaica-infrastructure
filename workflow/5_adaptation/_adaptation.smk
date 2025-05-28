@@ -10,7 +10,7 @@ timeseries_files = []
 for risk_type in ["EAD", "EAEL"]:
         timeseries_files = [
             *timeseries_files,
-            *[f"{risk_type}_timeseries_{val_type}" for val_type in ["min", "mean", "max"]]
+            *[f"{risk_type}_timeseries_{val_type}" for val_type in ["amin", "mean", "amax"]]
         ]
 
 rule damage_loss_timeseries_and_NPV:

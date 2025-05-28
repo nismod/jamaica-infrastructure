@@ -2,49 +2,6 @@
 What are the wider economic losses associated with failure of assets?
 """
 
-def damage_ensemble_files(wildcards):
-    return expand(
-        "{{output_path}}/direct_damages/{{gpkg}}_{{layer}}/{{gpkg}}_{{layer}}_direct_damages_parameter_set_{parameter_set}.parquet",
-        parameter_set=range(get_n_ensemble(wildcards))
-    )
-
-rule collapse_sensitivity:
-    """
-    Summarise direct damage and loss results (aggregate over sensitivity
-    analysis) for an asset class.
-
-    Test with:
-    snakemake -c1 results/direct_damages_summary/roads_edges_damages.csv
-    """
-    input:
-        script = "workflow/4a_losses/direct_damage_summarise.py",
-        network_csv = config["paths"]["network_layers"],
-        sensitivity_parameters = f"{DATA}/sensitivity_parameters.csv",
-        damages = damage_ensemble_files
-        # TODO: Need EAD_and_EAEL_parameter_set_\d+ files, OR, use loss_summary rule?
-    output:
-        damages = "{output_path}/direct_damages_summary/{gpkg}_{layer}_damages.csv",
-        exposure = "{output_path}/direct_damages_summary/{gpkg}_{layer}_exposure.csv",
-        # EAD_EAEL = "{output_path}/direct_damages_summary/{gpkg}_{layer}_EAD_EAEL.csv",
-        # ! no losses !, unlike loss_summary rule which generates all 4
-    shell:
-        f"""
-        # build list of input damage files: --damage <damage_file_0> --damage <damage_file_1> --damage <damage_file_n>
-        DAMAGE_FILES=""
-        for FILE in {{input.damages}}; do
-            DAMAGE_FILES="$DAMAGE_FILES --damages $FILE"
-        done
-
-        python {{input.script}} \
-            --network-csv {{input.network_csv}} \
-            --sensitivity-csv {{input.sensitivity_parameters}} \
-            --asset-gpkg {{wildcards.gpkg}} \
-            --asset-layer {{wildcards.layer}} \
-            $DAMAGE_FILES \
-            --output-damages-path {{output.damages}} \
-            --output-exposure-path {{output.exposure}}
-        """
-
 
 def get_single_failure_scenario_file(wildcards):
     row = get_asset_metadata(wildcards)
@@ -54,7 +11,6 @@ def get_single_failure_scenario_file(wildcards):
     if row.sector == "buildings":
         return f"{DATA}/{sfs}"
     return f"{OUTPUT}/{sfs}"
-
 
 rule EAD_EAEL:
     """
@@ -89,26 +45,11 @@ rule EAD_EAEL:
         """
 
 
-rule RENAME_EAD_EAEL_FILE:
-    """
-    There's a potential mismatch between 
-    {{output_path}}/direct_damages_summary/{{gpkg}}_{{layer}}_EAD_EAEL.csv created in loss_summary and
-    {{output_path}}/direct_damages_summary/{{gpkg}}_{{layer}}_EAD_EAEL.parquet required as output targets
-    
-    This rule renames the former to the latter.
-    """
-    input:
-        "{output_path}/direct_damages_summary/{gpkg}_{layer}_EAD_EAEL.csv",
-    output:
-        "{output_path}/direct_damages_summary/{gpkg}_{layer}_EAD_EAEL.parquet",
-    shell:
-        """
-        if [ ! -s "{output}" ]; then
-            echo "WARNING: Renaming {input} to {output}"
-            cp {input} {output}
-        fi
-        """
-
+def damage_ensemble_files(wildcards):
+    return expand(
+        "{{output_path}}/direct_damages/{{gpkg}}_{{layer}}/{{gpkg}}_{{layer}}_direct_damages_parameter_set_{parameter_set}.parquet",
+        parameter_set=range(get_n_ensemble(wildcards))
+    )
 
 def EAD_EAEL_ensemble_files(wildcards):
     return expand(
@@ -116,9 +57,9 @@ def EAD_EAEL_ensemble_files(wildcards):
         parameters=range(get_n_ensemble(wildcards))
     )
 
-rule loss_summary:
+rule collapse_sensitivity:
     """
-    Summarise all the loss files for an asset.
+    Aggregate over sensitivity ensemble members.
     
     Test with:
     snakemake -c1 results/direct_damages_summary/roads_edges_losses.parquet

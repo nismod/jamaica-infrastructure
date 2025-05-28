@@ -249,7 +249,7 @@ rule economic_loss_transport_hotspots_gaussian_kernel:
     Apply quantity preserving smoothing Gaussian kernel to hotspots quantities.
 
     Test with:
-    snakemake -c1 results/hotspots/transport/economic_loss.tiff",
+    snakemake -c1 results/hotspots/transport/economic_loss_smoothed.tiff",
     """
     input:
         script = "workflow/4b_hotspots/kde.py",
