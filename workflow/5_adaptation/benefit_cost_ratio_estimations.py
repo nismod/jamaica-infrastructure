@@ -196,7 +196,7 @@ def ead_eael_estimates(
 
     return risk_df
 
-def assign_coastal_protection_ft(option_cost_df,protection_asset_dict, hazard_thresholds_column_name,rcps,asset_id):
+def assign_coastal_protection_ft(option_cost_df,protection_asset_dict, hazard_thresholds_column_name,rcps,asset_id,proj_end_year):
     df = pd.read_parquet(protection_asset_dict)
     cols = df.columns.tolist()
     new_columns = {}
@@ -204,14 +204,13 @@ def assign_coastal_protection_ft(option_cost_df,protection_asset_dict, hazard_th
 
     for rcp in rcps:
         rcp_str = str(int(rcp * 10))
-        cols_pattern = f"flood_height_rcp_{rcp_str}.*_rp_.*"
+        cols_pattern = f"flood_height_rcp_{rcp_str}{proj_end_year}_rp_.*"
 
         for col in cols:
             if re.match(cols_pattern, col):
-                match = re.search(f"flood_height_rcp_{rcp_str}(.*)_rp_", col)
+                match = re.search(f"flood_height_rcp_{rcp_str}{proj_end_year}_rp_", col)
                 if match:
-                    epoch = match.group(1)
-                    new_col_name = f"{hazard_thresholds_column_name}_rcp_{rcp}_epoch_{epoch}"
+                    new_col_name = f"{hazard_thresholds_column_name}_rcp_{rcp}"
                     new_columns[col] = new_col_name
                     keep_columns.add(new_col_name)
 
@@ -245,6 +244,7 @@ def get_bcr_values(
     hazard_thresholds_column_name,
     protection_type_name,
     protection_asset_dict,
+    proj_end_year,
     days=10,
 ):
     if isinstance(hazard_thresholds, str):
@@ -275,7 +275,7 @@ def get_bcr_values(
                 adapt_risk_columns,
             )
             option_cost_df = option_df.copy()
-            option_cost_df, hazard_threshold_cols = assign_coastal_protection_ft(option_cost_df, protection_asset_dict, hazard_thresholds_column_name,rcps,asset_id)
+            option_cost_df, hazard_threshold_cols = assign_coastal_protection_ft(option_cost_df, protection_asset_dict, hazard_thresholds_column_name,rcps,asset_id,proj_end_year)
 
             #Unsure what the cost multiplication factor should be
 
@@ -380,7 +380,8 @@ def get_ead_eael_costs(
     cost_multiplication_factors,
     hazard_thresholds_column_name,
     protection_type_name,
-    protection_asset_dict
+    protection_asset_dict, 
+    proj_end_year,
 ):
     if isinstance(hazard_thresholds, str):
         folder_name = protection_type_name
@@ -408,7 +409,7 @@ def get_ead_eael_costs(
                     adapt_ead_eael_columns,
                 )
             option_cost_df = option_df.copy()
-            option_cost_df, hazard_threshold_cols = assign_coastal_protection_ft(option_cost_df, protection_asset_dict, hazard_thresholds_column_name,rcps,asset_id)
+            option_cost_df, hazard_threshold_cols = assign_coastal_protection_ft(option_cost_df, protection_asset_dict, hazard_thresholds_column_name,rcps,asset_id,proj_end_year)
 
             #Unsure what the cost multiplication factor shoudl be
 
@@ -583,6 +584,13 @@ def get_ead_eael_costs(
     help="asset_layer value in the network CSV",
 )
 @click.option(
+    "--proj-end-year", 
+    "-py", 
+    required=True, 
+    type=int,
+    help="Projection End Year",
+)
+@click.option(
     "--disruption-duration-days", "-d", "days", required=True, type=float,
     help="Assumed duration in days of any wider economic loss.",
 )
@@ -613,6 +621,7 @@ def benefit_cost_ratio(
     hazard_label,
     asset_gpkg,
     asset_layer,
+    proj_end_year,
     days,
     flood_thresholds,
     cyclone_damage_curve_change,
@@ -747,6 +756,7 @@ def benefit_cost_ratio(
                 "flood_depth_protection_level",
                 "flood_threshold",
                 protection_asset_dict,
+                proj_end_year,
                 days=days,
             )
             ead_eael_results = get_ead_eael_costs(
@@ -766,6 +776,7 @@ def benefit_cost_ratio(
                 "flood_depth_protection_level",
                 "flood_threshold",
                 protection_asset_dict,
+                proj_end_year,
             )
         elif (
             hazard_label == "coastal"
@@ -789,6 +800,7 @@ def benefit_cost_ratio(
                 "flood_depth_protection_level",
                 "coastal_adaptation",
                 protection_asset_dict,
+                proj_end_year,
                 days=days,
             )
             ead_eael_results = get_ead_eael_costs(
@@ -807,7 +819,8 @@ def benefit_cost_ratio(
                 flood_thresholds,
                 "flood_depth_protection_level",
                 "coastal_adaptation",
-                protection_asset_dict
+                protection_asset_dict, 
+                proj_end_year
             )
         elif hazard_label == "TC" and asset_info.sector == "energy":
             bcr_results = get_bcr_values(
@@ -827,6 +840,7 @@ def benefit_cost_ratio(
                 "cyclone_damage_curve_reduction",
                 "cyclone_damage_curve_change",
                 protection_asset_dict,
+                proj_end_year,
                 days=days,
             )
             ead_eael_results = get_ead_eael_costs(
@@ -845,7 +859,8 @@ def benefit_cost_ratio(
                 [1],
                 "cyclone_damage_curve_reduction",
                 "cyclone_damage_curve_change",
-                protection_asset_dict
+                protection_asset_dict, 
+                proj_end_year
             )
         else:
             option_df["flood_protection_level"] = "All"

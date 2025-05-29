@@ -115,6 +115,7 @@ rule benefit_cost_ratio:
         cost_file = f"{OUTPUT}/adaptation_costs/{{hazard}}_costs/{{gpkg}}_{{layer}}_adaptation_timeseries_and_npvs.csv",
         risk_files = get_risk_files
     params:
+        projection_end_year = config["adaptation_options"]["projection_end_year"],
         disruption_duration = config["adaptation_options"]["disruption_duration_days"],
         flood_thresholds = config["adaptation_options"]["flood_thresholds_meters"],
         TC_factors = config["adaptation_options"]["TC_winds_damage_curve_squash"],
@@ -140,6 +141,7 @@ rule benefit_cost_ratio:
             --hazard-label {wildcards.hazard} \
             --asset-gpkg {wildcards.gpkg} \
             --asset-layer {wildcards.layer} \
+            --proj-end-year {params.projection_end_year} \
             --disruption-duration-days {params.disruption_duration} \
             $FLOOD_THRESHOLDS \
             $TC_FACTORS \
