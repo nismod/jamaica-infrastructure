@@ -4,6 +4,7 @@ import click
 import numpy as np
 import rasterio
 from rasterio.transform import from_origin
+import tqdm
 
 
 def gaussian_kernel(shape: tuple[int, int], center: tuple[int, int], bandwidth: float, target_integral: float):
@@ -71,7 +72,7 @@ def main(
     output_data = np.zeros((height, width), dtype=np.float32)
 
     logging.info("Adding Gaussian kernels")
-    for input_row in range(input_shape[0]):
+    for input_row in tqdm.tqdm(range(input_shape[0])):
         for input_col in range(input_shape[1]):
 
             loss = input_data[input_row, input_col]
@@ -93,7 +94,7 @@ def main(
             output_data += gaussian_kernel((height, width), center, bw_pixels, loss)
 
     logging.info("Asserting input and output raster sums are equal")
-    assert np.isclose(input_data.sum(), output_data.sum(), rtol=1E-3, atol=1)
+    assert np.isclose(np.nansum(input_data), np.nansum(output_data), rtol=1E-3, atol=1)
 
     logging.info(f"Write out to {output_raster_path}")
     write_kwargs = {
