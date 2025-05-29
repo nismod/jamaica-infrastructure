@@ -401,6 +401,18 @@ def get_ead_eael_costs(
     help="asset_layer value in the network CSV",
 )
 @click.option(
+    "--disruption-duration-days", "-d", "days", required=True, type=float,
+    help="Assumed duration in days of any wider economic loss.",
+)
+@click.option(
+    "--flood-defence-threshold", "-f", "flood_thresholds", required=True, type=float, multiple=True,
+    help="Flood defence heights to consider in meters.",
+)
+@click.option(
+    "--tc-damage-curve-factor", "-t", "cyclone_damage_curve_change", required=True, type=float, multiple=True,
+    help="TC wind damage curve modifiers. See config.yaml for more information.",
+)
+@click.option(
     "--output-dir",
     "-o",
     required=True,
@@ -418,6 +430,9 @@ def benefit_cost_ratio(
     hazard_label,
     asset_gpkg,
     asset_layer,
+    days,
+    flood_thresholds,
+    cyclone_damage_curve_change,
     output_dir
 ):
     if not os.path.isfile(cost_file):
@@ -438,7 +453,6 @@ def benefit_cost_ratio(
     rcps = [2.6, 4.5, 8.5]
     risk_type = ["EAD", "EAEL"]
     val_type = ["amin", "mean", "amax"]
-    days = 15
 
     risk_filepath = os.path.join(
         "loss_damage_npvs",
@@ -533,7 +547,6 @@ def benefit_cost_ratio(
             hazard_label == "flooding"
             and asset_adaptation_cost == "J$/m"
         ):
-            flood_thresholds = [1.0, 1.5, 2.0, 2.5]
             bcr_results = get_bcr_values(
                 output_dir,
                 asset_id,
@@ -570,7 +583,6 @@ def benefit_cost_ratio(
                 "flood_threshold",
             )
         elif hazard_label == "TC" and asset_info.sector == "energy":
-            cyclone_damage_curve_change = [0.76]
             bcr_results = get_bcr_values(
                 output_dir,
                 asset_id,

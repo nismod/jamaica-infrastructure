@@ -118,7 +118,7 @@ hotspots:
   # Options for applying a smoothing Gaussian kernel process to economic loss
   # hotspots in transport sector
   kernel_density_estimation:
-    # Measure of width Gaussian kernel 
+    # Measure of width Gaussian kernel
     bandwidth_meters: 1500
     # Resolution of grid to evaluate sum of Gaussian kernels (typically finer
     # than above grid)
@@ -135,12 +135,27 @@ hotspots:
 # investment. The entries below are the configurable financial parameters of
 # the adaptation options.
 adaptation_options:
+  # Starting year of economic modelling for adaptation options
   baseline_year: 2019
+  # End year of economic modelling for adaptation options
   projection_end_year: 2100
-  # Percentage discount rate
+  # Annually applied percentage rate to discount future values in economic modelling
   discounting_rate: 10
   # TODO: Store this in src/constants.py or similar, it should not be configurable
   epsg_jamaica: 3448
+  # Flood defence heights to consider for relevant adaptation options
+  flood_thresholds_meters: [1.0, 1.5, 2.0, 2.5]
+  # When considering adaptation to TC winds, a factor, let it be known as u, is
+  # used to modify damage curves of adapted assets. A damage curve is damage
+  # fraction as a function of hazard intensity, say d(h). The damage fraction
+  # modified by u is: d(h) * (1 - u)
+  # For example, for a value of 0.76, d(h) * (1 - 0.76) = 0.24d(h), so the
+  # damage curve is squashed roughly by a factor 4.
+  TC_winds_damage_curve_squash: [0.76]
+  # Expected Annual Economic Loss (EAEL) figures are calculated in J$/day. To
+  # compute the wider economic loss arising from a disruption, one must multiply
+  # by an assumed disruption duration.
+  disruption_duration_days: 15
 
 ### COASTAL ADAPTATION ###
 # This section defines parameters used in generating the coastal flood protection 

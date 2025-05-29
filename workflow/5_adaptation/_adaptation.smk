@@ -2,52 +2,6 @@
 Generate the files required by irv-jamaica/etl/adaptation_files.csv
 """
 
-from typing import List
-import pandas
-
-
-timeseries_files = []
-for risk_type in ["EAD", "EAEL"]:
-        timeseries_files = [
-            *timeseries_files,
-            *[f"{risk_type}_timeseries_{val_type}" for val_type in ["amin", "mean", "amax"]]
-        ]
-
-rule damage_loss_timeseries_and_NPV:
-    """
-    Estimate the damage loss timeseries and NPV for an asset with an adaptation.
-    
-    Test with:
-    snakemake -c1 results/flood_threshold_1p0/loss_damage_npvs/waste_water_facilities_NWC_nodes_EAD_EAEL_npvs.csv
-    """
-    input:
-        script = "workflow/5_adaptation/damage_loss_timeseries_and_npv.py",
-        network_csv = config["paths"]["network_layers"],
-        growth_rates = f"{DATA}/macroeconomic_data/gdp_growth_rates.xlsx",
-        summarised_damages = f"{{output_path}}/direct_damages_summary/{{gpkg}}_{{layer}}_EAD_EAEL.csv",
-    params:
-        baseline_year = config["adaptation_options"]["baseline_year"],
-        projection_end_year = config["adaptation_options"]["projection_end_year"],
-        discounting_rate = config["adaptation_options"]["discounting_rate"]
-    output:
-        NPV = f"{{output_path}}/loss_damage_npvs/{{gpkg}}_{{layer}}_EAD_EAEL_npvs.csv",
-        timeseries = [
-            f"{{output_path}}/loss_damage_timeseries/{{gpkg}}_{{layer}}_{file_suffix}.csv"
-            for file_suffix in timeseries_files
-        ],
-    shell:
-        """
-        python {input.script} \
-            --network-csv {input.network_csv} \
-            --growth-rates-xls {input.growth_rates} \
-            --asset-gpkg {wildcards.gpkg} \
-            --asset-layer {wildcards.layer} \
-            --baseline-year {params.baseline_year} \
-            --projection-end-year {params.projection_end_year} \
-            --discounting-rate {params.discounting_rate} \
-            --output-path {wildcards.output_path}
-        """
-
 
 rule adaptation_options_costs:
     """
@@ -86,26 +40,62 @@ rule adaptation_options_costs:
         """
 
 
-def get_hazard_thresholds(hazard: str) -> List[str]:
+rule damage_loss_timeseries_and_NPV:
+    """
+    Estimate the damage loss timeseries and NPV for an asset with an adaptation.
+    
+    Test with:
+    snakemake -c1 results/flood_threshold_1p0/loss_damage_npvs/waste_water_facilities_NWC_nodes_EAD_EAEL_npvs.csv
+    """
+    input:
+        script = "workflow/5_adaptation/damage_loss_timeseries_and_npv.py",
+        network_csv = config["paths"]["network_layers"],
+        growth_rates = f"{DATA}/macroeconomic_data/gdp_growth_rates.xlsx",
+        summarised_damages = f"{{output_path}}/direct_damages_summary/{{gpkg}}_{{layer}}_EAD_EAEL.csv",
+    params:
+        baseline_year = config["adaptation_options"]["baseline_year"],
+        projection_end_year = config["adaptation_options"]["projection_end_year"],
+        discounting_rate = config["adaptation_options"]["discounting_rate"]
+    output:
+        NPV = f"{{output_path}}/loss_damage_npvs/{{gpkg}}_{{layer}}_EAD_EAEL_npvs.csv",
+        timeseries = expand(
+            "{{output_path}}/loss_damage_timeseries/{{gpkg}}_{{layer}}_{variable}_timeseries_{aggregate}.csv",
+            variable=["EAD", "EAEL"],
+            aggregate=["amin", "mean", "amax"],
+        ),
+    shell:
+        """
+        python {input.script} \
+            --network-csv {input.network_csv} \
+            --growth-rates-xls {input.growth_rates} \
+            --asset-gpkg {wildcards.gpkg} \
+            --asset-layer {wildcards.layer} \
+            --baseline-year {params.baseline_year} \
+            --projection-end-year {params.projection_end_year} \
+            --discounting-rate {params.discounting_rate} \
+            --output-path {wildcards.output_path}
+        """
+
+
+def get_hazard_thresholds(hazard: str) -> list[str]:
+    """Stringify the floats from config. They will be used as paths."""
     if hazard == "TC":
-        return ["0p76"]
+        return ["p".join(str(x).split(".")) for x in config["adaptation_options"]["TC_winds_damage_curve_squash"]]
     elif hazard == "flooding":
-        return ["1p0", "1p5", "2p0", "2p5"]
+        return ["p".join(str(x).split(".")) for x in config["adaptation_options"]["flood_thresholds_meters"]]
     else:
         raise ValueError(f"Unknown hazard type: {hazard}")
 
 def get_risk_dir(hazard: str, threshold: str) -> str:
-    """
-    Get the risk directory for a hazard and threshold.
-    """
+    """Get the risk directory for a hazard and threshold."""
     return f"{OUTPUT}/{'flood_threshold' if hazard == 'flooding' else 'cyclone_damage_curve_change'}_{threshold}"
 
-risk_dirs = [OUTPUT]
-for hazard in HAZARD_TYPES:
-    risk_dirs = [
-        *risk_dirs,
-        *[get_risk_dir(hazard, threshold) for threshold in get_hazard_thresholds(hazard)]
-    ]
+def get_risk_files(wildcards) -> list[str]:
+    """Get the paths to risk files for nominal and adjusted cases for a given hazard."""
+    hazard = wildcards.hazard
+    risk_dirs = [*[OUTPUT], *[get_risk_dir(hazard, threshold) for threshold in get_hazard_thresholds(hazard)]]
+    paths = [f"{directory}/loss_damage_npvs/{wildcards.gpkg}_{wildcards.layer}_EAD_EAEL_npvs.csv" for directory in risk_dirs]
+    return paths
 
 rule benefit_cost_ratio:
     """
@@ -118,17 +108,34 @@ rule benefit_cost_ratio:
         script = "workflow/5_adaptation/benefit_cost_ratio_estimations.py",
         network_csv = config["paths"]["network_layers"],
         cost_file = f"{OUTPUT}/adaptation_costs/{{hazard}}_costs/{{gpkg}}_{{layer}}_adaptation_timeseries_and_npvs.csv",
-        risk_files = lambda wildcards: [f"{dir}/loss_damage_npvs/{wildcards.gpkg}_{wildcards.layer}_EAD_EAEL_npvs.csv" for dir in risk_dirs],
+        risk_files = get_risk_files
+    params:
+        disruption_duration = config["adaptation_options"]["disruption_duration_days"],
+        flood_thresholds = config["adaptation_options"]["flood_thresholds_meters"],
+        TC_factors = config["adaptation_options"]["TC_winds_damage_curve_squash"],
     output:
         bcr = f"{OUTPUT}/adaptation_benefits_costs_bcr/{{hazard}}_{{gpkg}}_{{layer}}_adaptation_benefits_costs_bcr.csv",
         EAD = f"{OUTPUT}/adaptation_benefits_costs_bcr/{{hazard}}_{{gpkg}}_{{layer}}_adaptation_costs_avoided_EAD_EAEL.csv",
     shell:
         """
+        FLOOD_THRESHOLDS=""
+        for VALUE in {params.flood_thresholds}; do
+            FLOOD_THRESHOLDS="$FLOOD_THRESHOLDS --flood-defence-threshold $VALUE"
+        done
+
+        TC_FACTORS=""
+        for VALUE in {params.TC_factors}; do
+            TC_FACTORS="$TC_FACTORS --tc-damage-curve-factor $VALUE"
+        done
+
         python {input.script} \
             --network-csv {input.network_csv} \
             --cost-file {input.cost_file} \
-            --hazard-label {hazard} \
+            --hazard-label {wildcards.hazard} \
             --asset-gpkg {wildcards.gpkg} \
             --asset-layer {wildcards.layer} \
+            --disruption-duration-days {params.disruption_duration} \
+            $FLOOD_THRESHOLDS \
+            $TC_FACTORS \
             --output-dir {OUTPUT}
         """
