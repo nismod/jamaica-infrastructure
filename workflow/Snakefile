@@ -4,7 +4,7 @@ import pandas as pd
 import geopandas as gpd
 import os
 
-HAZARD_TYPES = ("TC", "flooding")
+HAZARD_TYPES = ("TC", "flooding", "coastal")
 
 # assign globals to these paths, they're used frequently
 RAW = config["paths"]["incoming_data"]

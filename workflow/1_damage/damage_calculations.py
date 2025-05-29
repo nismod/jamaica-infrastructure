@@ -335,7 +335,7 @@ def direct_damages(
             damages_df = damages_df[damages_df["asset_name"].isin(damaged_assets)]
             affected_assets = list(set(affected_assets_df[asset_id].values.tolist()))
 
-            is_coastal_adaptation = "/coastal_adaptation/" in output_path
+            is_coastal_adaptation = "coastal" in output_path
             if is_coastal_adaptation and hazard_info.hazard == "coastal":
                 col = asset_info.asset_id_column
                 
