@@ -2,8 +2,9 @@ import logging
 
 import click
 import geopandas as gpd
-import rioxarray
+import numpy as np
 import pandas as pd
+import rioxarray
 
 from jamaica_infrastructure.utils import is_sole_value
 
@@ -70,6 +71,10 @@ def exposure(network_csv: str, splits_path: str, grid_path: str, asset_gpkg: str
 
     exposure = exposure.reset_index()
 
+    # set np.nan for non-positive values, store as nodata in raster
+    no_data_value = np.nan
+    exposure.loc[exposure["split_rehab_cost_J$"] <= 0, "split_rehab_cost_J$"] = no_data_value
+
     logging.info("Reading raster grid")
     # use the hotspots grid as a template -- inherit the transform for output
     grid = rioxarray.open_rasterio(grid_path).astype(float)  # promote to float
@@ -81,6 +86,7 @@ def exposure(network_csv: str, splits_path: str, grid_path: str, asset_gpkg: str
         }
     ] = exposure["split_rehab_cost_J$"]
     grid.name = f"{asset_gpkg}_{asset_layer}_rehab_cost_J$"
+    grid = grid.rio.write_nodata(no_data_value)
 
     logging.info(f"Exposure:\n{grid}")
 
