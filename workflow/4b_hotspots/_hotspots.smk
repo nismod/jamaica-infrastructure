@@ -228,19 +228,21 @@ rule economic_loss_transport_hotspots:
         with rasterio.open(input.grid) as grid_dataset:
             arr: np.ndarray[float] = grid_dataset.read()[0].astype(np.float32)
 
+        no_data_value = np.nan
         write_kwargs = {
             "driver": "GTiff",
             "height": arr.shape[0],
             "width": arr.shape[1],
             "count": 1,
             "dtype": rasterio.float32,
+            "nodata": no_data_value,
             "crs": grid_dataset.crs,
             "transform": grid_dataset.transform
         }
 
         for variable in ("economic_loss", "isolation_loss", "rerouting_loss"):
             with rasterio.open(output[variable], "w", **write_kwargs) as output_dataset:
-                arr[loss.cell_index_y, loss.cell_index_x] = loss[variable]
+                arr[loss.cell_index_y, loss.cell_index_x] = np.where(loss[variable] > 0, loss[variable], no_data_value)
                 output_dataset.write(arr, 1)
 
 
@@ -249,7 +251,7 @@ rule economic_loss_transport_hotspots_gaussian_kernel:
     Apply quantity preserving smoothing Gaussian kernel to hotspots quantities.
 
     Test with:
-    snakemake -c1 results/hotspots/transport/economic_loss_smoothed.tiff",
+    snakemake -c1 results/hotspots/transport/economic_loss_smoothed.tiff,
     """
     input:
         script = "workflow/4b_hotspots/kde.py",
