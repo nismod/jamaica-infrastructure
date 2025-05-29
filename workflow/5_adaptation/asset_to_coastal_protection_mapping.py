@@ -21,11 +21,6 @@ import click
     -------
 """
 
-def join_flood_areas(flood_polygons):
-    # Merge all polygons into a single polygon
-    merged_polygon = unary_union(flood_polygons.geometry)
-    return merged_polygon
-
 def find_intersecting_assets(flood_polygon, layer):
     # Ensure both layer and flood_polygon are in the same CRS
     layer = layer.to_crs(flood_polygon.crs)
@@ -92,28 +87,6 @@ def Assign_flood_area_to_asset(asset_network, RCP, RP, path, id_label, flood_are
 """ Defing Main Logic Functions
     -------
 """
-
-def combine_flood_protection_areas(RCP, RP, flood_areas, output):
-    
-    all_flood_areas = []
-
-    for rcp in RCP:
-        for rp in RP:
-            flood_polygon_layer = f"flood_protection_area_rcp_{rcp}_rp{rp}"
-            flood_polygons = gpd.read_file(flood_areas, layer=flood_polygon_layer)
-            merged_flood_polygon = join_flood_areas(flood_polygons)
-            all_flood_areas.append(merged_flood_polygon)
-            
-
-    # Create a union of all merged flood areas
-    final_flood_area = unary_union(all_flood_areas)
-
-    # Save the final merged flood polygon
-    union_flood_area_gdf = gpd.GeoDataFrame(geometry=[final_flood_area], crs=flood_polygons.crs)
-    union_flood_area_gdf.to_file(f"{output}/coastal_protection_assets/combined_coastal_protection_area.gpkg", driver="GPKG")
-    logging.info("Completed combining flood protection areas.")
-
-    return union_flood_area_gdf
 
 def filter_affected_assets(networks, union_flood_area_gdf, data_path, network_filter, output):
     # Assuming union_flood_area_gdf is already defined
@@ -192,7 +165,6 @@ def map_network_assets_to_protection(RCP, RP, output, networks, data_path, netwo
     type=click.Path(exists=True, dir_okay=False, file_okay=True, readable=True),
     help="Path to network layers csv",
 )
-
 @click.option(
     "--processed-data-path",
     "-d",
@@ -200,13 +172,19 @@ def map_network_assets_to_protection(RCP, RP, output, networks, data_path, netwo
     type=click.Path(exists=False, dir_okay=True, file_okay=False, readable=True),
     help="Path to processed data",
 )
-
 @click.option(
     "--coastal-adaptation-assets",
     "-c",
     required=True,
     type=click.Path(exists=True, dir_okay=False, file_okay=True, readable=True),
     help="Path to GPKG with coastal protection assets",
+)
+@click.option(
+    "--combine-coastal-protection",
+    "-cb",
+    required=True,
+    type=click.Path(exists=True, dir_okay=False, file_okay=True, readable=True),
+    help="Path to GPKG with combined coastal protectionareas",
 )
 @click.option(
     "--asset-gpkg",
@@ -228,7 +206,7 @@ def map_network_assets_to_protection(RCP, RP, output, networks, data_path, netwo
     help="Path to output gpkg",
 )
 
-def main(network_csv,processed_data_path,coastal_adaptation_assets,asset_gpkg,asset_layer,output_dir):
+def main(network_csv,processed_data_path,coastal_adaptation_assets,combine_coastal_protection,asset_gpkg,asset_layer,output_dir):
     # network_filter = ["transport_rail_edges"] #filter out certain network layers (for testing)
     network_filter = [f"{asset_gpkg}_{asset_layer}"]
 
@@ -245,7 +223,7 @@ def main(network_csv,processed_data_path,coastal_adaptation_assets,asset_gpkg,as
     flood_areas = coastal_adaptation_assets
     output_path = output_dir
 
-    union_flood_area_gdf = combine_flood_protection_areas(RCP, RP, flood_areas, output_path)
+    union_flood_area_gdf = gpd.read_file(combine_coastal_protection)
     filter_affected_assets(networks, union_flood_area_gdf, data_path, network_filter, output_path)
     map_network_assets_to_protection(RCP, RP, output_path, networks, data_path, network_filter, flood_areas)
 

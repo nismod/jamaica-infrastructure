@@ -39,6 +39,24 @@ rule coastal_flood_protection_assets:
             --overlap {params.overlap}
         """
 
+rule combine_coastal_protection:
+    """
+        Combines all the coastal protection areas for all the RCP'S & RP's into one GeoPackage
+
+        Test with:
+        snakemake -c1 results/coastal_protection_assets/combined_coastal_protection_area.gpkg
+    """
+    input:
+        script = "workflow/5_adaptation/combine_coastal_protection.py",
+        coastal_adaptation_assets = f"{OUTPUT}/coastal_protection_assets/Jamaica_coastal_protection_areas.gpkg"
+    output:
+        combined_cpa = f"{OUTPUT}/coastal_protection_assets/combined_coastal_protection_area.gpkg"
+    shell:
+        """
+        python {input.script} \
+            --coastal-adaptation-assets {input.coastal_adaptation_assets} \
+            --output-dir {OUTPUT} \
+        """
 
 
 rule map_networks_to_coastal_protection:
@@ -53,7 +71,8 @@ rule map_networks_to_coastal_protection:
         script = "workflow/5_adaptation/asset_to_coastal_protection_mapping.py",
         network_csv = config["paths"]["network_layers"],
         processed_data_path = config["paths"]["data"],
-        coastal_adaptation_assets = f"{OUTPUT}/coastal_protection_assets/Jamaica_coastal_protection_areas.gpkg"
+        coastal_adaptation_assets = f"{OUTPUT}/coastal_protection_assets/Jamaica_coastal_protection_areas.gpkg",
+        combine_coastal_protection = f"{OUTPUT}/coastal_protection_assets/combined_coastal_protection_area.gpkg"
     output:
         flood_asset_dict = f"{OUTPUT}/coastal_protection_assets/network_protection_mappings/{{gpkg}}_{{layer}}_coastal_filtered.parquet"
     shell:
@@ -62,6 +81,7 @@ rule map_networks_to_coastal_protection:
             --network-csv {input.network_csv} \
             --processed-data-path {input.processed_data_path} \
             --coastal-adaptation-assets {input.coastal_adaptation_assets} \
+            --combine-coastal-protection {input.combine_coastal_protection} \
             --asset-gpkg {wildcards.gpkg} \
             --asset-layer {wildcards.layer} \
             --output-dir {OUTPUT} \
