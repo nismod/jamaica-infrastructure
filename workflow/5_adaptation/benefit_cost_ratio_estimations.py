@@ -405,7 +405,7 @@ def get_ead_eael_costs(
     help="Assumed duration in days of any wider economic loss.",
 )
 @click.option(
-    "--flood-defence-threshold", "-f", "flood_threshold", required=True, type=float, multiple=True,
+    "--flood-defence-threshold", "-f", "flood_thresholds", required=True, type=float, multiple=True,
     help="Flood defence heights to consider in meters.",
 )
 @click.option(
