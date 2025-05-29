@@ -277,11 +277,10 @@ def get_bcr_values(
             option_cost_df = option_df.copy()
             option_cost_df, hazard_threshold_cols = assign_coastal_protection_ft(option_cost_df, protection_asset_dict, hazard_thresholds_column_name,rcps,asset_id,proj_end_year)
 
-            #Unsure what the cost multiplication factor should be
-
-            # option_cost_df["adapt_cost_npv"] = (
-            #     option_cost_df["protection_level_rcp_2.6_epoch_2050"] * option_cost_df["adapt_cost_npv"] 
-            # )
+            for rcp in rcps:
+                option_cost_df[f"adapt_cost_npv_{rcp}"] = (
+                    option_cost_df[f"{hazard_thresholds_column_name}_rcp_{rcp}"] * option_cost_df["adapt_cost_npv"] 
+                )    
 
             risk_df, bcr_columns = bcr_estimates(
                 asset_id,
@@ -411,11 +410,10 @@ def get_ead_eael_costs(
             option_cost_df = option_df.copy()
             option_cost_df, hazard_threshold_cols = assign_coastal_protection_ft(option_cost_df, protection_asset_dict, hazard_thresholds_column_name,rcps,asset_id,proj_end_year)
 
-            #Unsure what the cost multiplication factor shoudl be
-
-            # option_cost_df["adapt_cost_npv"] = (
-            #     option_cost_df["protection_level_rcp_2.6_epoch_2050"] * option_cost_df["adapt_cost_npv"] 
-            # )
+            for rcp in rcps:
+                option_cost_df[f"adapt_cost_npv_{rcp}"] = (
+                    option_cost_df[f"{hazard_thresholds_column_name}_rcp_{rcp}"] * option_cost_df["adapt_cost_npv"] 
+                )    
 
             option_cost_df["adapt_cost_unit"] = "J$"
             option_cost_df["ead_cost_unit"] = "J$"
