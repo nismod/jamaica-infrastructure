@@ -44,7 +44,7 @@ rule transport_scenario_edge_map:
         # include as a param to trigger re-run on change
         chunk_count = config["single_link_failure_chunk_count"]
     output:
-        edge_split_map = temp(f"{OUTPUT}/transport_failures/transport_scenario_edge_map.csv"),
+        edge_split_map = f"{OUTPUT}/transport_failures/transport_scenario_edge_map.csv",
     run:
         import logging
 
@@ -152,8 +152,6 @@ rule bridge_failure_analysis:
 rule single_point_failure_road_rail:
     """
     Create a single point failure file for road and rail assets.
-
-    TODO: Figure out why this rule is perpetually marked as "code has changed since last execution".
     
     Test with:
     snakemake -c1 results/economic_losses/single_failure_scenarios/single_point_failure_road_rail_edges_economic_losses.csv
@@ -177,16 +175,14 @@ rule single_point_failure_road_rail:
         # include as a param to trigger re-run on change
         chunk_count = config["single_link_failure_chunk_count"]
     output:
-        [
-            f"{OUTPUT}/economic_losses/single_failure_scenarios/single_point_failure_road_rail_edges_economic_losses.csv",
-            f"{OUTPUT}/economic_losses/single_failure_scenarios/single_point_failure_road_bridges_economic_losses.csv",
-            f"{OUTPUT}/economic_losses/single_failure_scenarios/single_point_failure_ports_economic_losses.csv",
-            f"{OUTPUT}/economic_losses/single_failure_scenarios/single_point_failure_rail_stations_economic_losses.csv",
-            f"{OUTPUT}/economic_losses/single_failure_scenarios/single_point_failure_airports_economic_losses.csv",
-        ]
+        road_rail_edges = f"{OUTPUT}/economic_losses/single_failure_scenarios/single_point_failure_road_rail_edges_economic_losses.csv",
+        road_bridges = f"{OUTPUT}/economic_losses/single_failure_scenarios/single_point_failure_road_bridges_economic_losses.csv",
+        ports = f"{OUTPUT}/economic_losses/single_failure_scenarios/single_point_failure_ports_economic_losses.csv",
+        rail_stations = f"{OUTPUT}/economic_losses/single_failure_scenarios/single_point_failure_rail_stations_economic_losses.csv",
+        airports = f"{OUTPUT}/economic_losses/single_failure_scenarios/single_point_failure_airports_economic_losses.csv",
     shell:
         f"""
-        python {input.script} \
+        python {{input.script}} \
             --results-dir {OUTPUT} \
             --processed-data-dir {DATA}
         """
