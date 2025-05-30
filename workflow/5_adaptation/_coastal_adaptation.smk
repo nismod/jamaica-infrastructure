@@ -87,30 +87,29 @@ rule map_networks_to_coastal_protection:
             --output-dir {OUTPUT} \
         """
 
-# rule count_assets_per_coastal_protection:
-#     """
-#         Counts the number of assets for each network layer that intersect with each coastal flood protection area.
+rule count_assets_per_coastal_protection:
+    """
+        Counts the number of assets for each network layer that intersect with each coastal
+         flood protection area and sums the costs of the network assets.
 
-#         ** NOT USED IN THE END **
+        Test with:
+        snakemake -c1 results/coastal_protection_assets/coastal_protection_assets_breakdown.csv
 
-#         Test with:
-#         snakemake -c1 results/coastal_protection_assets/networks_to_protection_asset_overiew/coastal_protection_assets_breakdown_rcp_baseline2010_rp_100.csv
-
-#     """
-#     input:
-#         script = "workflow/5_adaptation/count_coastal_protection_assets.py",
-#         network_csv = config["paths"]["network_layers"],
-#         processed_data_path = config["paths"]["data"],
-#         coastal_adaptation_assets = f"{OUTPUT}/coastal_protection_assets/Jamaica_coastal_protection_areas.gpkg"
-#     output:
-#         flood_asset_count = f"{OUTPUT}/coastal_protection_assets/networks_to_protection_asset_overiew/coastal_protection_assets_breakdown_rcp_{{rcp}}_rp_{{rp}}.csv"
-#     shell:
-#         """
-#         python {input.script} \
-#             --network-csv {input.network_csv} \
-#             --processed-data-path {input.processed_data_path} \
-#             --coastal-adaptation-assets {input.coastal_adaptation_assets} \
-#             --output-dir {OUTPUT} \
-#         """
+    """
+    input:
+        script = "workflow/5_adaptation/count_coastal_protection_assets.py",
+        network_csv = config["paths"]["network_layers"],
+        processed_data_path = config["paths"]["data"],
+        coastal_adaptation_assets = f"{OUTPUT}/coastal_protection_assets/Jamaica_coastal_protection_areas.gpkg"
+    output:
+        flood_asset_count = f"{OUTPUT}/coastal_protection_assets/coastal_protection_assets_breakdown.csv"
+    shell:
+        """
+        python {input.script} \
+            --network-csv {input.network_csv} \
+            --processed-data-path {input.processed_data_path} \
+            --coastal-adaptation-assets {input.coastal_adaptation_assets} \
+            --output-dir {OUTPUT} \
+        """
 
 

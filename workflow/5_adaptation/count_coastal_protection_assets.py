@@ -1,39 +1,35 @@
 import os
-import math
-import random
 import numpy as np
 import pandas as pd
-import fiona
 import logging
-import fiona
 
 import geopandas as gpd
-from shapely.geometry import Point, Polygon, MultiPoint, MultiPolygon, LineString
-from shapely.ops import unary_union, voronoi_diagram, nearest_points
-from shapely import affinity
+from shapely.ops import unary_union
 
 import logging
-import warnings
 
 import click
 
 def process_network_assets(network_info, flood_polygons, data_path):
-    """Process a single network and count assets intersecting with flood polygons."""
+    """Process a single network and count assets and their costs intersecting with flood polygons."""
     fname = os.path.join(data_path, network_info['path'])
-    layer_type = network_info['gpkg_layer']
-    ref = network_info['ref']
+    layer_type = network_info['asset_layer']
+    asset = network_info['asset_gpkg']
+    mean_cost_col = network_info['asset_mean_cost_column']
+    ref = f'{asset}_{layer_type}'
     
-    # Initialize results dictionary
-    results = {str(pid): 0 for pid in flood_polygons['id']}
+    # Initialize results dictionaries
+    count_results = {str(pid): 0 for pid in flood_polygons['id']}
+    cost_results = {str(pid): 0.0 for pid in flood_polygons['id']}
     
-    logging.info(f"Processing network '{ref}' (layer: {layer_type})")
+    logging.info(f"Processing network '{ref}'")
     
     try:
         # Load the asset layer
         assets = gpd.read_file(fname, layer=layer_type)
         if assets.empty:
             logging.warning(f"No assets found in layer {layer_type}")
-            return results
+            return count_results, cost_results
             
         logging.info(f"Found {len(assets)} assets in network '{ref}'")
         
@@ -45,71 +41,130 @@ def process_network_assets(network_info, flood_polygons, data_path):
         # Process each polygon
         for _, poly in flood_copy.iterrows():
             polygon_id = str(poly['id'])
-            count = len(assets[assets.geometry.intersects(poly['geometry'])])
-            results[polygon_id] = count
+            intersecting_assets = assets[assets.geometry.intersects(poly['geometry'])]
             
+            count = len(intersecting_assets)
+            count_results[polygon_id] = count
+
+            # Sum costs from the mean cost column
+            if mean_cost_col in intersecting_assets.columns:
+                cost = intersecting_assets[mean_cost_col].fillna(0).sum()
+            else:
+                logging.warning(f"Column '{mean_cost_col}' not found in layer '{ref}'")
+                cost = 0.0
+
+            cost_results[polygon_id] = cost
+
             if count > 0:
-                logging.debug(f"Found {count} intersections for polygon {polygon_id}")
-        
+                logging.debug(f"Polygon {polygon_id}: {count} assets, total cost = {cost}")
+
     except Exception as e:
         logging.error(f"Error processing network {ref}: {str(e)}")
         # logging.error(traceback.format_exc())
     
-    total = sum(results.values())
-    logging.info(f"Network '{ref}': found {total} total intersections")
-    return results
+    total_count = sum(count_results.values())
+    total_cost = sum(cost_results.values())
+    logging.info(f"Network '{ref}': {total_count} total assets, {total_cost} total cost")
+
+    return count_results, cost_results
 
 
 def count_assets(RCP, RP, output, networks, data_path, flood_areas):
-    """Count assets from each network intersecting with flood polygons."""
-    output_dir = f'{output}/coastal_protection_assets/networks_to_protection_asset_overiew'
+    """Count assets from each network intersecting with flood polygons and save as a consolidated CSV."""
+    output_dir = f'{output}/coastal_protection_assets'
     os.makedirs(output_dir, exist_ok=True)
-    
+
+    combined_results = []  # Accumulate all dataframes here
+
     for rcp in RCP:
         for rp in RP:
             flood_layer = f"flood_protection_area_rcp_{rcp}_rp{rp}"
             logging.info(f"Processing layer: {flood_layer}")
-            
+
             try:
                 # Load flood polygons
                 flood_polygons = gpd.read_file(flood_areas, layer=flood_layer)
-                
+
                 if flood_polygons.empty or 'id' not in flood_polygons.columns:
                     logging.warning(f"No valid polygons or missing 'id' column in {flood_layer}")
                     continue
-                
-                # Initialize results
+
+                # Initialize results dictionary for this scenario
                 all_results = {str(pid): {} for pid in flood_polygons['id']}
-                
+
+                cost_columns = []
+
                 # Process each network
                 for _, network in networks.iterrows():
-                    ref = network['ref']
-                    network_results = process_network_assets(network, flood_polygons, data_path)
-                    
-                    # Add results to main dictionary
-                    for pid, count in network_results.items():
-                        all_results[pid][ref] = count
-                
-                # Create dataframe
+                    ref = f"{network['asset_gpkg']}_{network['asset_layer']}"
+                    cost_col = f"{ref}_cost"
+
+                    network_results, cost_results = process_network_assets(network, flood_polygons, data_path)
+
+                    for pid in all_results:
+                        all_results[pid][ref] = network_results.get(pid, 0)
+                        all_results[pid][cost_col] = round(cost_results.get(pid, 0.0), 2)
+
+                # Convert results to DataFrame
                 result_df = pd.DataFrame.from_dict(all_results, orient='index')
                 result_df.index.name = 'polygon_id'
                 result_df.reset_index(inplace=True)
-                
-                # Ensure all network columns exist
-                for ref in networks['ref'].unique():
+
+                # Ensure all expected asset columns exist
+                unique_refs = [f"{net['asset_gpkg']}_{net['asset_layer']}" for _, net in networks.iterrows()]
+                for ref in unique_refs:
                     if ref not in result_df.columns:
                         result_df[ref] = 0
-                
-                # Save to CSV
-                output_file = f'{output_dir}/coastal_protection_assets_breakdown_rcp_{rcp}_rp_{rp}.csv'
-                result_df.to_csv(output_file, index=False)
-                
-                total_count = result_df.drop('polygon_id', axis=1).sum().sum()
-                logging.info(f"Saved to {os.path.basename(output_file)} with {total_count} total intersections")
-                
+                    cost_col = f"{ref}_cost"
+                    if cost_col not in result_df.columns:
+                        result_df[cost_col] = 0.0
+
+                cost_columns = [f"{ref}_cost" for ref in unique_refs]
+                result_df['total_cost'] = result_df[cost_columns].sum(axis=1).round(2)
+
+                # Extract epoch and rcp
+                epoch = rcp[-4:]
+                rcp_prefix = rcp[:-4]
+                try:
+                    rcp_value = float(rcp_prefix) / 10.0
+                except ValueError:
+                    rcp_value = rcp_prefix
+
+                result_df['rcp'] = rcp_value
+                result_df['epoch'] = epoch
+                result_df['rp'] = rp
+
+                combined_results.append(result_df)
+
+                total_count = result_df[unique_refs].sum().sum()
+                logging.info(f"Processed layer {flood_layer} with {total_count} total intersections")
+
             except Exception as e:
                 logging.error(f"Error processing layer {flood_layer}: {str(e)}")
-                # logging.error(traceback.format_exc())
+
+    if combined_results:
+        final_df = pd.concat(combined_results, ignore_index=True)
+
+        cost_columns = [col for col in final_df.columns if col.endswith('_cost')]
+        other_columns = [col for col in final_df.columns if not col.endswith('_cost')]
+
+        # Define your explicit order for non-cost columns
+        explicit_order = ['polygon_id', 'rcp', 'epoch', 'rp']  # Your priority columns
+        remaining_columns = [col for col in other_columns if col not in explicit_order]
+
+        # Combine in desired order
+        new_column_order = explicit_order + remaining_columns + cost_columns
+        final_df = final_df[new_column_order]
+
+        # Save consolidated CSV
+        output_file = f'{output_dir}/coastal_protection_assets_breakdown.csv'
+        final_df.to_csv(output_file, index=False)
+        logging.info(f"Saved consolidated CSV with {len(final_df)} rows to {output_file}")
+    else:
+        logging.warning("No data was processed, nothing to save.")
+
+
+
 
 @click.command()
 @click.version_option("1.0")
@@ -149,13 +204,13 @@ def count_assets(RCP, RP, output, networks, data_path, flood_areas):
 def main(network_csv,processed_data_path,coastal_adaptation_assets,output_dir):
     RP = ['100']
     RCP = ['baseline2010', '262050', '262100', '452030', '452050', '452070', '452100', '852030', '852050', '852070', '852100']
-    # RCP = ['baseline2010']
+    # RCP = ['baseline2010', '262050']
 
     data_path = processed_data_path
     
     networks_csv = network_csv
     networks = pd.read_csv(networks_csv)
-    networks = networks[networks["ref"] != "buildings"]
+    networks = networks[networks["asset_description"] != "buildings"]
     # print (networks)
 
     flood_areas = coastal_adaptation_assets
