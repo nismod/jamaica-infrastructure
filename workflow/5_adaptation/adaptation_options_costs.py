@@ -109,11 +109,25 @@ def get_dimension_factor(x):
 
     return dimension, cost_unit
 
+def get_coastal_dimension_factor(x):
+    dimension = 1
+    change_type = x["change_parameter"]
+    if change_type == "flood depth":
+        cost_unit = "J$/m"
+    else:
+        cost_unit = "J$"
 
-def get_adaptation_options_costs(asset_df, asset_id):
-    asset_df["dimension_cost_factor"] = asset_df.progress_apply(
-        lambda x: get_dimension_factor(x), axis=1
-    )
+    return dimension, cost_unit
+
+def get_adaptation_options_costs(asset_df, asset_id, hazard_label):
+    if hazard_label!='coastal':
+        asset_df["dimension_cost_factor"] = asset_df.progress_apply(
+            lambda x: get_dimension_factor(x), axis=1
+        )
+    else:
+        asset_df["dimension_cost_factor"] = asset_df.progress_apply(
+            lambda x: get_coastal_dimension_factor(x), axis=1
+        )
     asset_df[["dimension_factor", "asset_adaptation_cost"]] = asset_df[
         "dimension_cost_factor"
     ].apply(pd.Series)
@@ -156,7 +170,7 @@ def get_adaptation_options_costs(asset_df, asset_id):
     ]
 
 
-def get_adaptation_options_costs_roads(asset_df, adapt_costs, asset_id):
+def get_adaptation_options_costs_roads(asset_df, adapt_costs, asset_id, hazard_label):
     road_costs = adapt_costs[adapt_costs["asset_description"] == "roads"]
     roads_df = []
     for rc in road_costs.itertuples():
@@ -187,7 +201,7 @@ def get_adaptation_options_costs_roads(asset_df, adapt_costs, asset_id):
                 df[column] = getattr(rc, column) * df["lane_factor"]
             else:
                 df[column] = getattr(rc, column)
-        df = get_adaptation_options_costs(df, asset_id)
+        df = get_adaptation_options_costs(df, asset_id, hazard_label)
         roads_df.append(df)
 
     roads_df = pd.concat(roads_df, axis=0, ignore_index=True)
@@ -365,10 +379,10 @@ def adaptation_options_costs(
             left_on=asset_hazard,
             right_on="asset_name",
         )
-        asset_df = get_adaptation_options_costs(asset_df, asset_id)
+        asset_df = get_adaptation_options_costs(asset_df, asset_id, hazard_label)
     else:
         asset_df = get_adaptation_options_costs_roads(
-            asset_df, adapt_costs, asset_id
+            asset_df, adapt_costs, asset_id, hazard_label
         )
 
     asset_unit_costs_csv = os.path.join(
