@@ -156,13 +156,65 @@ def count_assets(RCP, RP, output, networks, data_path, flood_areas):
         new_column_order = explicit_order + remaining_columns + cost_columns
         final_df = final_df[new_column_order]
 
-        # Save consolidated CSV
-        output_file = f'{output_dir}/coastal_protection_assets_breakdown.csv'
-        final_df.to_csv(output_file, index=False)
-        logging.info(f"Saved consolidated CSV with {len(final_df)} rows to {output_file}")
+        return final_df
     else:
         logging.warning("No data was processed, nothing to save.")
 
+def add_coastline_lengths(RCP, RP, flood_asset_df, flood_areas):
+    # Create a copy to avoid modifying the original dataframe
+    updated_flood_asset_df = flood_asset_df.copy()
+    
+    # Initialize the coastline_length column if it doesn't exist
+    if 'coastline_length' not in updated_flood_asset_df.columns:
+        updated_flood_asset_df['coastline_length'] = None
+    
+    # Convert merge columns to consistent types in the main dataframe
+    updated_flood_asset_df['polygon_id'] = updated_flood_asset_df['polygon_id'].astype(str)
+    updated_flood_asset_df['epoch'] = updated_flood_asset_df['epoch'].astype(str)
+    updated_flood_asset_df['rcp'] = updated_flood_asset_df['rcp'].astype(str)
+    updated_flood_asset_df['rp'] = updated_flood_asset_df['rp'].astype(str)
+    
+    for rcp in RCP:
+        for rp in RP:
+            flood_layer = f"flood_protection_coastline_rcp_{rcp}_rp{rp}"
+            flood_polygons = gpd.read_file(flood_areas, layer=flood_layer)
+            logging.info(f"Processing layer: {flood_layer}")
+            
+            epoch = rcp[-4:]
+            rcp_prefix = rcp[:-4]
+            try:
+                rcp_value = float(rcp_prefix) / 10.0
+            except ValueError:
+                rcp_value = rcp_prefix
+            
+            # Add the matching columns to flood_polygons for merging
+            flood_polygons['epoch'] = str(epoch)
+            flood_polygons['rcp'] = str(rcp_value)
+            flood_polygons['rp'] = str(rp)
+            
+            # Rename 'id' to 'polygon_id' and 'length' to 'coastline_length_temp'
+            flood_polygons_renamed = flood_polygons.rename(columns={
+                'id': 'polygon_id',
+                'length': 'coastline_length_temp'
+            })
+            
+            # Convert all merge columns to string for consistent merging
+            flood_polygons_renamed['polygon_id'] = flood_polygons_renamed['polygon_id'].astype(str)
+            
+            # Merge to find matches
+            merged = updated_flood_asset_df.merge(
+                flood_polygons_renamed[['polygon_id', 'coastline_length_temp', 'epoch', 'rcp', 'rp']], 
+                on=['polygon_id', 'epoch', 'rcp', 'rp'], 
+                how='left'
+            )
+            
+            # Update the coastline_length column where matches were found
+            mask = merged['coastline_length_temp'].notna()
+            updated_flood_asset_df.loc[mask, 'coastline_length'] = merged.loc[mask, 'coastline_length_temp'].round()
+            
+            logging.info(f"Updated {mask.sum()} rows with coastline lengths")
+    
+    return updated_flood_asset_df
 
 
 
@@ -214,9 +266,15 @@ def main(network_csv,processed_data_path,coastal_adaptation_assets,output_dir):
     # print (networks)
 
     flood_areas = coastal_adaptation_assets
-    output_path = output_dir
+    output_file = f'{output_dir}/coastal_protection_assets/coastal_protection_assets_breakdown.csv'
 
-    count_assets(RCP, RP, output_path, networks, data_path, flood_areas)
+    flood_asset_df = count_assets(RCP, RP, output_dir, networks, data_path, flood_areas)
+    flood_asset_df = add_coastline_lengths(RCP, RP,flood_asset_df, flood_areas)
+
+    # Save consolidated CSV
+    
+    flood_asset_df.to_csv(output_file, index=False)
+    logging.info(f"Saved consolidated CSV with {len( flood_asset_df)} rows to {output_file}")
     
 
 if __name__ == "__main__":

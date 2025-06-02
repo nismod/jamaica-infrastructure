@@ -146,6 +146,7 @@ rule direct_damage:
             hazard_type = HAZARD_TYPES
         ),
         hazard_intersection_file = f"{OUTPUT}/hazard_asset_intersection/{{gpkg}}_splits__hazard_layers__{{layer}}.geoparquet",
+        protection_asset_dict = f"{OUTPUT}/coastal_protection_assets/network_protection_mappings/{{gpkg}}_{{layer}}_coastal_filtered.parquet"
     params:
         USD_per_JMD = config["economics"]["USD_per_JMD"],
         sensitivity_id = sensitivity_id_from_slug,

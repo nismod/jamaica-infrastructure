@@ -113,6 +113,8 @@ rule benefit_cost_ratio:
         script = "workflow/5_adaptation/benefit_cost_ratio_estimations.py",
         network_csv = config["paths"]["network_layers"],
         cost_file = f"{OUTPUT}/adaptation_costs/{{hazard}}_costs/{{gpkg}}_{{layer}}_adaptation_timeseries_and_npvs.csv",
+        protection_asset_dict = f"{OUTPUT}/coastal_protection_assets/network_protection_mappings/{{gpkg}}_{{layer}}_coastal_filtered.parquet",
+        protection_asset_breakdown = f"{OUTPUT}/coastal_protection_assets/coastal_protection_assets_breakdown.csv",
         risk_files = get_risk_files
     params:
         projection_end_year = config["adaptation_options"]["projection_end_year"],
