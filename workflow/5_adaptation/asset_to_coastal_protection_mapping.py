@@ -30,19 +30,16 @@ def find_intersecting_assets(flood_polygon, layer):
     
     return intersecting_assets
 
-def Assign_flood_area_to_asset(asset_network, RCP, RP, path, id_label, flood_areas):
+def Assign_flood_area_to_asset(asset_network, RCP, RP, path, id_label, flood_areas, cost_col):
     def find_flood_area_asset_intersection(flood_polygons, asset):
         asset_geom = asset.geometry
         if not asset_geom.is_valid:
             asset_geom = asset_geom.buffer(0)
-
         flood_polygons = flood_polygons.copy()
         flood_polygons["geometry"] = flood_polygons["geometry"].apply(
             lambda geom: geom if geom.is_valid else geom.buffer(0)
-)
-
+        )
         intersecting_floods = flood_polygons[flood_polygons.geometry.intersects(asset_geom)]
-        
         if not intersecting_floods.empty:
             max_flood_polygon = intersecting_floods.loc[intersecting_floods['max_flood_height'].idxmax()]
             flood_polygon_id = max_flood_polygon['id']
@@ -50,38 +47,40 @@ def Assign_flood_area_to_asset(asset_network, RCP, RP, path, id_label, flood_are
         else:
             flood_polygon_id = None
             max_flood_height = None
-
         return flood_polygon_id, max_flood_height
-
-    df = pd.read_parquet(path)
     
+    df = pd.read_parquet(path)
     all_layers = fiona.listlayers(flood_areas)
     flood_layers = {
         layer: gpd.read_file(flood_areas, layer=layer)
         for layer in all_layers if layer.startswith("flood_protection_area_rcp_")
     }
-
+    
+    # Create a lookup dictionary for mean_cost from asset_network
+    cost_lookup = dict(zip(asset_network[id_label], asset_network[cost_col]))
+    
     previous_layer_name = None
-
     for i, row in df.iterrows():
-        asset_id = row.iloc[0]  
+        asset_id = row.iloc[0]
+        
+        # Add mean_cost for this asset if not already present
+        if 'mean_cost' not in df.columns or pd.isna(df.at[i, 'mean_cost']):
+            df.at[i, 'mean_cost'] = cost_lookup.get(asset_id, None)
+        
         for rcp in RCP:
             for rp in RP:
                 layer_name = f"flood_protection_area_rcp_{rcp}_rp{rp}"
-        
                 # if layer_name != previous_layer_name:
-                    # print(f"Current Layer: {layer_name}")
-                
+                # print(f"Current Layer: {layer_name}")
                 previous_layer_name = layer_name
-                
                 flood_polygons = flood_layers.get(layer_name)
                 asset = asset_network[asset_network[id_label] == asset_id].iloc[0]
                 flood_id, flood_height = find_flood_area_asset_intersection(flood_polygons, asset)
                 flood_id_col, flood_height_col = f"flood_id_rcp_{rcp}_rp_{rp}", f"flood_height_rcp_{rcp}_rp_{rp}"
-
                 df.at[i, flood_id_col] = flood_id
                 df.at[i, flood_height_col] = flood_height
         logging.info(f"Completed asset: {asset_id}")
+    
     return df
 
 """ Defing Main Logic Functions
@@ -136,6 +135,7 @@ def map_network_assets_to_protection(RCP, RP, output, networks, data_path, netwo
         layer_type = n['asset_layer']
         # ref = n['asset_description']
         # ref = ref.replace(" ", "_")
+        cost_col = n['asset_mean_cost_column']
         gpkg = n['asset_gpkg']
         layer = n['asset_layer']
         ref = f"{gpkg}_{layer}"
@@ -151,7 +151,7 @@ def map_network_assets_to_protection(RCP, RP, output, networks, data_path, netwo
         if assets.empty:
             continue
 
-        updated_output = Assign_flood_area_to_asset(assets, RCP, RP, path, id_col, flood_areas)
+        updated_output = Assign_flood_area_to_asset(assets, RCP, RP, path, id_col, flood_areas, cost_col)
         updated_output.to_parquet(path, index=False)
 
 
