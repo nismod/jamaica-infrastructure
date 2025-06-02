@@ -120,17 +120,17 @@ hotspots:
   # on which assets are removed, cell-by-cell from.
   grid:
     # Buffer around bounding box of Jamaican coastline in meters
-    boundary_buffer_meters: 10000
+    boundary_buffer_meters: 5000
     # Width and heght of grid cells in meters
-    resolution_meters: 2500
+    resolution_meters: 1000
   # Options for applying a smoothing Gaussian kernel process to economic loss
   # hotspots in transport sector
   kernel_density_estimation:
     # Measure of width Gaussian kernel
-    bandwidth_meters: 1500
+    bandwidth_meters: 1000
     # Resolution of grid to evaluate sum of Gaussian kernels (typically finer
     # than above grid)
-    resolution_meters: 500
+    resolution_meters: 250
 #
 # N.B. There is a distinct hotspots analysis available for the energy network
 # in the nismod/JEM repository.
