@@ -136,6 +136,9 @@ rule preprocess_road_network:
         network.nodes.loc[bridge_mask, "asset_type"] = "bridge"
         for cost_column in [f"{agg}_damage_cost" for agg in ["min", "mean", "max"]]:
             network.nodes[cost_column] *= network.nodes["length_m"]
+            # We do not want to double count things like EAD when summing across asset layers
+            # so, zero out the costs for the bridge edges -- the rehab cost is now with the nodes
+            network.edges.loc[network.edges.bridge, cost_column] = 0
         network.nodes.loc[bridge_mask, "cost_unit"] = "J$"
 
         logging.info("Label road network with components")
