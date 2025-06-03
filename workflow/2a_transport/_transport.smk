@@ -6,6 +6,16 @@ Rules for creating and analysing multi-modal transport networks.
 rule preprocess_road_network:
     """
     Preprocess road network data.
+
+    Note that this rule is designed to consume output from github.com/nismod/open-gira
+        Within the open-gira repository, release 0.3.2, install and activate the
+        environment before running:
+        ```sh
+        snakemake -c1 results/jamaica-latest_filter-road-residential/edges.gpq
+        ```
+        Combine the produced nodes and edges into a single geopackage file with
+        layers 'nodes' and 'edges' and move this file to <input.raw_roads>.
+
     Test with:
     snakemake -c1 processed_data/networks/transport/roads.gpkg
     """
@@ -21,9 +31,10 @@ rule preprocess_road_network:
         - Project to EPSG 3448
         - Explode multilinestrings
         - Calculate edge lengths
+        - Gap-fill speed limit data
         - Assign asset_type for damage curve lookup
         - Estimate NWA road classification from OSM tag_highway
-        - Gap-fill speed limit data
+        - Create bridge nodes using edge properties
         - Add topology and component labels
         """
 
@@ -43,6 +54,7 @@ rule preprocess_road_network:
             if col_name in edges.columns:
                 edges = edges.drop(columns=[col_name])
         logging.info(f"{len(edges)} edges")
+
         # cast multi-linestrings to linestrings
         exploded_geometry = edges.geometry.explode(index_parts=False)
         if len(edges == len(exploded_geometry)):
@@ -81,7 +93,7 @@ rule preprocess_road_network:
         bridge_cost_JMD_per_meter = config["damages"]["rehabilitation_costs"]["bridge_cost_USD_per_meter"] / USD_per_JMD
         road_cost_JMD_per_lane_per_meter = (config["damages"]["rehabilitation_costs"]["road_cost_USD_per_lane_per_km"] / 1.0e3) / USD_per_JMD
         edges["mean_damage_cost"] = np.where(
-            edges["asset_type"] == "road_bridge",
+            edges["bridge"],
             bridge_cost_JMD_per_meter,
             road_cost_JMD_per_lane_per_meter * edges["lanes"],
         ) 
@@ -114,13 +126,19 @@ rule preprocess_road_network:
         bridge_edges = network.edges[network.edges.bridge]
         bridge_edges_to_merge = bridge_edges.loc[
             :,
-            ["from_id", "length_m", "min_damage_cost", "mean_damage_cost", "max_damage_cost", "cost_unit"]
+            [
+                "from_id", "length_m", "tag_name", "osm_way_id", "min_damage_cost",
+                "mean_damage_cost", "max_damage_cost", "cost_unit"
+            ]
         ].rename(columns={"from_id": "id"})
-        network.nodes = network.nodes.merge(bridge_edges_to_merge, how="outer", on="id")
+        network.nodes = network.nodes.merge(bridge_edges_to_merge, how="outer", on="id").copy()
         bridge_mask = ~network.nodes.mean_damage_cost.isna()
         network.nodes.loc[bridge_mask, "asset_type"] = "bridge"
         for cost_column in [f"{agg}_damage_cost" for agg in ["min", "mean", "max"]]:
             network.nodes[cost_column] *= network.nodes["length_m"]
+            # We do not want to double count things like EAD when summing across asset layers
+            # so, zero out the costs for the bridge edges -- the rehab cost is now with the nodes
+            network.edges.loc[network.edges.bridge, cost_column] = 0
         network.nodes.loc[bridge_mask, "cost_unit"] = "J$"
 
         logging.info("Label road network with components")

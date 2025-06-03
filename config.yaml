@@ -31,8 +31,16 @@ damages:
   bridge_flood_design_RP_years: 50
   # Transport network rehabilitation costs
   rehabilitation_costs:
-    bridge_cost_USD_per_meter: 15000.0
-    road_cost_USD_per_lane_per_km: 750000.0
+    # In the absence of Jamaican figures, use US Dept. of Transport bridge data
+    # https://www.fhwa.dot.gov/bridge/nbi/sd2020.cfm#c
+    # Assuming average bridge width, w = 10m
+    # Total deck area, A = 2.06E7 m2
+    # Total rebuild cost, c = 4.97E10 USD
+    # Cost per unit length = c / (A / w) = 2.41E4 USD/m
+    bridge_cost_USD_per_meter: 24100
+    # From NWA: 2 lane road reconstruction is US$ 1.5 million/km
+    # TODO: If estimates per road classification are available, they should be used
+    road_cost_USD_per_lane_per_km: 750000
 #
 # Whether to run a sensitivity analysis over rehabilitation costs and fragility
 # of assets. If true, direct damages will be calculated for several ensemble
@@ -112,17 +120,17 @@ hotspots:
   # on which assets are removed, cell-by-cell from.
   grid:
     # Buffer around bounding box of Jamaican coastline in meters
-    boundary_buffer_meters: 10000
+    boundary_buffer_meters: 5000
     # Width and heght of grid cells in meters
-    resolution_meters: 2500
+    resolution_meters: 1000
   # Options for applying a smoothing Gaussian kernel process to economic loss
   # hotspots in transport sector
   kernel_density_estimation:
     # Measure of width Gaussian kernel
-    bandwidth_meters: 1500
+    bandwidth_meters: 1000
     # Resolution of grid to evaluate sum of Gaussian kernels (typically finer
     # than above grid)
-    resolution_meters: 500
+    resolution_meters: 250
 #
 # N.B. There is a distinct hotspots analysis available for the energy network
 # in the nismod/JEM repository.
