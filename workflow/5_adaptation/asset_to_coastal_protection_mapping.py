@@ -22,12 +22,15 @@ import click
 """
 
 def find_intersecting_assets(flood_polygon, layer):
-    # Ensure both layer and flood_polygon are in the same CRS
+    # Ensure CRS match
     layer = layer.to_crs(flood_polygon.crs)
-    
-    # Perform the spatial join where the geometries intersect
-    intersecting_assets = gpd.sjoin(layer, flood_polygon, how="inner", predicate="intersects")
-    
+
+    # Perform a spatial overlay to get intersecting parts
+    intersecting_assets = gpd.overlay(layer, flood_polygon, how="intersection")
+
+    # Save to GPKG
+    # intersecting_assets.to_file("test_intersect.gpkg", driver="GPKG")
+
     return intersecting_assets
 
 def Assign_flood_area_to_asset(asset_network, RCP, RP, path, id_label, flood_areas, cost_col):
@@ -116,6 +119,7 @@ def filter_affected_assets(networks, union_flood_area_gdf, data_path, network_fi
 
         # Find intersecting assets
         asset_intersections = find_intersecting_assets(flood_polygon, assets)
+        
         
         # Keep only the ID column and drop duplicates
         filtered_ids = asset_intersections[[id_col]].drop_duplicates()

@@ -205,7 +205,7 @@ def estimate_direct_damage_costs_and_units(
     "--protection-asset-dict",
     "-a",
     required=True,
-    type=click.Path(exists=True, dir_okay=True, file_okay=False, readable=True),
+    type=click.Path(exists=True, dir_okay=False, file_okay=True, readable=True),
     help="Path to directroy with network assets to flood portectoin area relatoinal dictionary",
 )
 @click.option(
@@ -339,7 +339,7 @@ def direct_damages(
             if is_coastal_adaptation and hazard_info.hazard == "coastal":
                 col = asset_info.asset_id_column
                 
-                asset_dict = pd.read_parquet(f"{protection_asset_dict}/{asset_info.asset_gpkg}_{asset_info.asset_layer}_coastal_filtered.parquet")
+                asset_dict = pd.read_parquet(f"{protection_asset_dict}")
                 asset_dict = asset_dict.set_index(col)
 
                 for key in hazard_keys:
