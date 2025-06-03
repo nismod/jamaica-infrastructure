@@ -23,7 +23,7 @@ from jamaica_infrastructure.utils import is_sole_value
     "--grid-path", "-g", required=True, help="Hotspots raster grid",
     type=click.Path(exists=True, dir_okay=False, file_okay=True, readable=True),
 )
-@click.option("--asset-gpkg", "-g", required=True, help="asset_gpkg value in the network CSV")
+@click.option("--asset-gpkg", "-G", required=True, help="asset_gpkg value in the network CSV")
 @click.option("--asset-layer", "-l", required=True, help="asset_layer value in the network CSV")
 @click.option(
     "--output-path", "-o", required=True, help="Path to write the output exposure file",
