@@ -47,20 +47,20 @@ def exposure(network_csv: str, splits_path: str, grid_path: str, asset_gpkg: str
     logging.info(f"{asset_layer=}")
 
     if asset_layer == "nodes":
-        assert is_sole_value(splits[asset_info.asset_cost_unit_column], "J$")
+        assert is_sole_value(splits[asset_info.asset_cost_unit_column], "J$"), f"Expected J$ but got {set(splits[asset_info.asset_cost_unit_column].unique())}"
         splits["split_rehab_cost_J$"] = splits[asset_info.asset_mean_cost_column]
         exposure = splits.loc[:, ["split_rehab_cost_J$", "cell_index_0_x", "cell_index_0_y"]] \
             .groupby(["cell_index_0_x", "cell_index_0_y"]).sum()
 
     elif asset_layer == "edges":
-        assert is_sole_value(splits[asset_info.asset_cost_unit_column], "J$/m")
+        assert is_sole_value(splits[asset_info.asset_cost_unit_column], "J$/m"), f"Expected J$/m but got {set(splits[asset_info.asset_cost_unit_column].unique())}"
         splits["split_length_m"] = splits.geometry.length
         splits["split_rehab_cost_J$"] = splits["split_length_m"] * splits[asset_info.asset_mean_cost_column]
         exposure = splits.loc[:, ["split_rehab_cost_J$", "cell_index_0_x", "cell_index_0_y"]] \
             .groupby(["cell_index_0_x", "cell_index_0_y"]).sum()
 
     elif asset_layer == "areas":
-        assert is_sole_value(splits[asset_info.asset_cost_unit_column], "J$/m2")
+        assert is_sole_value(splits[asset_info.asset_cost_unit_column], "J$/m2"), f"Expected J$/m2 but got {set(splits[asset_info.asset_cost_unit_column].unique())}"
         splits["split_area_m2"] = splits.geometry.area
         splits["split_rehab_cost_J$"] = splits["split_area_m2"] * splits[asset_info.asset_mean_cost_column]
         exposure = splits.loc[:, ["split_rehab_cost_J$", "cell_index_0_x", "cell_index_0_y"]] \
