@@ -14,6 +14,7 @@ rule adaptation_options_costs:
         script = "workflow/5_adaptation/adaptation_options_costs.py",
         cost_file = f"{DATA}/adaptation/adaptation_options_and_costs_jamaica.xlsx",
         network_csv = config["paths"]["network_layers"],
+        protection_asset_dict = f"{OUTPUT}/coastal_protection_assets/network_protection_mappings/{{gpkg}}_{{layer}}_coastal_filtered.parquet",
         asset_file = lambda wildcards: f"{DATA}/{get_asset_metadata(wildcards).path}",  # gpkg
     params:
         baseline_year = config["adaptation_options"]["baseline_year"],
@@ -29,6 +30,7 @@ rule adaptation_options_costs:
             --network-csv {input.network_csv} \
             --asset-file {input.asset_file} \
             --cost-file {input.cost_file} \
+            --protection-asset-dict {input.protection_asset_dict} \
             --hazard-label {wildcards.hazard} \
             --asset-gpkg {wildcards.gpkg} \
             --asset-layer {wildcards.layer} \
@@ -139,6 +141,7 @@ rule benefit_cost_ratio:
         python {input.script} \
             --network-csv {input.network_csv} \
             --cost-file {input.cost_file} \
+            --protection-asset-breakdown {input.protection_asset_breakdown} \
             --protection-asset-dict {input.protection_asset_dict} \
             --hazard-label {wildcards.hazard} \
             --asset-gpkg {wildcards.gpkg} \

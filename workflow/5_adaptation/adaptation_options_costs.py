@@ -247,6 +247,18 @@ def get_adaptation_options_costs_roads(asset_df, adapt_costs, asset_id, hazard_l
     help="Path to adaptation cost data",
 )
 @click.option(
+    "--protection-asset-dict",
+    "-pa",
+    required=True,
+    type=click.Path(
+        exists=True,
+        dir_okay=False,
+        file_okay=True,
+        readable=True
+    ),
+    help="Path to directroy with network assets to flood portectoin area relatoinal dictionary",
+)
+@click.option(
     "--hazard-label",
     "-h",
     required=True,
@@ -312,6 +324,7 @@ def adaptation_options_costs(
     network_csv,
     asset_file,
     cost_file,
+    protection_asset_dict,
     hazard_label,
     asset_gpkg,
     asset_layer,
@@ -355,10 +368,12 @@ def adaptation_options_costs(
         os.mkdir(hazard_outputs)
 
     adapt_costs = cost_df[cost_df["hazard"] == hazard_label]
+    
     cost_description = list(
         set(adapt_costs["asset_description"].values.tolist())
     )
     costed_assets = list(set(adapt_costs["asset_name"].values.tolist()))
+    # print(f"-----------------------{costed_assets}-----------------------")
 
     adapt_assets = asset_data_details[
         asset_data_details["asset_description"].isin(cost_description)
@@ -384,11 +399,16 @@ def adaptation_options_costs(
         asset_df = get_adaptation_options_costs_roads(
             asset_df, adapt_costs, asset_id, hazard_label
         )
+    
 
     asset_unit_costs_csv = os.path.join(
         hazard_outputs,
         f"{asset_gpkg}_{asset_layer}_adaptation_unit_costs.csv",
     )
+
+    protect_dict = pd.read_parquet(protection_asset_dict)
+    asset_df = asset_df[asset_df[asset_id].isin(protect_dict[asset_id])]
+
     asset_df.to_csv(
         asset_unit_costs_csv,
         index=False,
@@ -409,6 +429,9 @@ def adaptation_options_costs(
         hazard_outputs,
         f"{asset_gpkg}_{asset_layer}_adaptation_timeseries_and_npvs.csv",
     )
+
+    asset_df = asset_df[asset_df[asset_id].isin(protect_dict[asset_id])]
+
     asset_df.to_csv(
         asset_timeseries_csv,
         index=False,
