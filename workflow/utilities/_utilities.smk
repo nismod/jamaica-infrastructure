@@ -29,13 +29,3 @@ def get_asset_metadata(wildcards) -> pd.Series:
         raise ValueError(f"No asset found for gpkg={wildcards.gpkg} and layer={wildcards.layer}")
     else:
         return row.squeeze()
-
-def get_flood_threshold_from_path(wildcards) -> float:
-    output_path = wildcards.output_path
-    match = re.search(r"results/flood_threshold_(\d+)p(\d+)", output_path)
-    if match:
-        w, d = match.groups()
-        return float(f"{w}.{d}")
-    else:
-        return 0.5
-    

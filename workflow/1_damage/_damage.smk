@@ -150,7 +150,9 @@ rule direct_damage:
     params:
         USD_per_JMD = config["economics"]["USD_per_JMD"],
         sensitivity_id = sensitivity_id_from_slug,
-        flood_threshold = get_flood_threshold_from_path,
+        rcp = config["coastal_adaptation"]["max_rcp"],
+        rp = config["coastal_adaptation"]["max_rp"],
+        epoch = config["adaptation_options"]["projection_end_year"],
     output:
         damages = "{output_path}/direct_damages/{gpkg}_{layer}/{gpkg}_{layer}_direct_damages_{parameter_set}.parquet",
     shell:
@@ -160,7 +162,9 @@ rule direct_damage:
             --hazard-csv {input.hazard_csv} \
             --sensitivity-csv {input.sensitivity_parameters} \
             --sensitivity-id {params.sensitivity_id} \
-            --flood-threshold {params.flood_threshold} \
+            --ca-rcp {params.rcp} \
+            --ca-rp {params.rp} \
+            --ca-epoch {params.epoch} \
             --asset-gpkg-file {input.asset_gpkg} \
             --asset-gpkg-label {wildcards.gpkg} \
             --asset-layer {wildcards.layer} \
