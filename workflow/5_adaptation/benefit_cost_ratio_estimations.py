@@ -356,7 +356,7 @@ def get_bcr_values(
                 adapt_benefit_columns,
                 adapt_cost_npv_cols
             )
-            risk_df.to_csv('test.csv')
+            # risk_df.to_csv('test.csv')
             risk_df = risk_df[
                 [
                     asset_id,

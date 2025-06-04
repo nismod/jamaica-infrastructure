@@ -33,7 +33,7 @@ def find_intersecting_assets(flood_polygon, layer):
 
     return intersecting_assets
 
-def Assign_flood_area_to_asset(asset_network, RCP, RP, path, id_label, flood_areas, cost_col):
+def Assign_flood_area_to_asset(asset_network, RCP, RP, path, id_label, flood_areas, cost_col, flood_layer):
     def find_flood_area_asset_intersection(flood_polygons, asset):
         asset_geom = asset.geometry
         if not asset_geom.is_valid:
@@ -56,7 +56,7 @@ def Assign_flood_area_to_asset(asset_network, RCP, RP, path, id_label, flood_are
     all_layers = fiona.listlayers(flood_areas)
     flood_layers = {
         layer: gpd.read_file(flood_areas, layer=layer)
-        for layer in all_layers if layer.startswith("flood_protection_area_rcp_")
+        for layer in all_layers if layer.startswith(flood_layer)
     }
     
     # Create a lookup dictionary for mean_cost from asset_network
@@ -72,7 +72,7 @@ def Assign_flood_area_to_asset(asset_network, RCP, RP, path, id_label, flood_are
         
         for rcp in RCP:
             for rp in RP:
-                layer_name = f"flood_protection_area_rcp_{rcp}_rp{rp}"
+                layer_name = flood_layer
                 # if layer_name != previous_layer_name:
                 # print(f"Current Layer: {layer_name}")
                 previous_layer_name = layer_name
@@ -132,7 +132,7 @@ def filter_affected_assets(networks, union_flood_area_gdf, data_path, network_fi
         
         logging.info(f"Completed filtering assets for network layer: {ref}")
 
-def map_network_assets_to_protection(RCP, RP, output, networks, data_path, network_filter, flood_areas):
+def map_network_assets_to_protection(RCP, RP, output, networks, data_path, network_filter, flood_areas, flood_layer):
     for index, n in networks.iterrows():
         fname = os.path.join(data_path, n['path'])
         id_col = n['asset_id_column']
@@ -155,7 +155,7 @@ def map_network_assets_to_protection(RCP, RP, output, networks, data_path, netwo
         if assets.empty:
             continue
 
-        updated_output = Assign_flood_area_to_asset(assets, RCP, RP, path, id_col, flood_areas, cost_col)
+        updated_output = Assign_flood_area_to_asset(assets, RCP, RP, path, id_col, flood_areas, cost_col, flood_layer)
         updated_output.to_parquet(path, index=False)
 
 
@@ -203,6 +203,29 @@ def map_network_assets_to_protection(RCP, RP, output, networks, data_path, netwo
     help="asset_layer value in the network CSV",
 )
 @click.option(
+    "--rcp",
+    "-rcp",
+    required=True,
+    type=float,
+    help="RPS value",
+)
+
+@click.option(
+    "--rp",
+    "-rp",
+    required=True,
+    type=int,
+    help="RP value",
+)
+
+@click.option(
+    "--epoch",
+    "-ep",
+    required=True,
+    type=int,
+    help="epcoh value",
+)
+@click.option(
     "--output-dir",
     "-o",
     required=True,
@@ -210,13 +233,29 @@ def map_network_assets_to_protection(RCP, RP, output, networks, data_path, netwo
     help="Path to output gpkg",
 )
 
-def main(network_csv,processed_data_path,coastal_adaptation_assets,combine_coastal_protection,asset_gpkg,asset_layer,output_dir):
+def main(network_csv,
+         processed_data_path,
+         coastal_adaptation_assets,
+         combine_coastal_protection,
+         asset_gpkg,
+         asset_layer,
+         rcp,
+         epoch,
+         rp,
+         output_dir
+         ):
     # network_filter = ["transport_rail_edges"] #filter out certain network layers (for testing)
     network_filter = [f"{asset_gpkg}_{asset_layer}"]
 
-    RP = ['100']
-    RCP = ['baseline2010', '262050', '262100', '452030', '452050', '452070', '452100', '852030', '852050', '852070', '852100']
+    # RP = ['100']
+    # RCP = ['baseline2010', '262050', '262100', '452030', '452050', '452070', '452100', '852030', '852050', '852070', '852100']
     
+    RP = [f"{rp}"]
+
+    fl_map_rcp = f"{int(rcp*10)}{epoch}"
+    RCP = [fl_map_rcp]
+    flood_area_layer = "areas"
+
     data_path = processed_data_path
     
     networks_csv = network_csv
@@ -229,7 +268,7 @@ def main(network_csv,processed_data_path,coastal_adaptation_assets,combine_coast
 
     union_flood_area_gdf = gpd.read_file(combine_coastal_protection)
     filter_affected_assets(networks, union_flood_area_gdf, data_path, network_filter, output_path)
-    map_network_assets_to_protection(RCP, RP, output_path, networks, data_path, network_filter, flood_areas)
+    map_network_assets_to_protection(RCP, RP, output_path, networks, data_path, network_filter, flood_areas, flood_area_layer)
 
 
 

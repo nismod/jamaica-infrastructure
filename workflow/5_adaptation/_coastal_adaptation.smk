@@ -86,6 +86,10 @@ rule map_networks_to_coastal_protection:
         processed_data_path = config["paths"]["data"],
         coastal_adaptation_assets = f"{OUTPUT}/coastal_protection_assets/Jamaica_coastal_protection_areas.gpkg",
         combine_coastal_protection = f"{OUTPUT}/coastal_protection_assets/combined_coastal_protection_area.gpkg"
+    params:
+        rcp = config["coastal_adaptation"]["max_rcp"],
+        rp = config["coastal_adaptation"]["max_rp"],
+        epoch = config["adaptation_options"]["projection_end_year"],
     output:
         flood_asset_dict = f"{OUTPUT}/coastal_protection_assets/network_protection_mappings/{{gpkg}}_{{layer}}_coastal_filtered.parquet"
     shell:
@@ -95,6 +99,9 @@ rule map_networks_to_coastal_protection:
             --processed-data-path {input.processed_data_path} \
             --coastal-adaptation-assets {input.coastal_adaptation_assets} \
             --combine-coastal-protection {input.combine_coastal_protection} \
+            --rcp {params.rcp} \
+            --rp {params.rp} \
+            --epoch {params.epoch} \
             --asset-gpkg {wildcards.gpkg} \
             --asset-layer {wildcards.layer} \
             --output-dir {OUTPUT} \
@@ -114,6 +121,10 @@ rule count_assets_per_coastal_protection:
         network_csv = config["paths"]["network_layers"],
         processed_data_path = config["paths"]["data"],
         coastal_adaptation_assets = f"{OUTPUT}/coastal_protection_assets/Jamaica_coastal_protection_areas.gpkg"
+    params:
+        rcp = config["coastal_adaptation"]["max_rcp"],
+        rp = config["coastal_adaptation"]["max_rp"],
+        epoch = config["adaptation_options"]["projection_end_year"],
     output:
         flood_asset_count = f"{OUTPUT}/coastal_protection_assets/coastal_protection_assets_breakdown.csv"
     shell:
@@ -122,6 +133,9 @@ rule count_assets_per_coastal_protection:
             --network-csv {input.network_csv} \
             --processed-data-path {input.processed_data_path} \
             --coastal-adaptation-assets {input.coastal_adaptation_assets} \
+            --rcp {params.rcp} \
+            --rp {params.rp} \
+            --epoch {params.epoch} \
             --output-dir {OUTPUT} \
         """
 

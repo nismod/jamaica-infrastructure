@@ -18,13 +18,14 @@ def join_flood_areas(flood_polygons):
     -------
 """
 
-def combine_flood_protection_areas(RCP, RP, flood_areas, output):
+def combine_flood_protection_areas(RCP, RP, flood_areas, flood_layer):
     
     all_flood_areas = []
 
     for rcp in RCP:
         for rp in RP:
-            flood_polygon_layer = f"flood_protection_area_rcp_{rcp}_rp{rp}"
+            # flood_polygon_layer = f"flood_protection_area_rcp_{rcp}_rp{rp}"
+            flood_polygon_layer = flood_layer
             flood_polygons = gpd.read_file(flood_areas, layer=flood_polygon_layer)
             merged_flood_polygon = join_flood_areas(flood_polygons)
             all_flood_areas.append(merged_flood_polygon)
@@ -35,9 +36,6 @@ def combine_flood_protection_areas(RCP, RP, flood_areas, output):
 
     # Save the final merged flood polygon
     union_flood_area_gdf = gpd.GeoDataFrame(geometry=[final_flood_area], crs=flood_polygons.crs)
-    union_flood_area_gdf.to_file(f"{output}/coastal_protection_assets/combined_coastal_protection_area.gpkg", driver="GPKG")
-    logging.info("Completed combining flood protection areas.")
-
     return union_flood_area_gdf
 
 
@@ -53,6 +51,31 @@ def combine_flood_protection_areas(RCP, RP, flood_areas, output):
     type=click.Path(exists=True, dir_okay=False, file_okay=True, readable=True),
     help="Path to GPKG with coastal protection assets",
 )
+
+@click.option(
+    "--rcp",
+    "-rcp",
+    required=True,
+    type=float,
+    help="RPS value",
+)
+
+@click.option(
+    "--rp",
+    "-rp",
+    required=True,
+    type=int,
+    help="RP value",
+)
+
+@click.option(
+    "--epoch",
+    "-ep",
+    required=True,
+    type=int,
+    help="epcoh value",
+)
+
 @click.option(
     "--output-dir",
     "-o",
@@ -61,15 +84,23 @@ def combine_flood_protection_areas(RCP, RP, flood_areas, output):
     help="Path to output gpkg",
 )
 
-def main(coastal_adaptation_assets,output_dir):
+def main(coastal_adaptation_assets,rcp, rp, epoch, output_dir):
 
-    RP = ['100']
-    RCP = ['baseline2010', '262050', '262100', '452030', '452050', '452070', '452100', '852030', '852050', '852070', '852100']
+    # RP = ['100']
+    # RCP = ['baseline2010', '262050', '262100', '452030', '452050', '452070', '452100', '852030', '852050', '852070', '852100']
     
-    flood_areas = coastal_adaptation_assets
-    output_path = output_dir
+    RP = [f"{rp}"]
 
-    union_flood_area_gdf = combine_flood_protection_areas(RCP, RP, flood_areas, output_path)
+    fl_map_rcp = f"{int(rcp*10)}{epoch}"
+    RCP = [fl_map_rcp]
+
+    flood_area_layer = "areas"
+    flood_areas = coastal_adaptation_assets
+
+    union_flood_area_gdf = combine_flood_protection_areas(RCP, RP, flood_areas, flood_area_layer)
+
+    union_flood_area_gdf.to_file(f"{output_dir}/coastal_protection_assets/combined_coastal_protection_area.gpkg", driver="GPKG")
+    logging.info("Completed combining flood protection areas.")
  
 
 

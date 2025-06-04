@@ -69,7 +69,7 @@ def process_network_assets(network_info, flood_polygons, data_path):
     return count_results, cost_results
 
 
-def count_assets(RCP, RP, output, networks, data_path, flood_areas):
+def count_assets(RCP, RP, output, networks, data_path, flood_areas,flood_layer):
     """Count assets from each network intersecting with flood polygons and save as a consolidated CSV."""
     output_dir = f'{output}/coastal_protection_assets'
     os.makedirs(output_dir, exist_ok=True)
@@ -78,7 +78,8 @@ def count_assets(RCP, RP, output, networks, data_path, flood_areas):
 
     for rcp in RCP:
         for rp in RP:
-            flood_layer = f"flood_protection_area_rcp_{rcp}_rp{rp}"
+            # flood_layer = f"flood_protection_area_rcp_{rcp}_rp{rp}"
+            flood_layer = flood_layer
             logging.info(f"Processing layer: {flood_layer}")
 
             try:
@@ -160,7 +161,7 @@ def count_assets(RCP, RP, output, networks, data_path, flood_areas):
     else:
         logging.warning("No data was processed, nothing to save.")
 
-def add_coastline_lengths(RCP, RP, flood_asset_df, flood_areas):
+def add_coastline_lengths(RCP, RP, flood_asset_df, flood_areas, flood_layer):
     # Create a copy to avoid modifying the original dataframe
     updated_flood_asset_df = flood_asset_df.copy()
     
@@ -176,7 +177,8 @@ def add_coastline_lengths(RCP, RP, flood_asset_df, flood_areas):
     
     for rcp in RCP:
         for rp in RP:
-            flood_layer = f"flood_protection_coastline_rcp_{rcp}_rp{rp}"
+            # flood_layer = f"flood_protection_coastline_rcp_{rcp}_rp{rp}"
+            flood_layer = flood_layer
             flood_polygons = gpd.read_file(flood_areas, layer=flood_layer)
             logging.info(f"Processing layer: {flood_layer}")
             
@@ -244,6 +246,29 @@ def add_coastline_lengths(RCP, RP, flood_asset_df, flood_areas):
     type=click.Path(exists=True, dir_okay=False, file_okay=True, readable=True),
     help="Path to GPKG with coastal protection assets",
 )
+@click.option(
+    "--rcp",
+    "-rcp",
+    required=True,
+    type=float,
+    help="RPS value",
+)
+
+@click.option(
+    "--rp",
+    "-rp",
+    required=True,
+    type=int,
+    help="RP value",
+)
+
+@click.option(
+    "--epoch",
+    "-ep",
+    required=True,
+    type=int,
+    help="epcoh value",
+)
 
 @click.option(
     "--output-dir",
@@ -253,12 +278,19 @@ def add_coastline_lengths(RCP, RP, flood_asset_df, flood_areas):
     help="Path to output gpkg",
 )
 
-def main(network_csv,processed_data_path,coastal_adaptation_assets,output_dir):
-    RP = ['100']
-    RCP = ['baseline2010', '262050', '262100', '452030', '452050', '452070', '452100', '852030', '852050', '852070', '852100']
+def main(network_csv,processed_data_path,coastal_adaptation_assets,rcp, epoch, rp, output_dir):
+    # RP = ['100']
+    # RCP = ['baseline2010', '262050', '262100', '452030', '452050', '452070', '452100', '852030', '852050', '852070', '852100']
     # RCP = ['baseline2010', '262050']
 
+    RP = [f"{rp}"]
+
+    fl_map_rcp = f"{int(rcp*10)}{epoch}"
+    RCP = [fl_map_rcp]
+
     data_path = processed_data_path
+    flood_area_layer = "areas"
+    flood_coastline_layer = "edges"
     
     networks_csv = network_csv
     networks = pd.read_csv(networks_csv)
@@ -268,8 +300,8 @@ def main(network_csv,processed_data_path,coastal_adaptation_assets,output_dir):
     flood_areas = coastal_adaptation_assets
     output_file = f'{output_dir}/coastal_protection_assets/coastal_protection_assets_breakdown.csv'
 
-    flood_asset_df = count_assets(RCP, RP, output_dir, networks, data_path, flood_areas)
-    flood_asset_df = add_coastline_lengths(RCP, RP,flood_asset_df, flood_areas)
+    flood_asset_df = count_assets(RCP, RP, output_dir, networks, data_path, flood_areas, flood_area_layer)
+    flood_asset_df = add_coastline_lengths(RCP, RP,flood_asset_df, flood_areas, flood_coastline_layer)
 
     # Save consolidated CSV
     
