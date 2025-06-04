@@ -10,12 +10,15 @@ rule coastal_flood_protection_assets:
         Generates the coastal protection areas and coastal protection segments
 
         Test with:
-        snakemake -c1 coastal_flood_protection_assets
+        snakemake -c1 results/coastal_protection_assets/Jamaica_coastal_protection_areas.gpkg
     """
     input:
         script = "workflow/5_adaptation/generate_coastal_adaptations.py",
         island_inputs = f"{DATA}/adaptation/coastal_adaptation/Foundation_Data.gpkg"
     params:
+        rcp = config["coastal_adaptation"]["max_rcp"],
+        rp = config["coastal_adaptation"]["max_rp"],
+        epoch = config["adaptation_options"]["projection_end_year"],
         inland_buffer = config["coastal_adaptation"]["inland_buffer"],
         flood_threshold = config["coastal_adaptation"]["flood_threshold"],
         eps = config["coastal_adaptation"]["eps"],
@@ -33,6 +36,9 @@ rule coastal_flood_protection_assets:
             --data-dir {DATA} \
             --inland-buffer {params.inland_buffer} \
             --flood-threshold {params.flood_threshold} \
+            --rcp {params.rcp} \
+            --rp {params.rp} \
+            --epoch {params.epoch} \
             --eps {params.eps} \
             --minpts {params.minpts} \
             --coast-length {params.coast_length} \
@@ -49,12 +55,19 @@ rule combine_coastal_protection:
     input:
         script = "workflow/5_adaptation/combine_coastal_protection.py",
         coastal_adaptation_assets = f"{OUTPUT}/coastal_protection_assets/Jamaica_coastal_protection_areas.gpkg"
+    params:
+        rcp = config["coastal_adaptation"]["max_rcp"],
+        rp = config["coastal_adaptation"]["max_rp"],
+        epoch = config["adaptation_options"]["projection_end_year"],
     output:
         combined_cpa = f"{OUTPUT}/coastal_protection_assets/combined_coastal_protection_area.gpkg"
     shell:
         """
         python {input.script} \
             --coastal-adaptation-assets {input.coastal_adaptation_assets} \
+            --rcp {params.rcp} \
+            --rp {params.rp} \
+            --epoch {params.epoch} \
             --output-dir {OUTPUT} \
         """
 

@@ -170,6 +170,12 @@ adaptation_options:
 # areas and coastal revetment segments used in evaluating coastal adaptation options 
 # to mitigate the coastal flooding hazard along the coastline.
 coastal_adaptation: 
+  # The "worst case" rcp used to set which flood map to use to inform the flood protection 
+  # areas & coastline features
+  max_rcp: 8.5
+  # The "worst case" return period used to set which flood map to use to inform the flood protection 
+  # areas & coastline features
+  max_rp: 100
   # Inland buffer distance (in kilometers) used to define the initial inland extent
   # of the flood impact areas from the coastline. 
   inland_buffer: 2

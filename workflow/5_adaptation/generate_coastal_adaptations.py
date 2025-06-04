@@ -1699,11 +1699,11 @@ def Generate_Coastal_Flood_Protection_Areas(
     add_Layer_to_File(final_coastal_protection_area, processing_file, layer_name, "GPKG")
 
     # Also save the final protection area to the output file in GeoPackage format
-    layer_name = f"flood_protection_area_rcp_{RCP}_rp{RP}"
+    layer_name = f"areas"
     add_Layer_to_File(final_coastal_protection_area, output_file, layer_name, "GPKG")
 
     final_coastal_protection_coastline = flood_protection_coastline
-    layer_name = f"flood_protection_coastline_rcp_{RCP}_rp{RP}"
+    layer_name = f"edges"
     add_Layer_to_File(final_coastal_protection_coastline, output_file, layer_name, "GPKG")
     #------------------------------------------------------------------------------------------------#
 
@@ -1752,6 +1752,30 @@ def Generate_Coastal_Flood_Protection_Areas(
 )
 
 @click.option(
+    "--rcp",
+    "-rcp",
+    required=True,
+    type=float,
+    help="RPS value",
+)
+
+@click.option(
+    "--rp",
+    "-rp",
+    required=True,
+    type=int,
+    help="RP value",
+)
+
+@click.option(
+    "--epoch",
+    "-ep",
+    required=True,
+    type=int,
+    help="epcoh value",
+)
+
+@click.option(
     "--eps",
     "-e",
     default=3,
@@ -1787,7 +1811,7 @@ def Generate_Coastal_Flood_Protection_Areas(
     help="Minimum % groups can overlap to trigger merging (Used in SCAPE)",
 )
 
-def main(island_inputs, output_dir, data_dir, inland_buffer, flood_threshold, eps, minpts, coast_length, overlap):
+def main(island_inputs, output_dir, data_dir, inland_buffer, flood_threshold, rcp, rp, epoch, eps, minpts, coast_length, overlap):
 
     #------------------ FILE PATHS -----------------------
     input_file = island_inputs  # GeoPackage file with coastline edges and nodes
@@ -1812,8 +1836,10 @@ def main(island_inputs, output_dir, data_dir, inland_buffer, flood_threshold, ep
     
     # print (initial_inland_buffer_distance, flood_depth_threshold, eps_threshold, minPts, max_coast_segement_length, overlap_threshold)
 
-    RP = ['100']
-    RCP = ['baseline2010', '262050', '262100', '452030', '452050', '452070', '452100', '852030', '852050', '852070', '852100']
+    RP = [f"{rp}"]
+
+    fl_map_rcp = f"{int(rcp*10)}{epoch}"
+    RCP = [fl_map_rcp]
     # RCP = ['262100']
     #-------------------------------------------------
 
