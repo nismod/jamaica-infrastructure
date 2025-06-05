@@ -193,7 +193,6 @@ def ead_eael_estimates(
 def scale_coastal_adaptation_costs(protection_asset_breakdown, option_cost_df, hazard_thresholds_column_name, asset_id, protection_asset_dict, rcp, rp, epoch):
     protection_asset_breakdown = pd.read_csv(protection_asset_breakdown)
     protect_dict = pd.read_parquet(protection_asset_dict)
-    
     for index, row in option_cost_df.iterrows():
         f_id = row.get("flood_id")
         if pd.isna(f_id):
@@ -202,17 +201,18 @@ def scale_coastal_adaptation_costs(protection_asset_breakdown, option_cost_df, h
             
         match = protection_asset_breakdown[
             (protection_asset_breakdown["polygon_id"] == f_id) &
-            (protection_asset_breakdown["rcp"] == str(rcp)) &
+            (protection_asset_breakdown["rcp"] == rcp) &
             (protection_asset_breakdown["epoch"] == epoch) &
             (protection_asset_breakdown["rp"] == rp)
         ]
-        
+
         if match.empty:
             continue
             
         f_info = match.iloc[0]
         tot_cost = f_info['total_cost']
         scaled_cost = row["adapt_cost_npv"]
+        k =0
         
         protect_asset = protect_dict[protect_dict[asset_id] == row[asset_id]]
         if protect_asset.empty or tot_cost == 0:
@@ -221,8 +221,11 @@ def scale_coastal_adaptation_costs(protection_asset_breakdown, option_cost_df, h
             k = protect_asset['mean_cost'].values[0] / tot_cost
             final_cost = scaled_cost * k
         
+        # print(f"-----{row[asset_id]}-----{f_id}-----{protect_asset['mean_cost'].values[0]}-----{tot_cost}-----{k}-----{scaled_cost}-----{final_cost}-----")
+        
         # Final multiplication by hazard threshold value
         option_cost_df.loc[index, "adapt_cost_npv"] = final_cost * row[hazard_thresholds_column_name]
+    
     return option_cost_df
 
 def assign_coastal_protection_ft(option_cost_df, protection_asset_dict, hazard_thresholds_column_name, asset_id, rcp, rp, epoch):
@@ -765,7 +768,6 @@ def benefit_cost_ratio(
     adaptation_options = list(
         set(cost_df["adaptation_option"].values.tolist())
     )
-    breakpoint()
     no_adapt_risk_df, risk_columns = get_risks(
         no_adapt_risk,
         asset_id,
