@@ -15,7 +15,18 @@ def process_network_assets(network_info, flood_polygons, data_path):
     fname = os.path.join(data_path, network_info['path'])
     layer_type = network_info['asset_layer']
     asset = network_info['asset_gpkg']
-    mean_cost_col = network_info['asset_mean_cost_column']
+
+    # mean_cost_col = network_info['asset_mean_cost_column']
+
+    def is_empty(val):
+        return val is None or val == '' or str(val).lower() == 'none' or pd.isna(val)
+
+    mean_cost_col = network_info.get('asset_mean_cost_column')
+    if is_empty(mean_cost_col):
+        mean_cost_col = network_info.get('asset_max_cost_column')
+    if is_empty(mean_cost_col):
+        mean_cost_col = network_info.get('asset_min_cost_column')
+
     ref = f'{asset}_{layer_type}'
     
     # Initialize results dictionaries

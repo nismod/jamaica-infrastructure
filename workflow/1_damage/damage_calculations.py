@@ -351,7 +351,6 @@ def direct_damages(
 
             is_coastal_adaptation = "coastal" in output_path
             if is_coastal_adaptation and hazard_info.hazard == "coastal":
-                print ("COASTAL!!!!!!")
                 col = asset_info.asset_id_column
                 asset_dict = pd.read_parquet(f"{protection_asset_dict}")
                 asset_dict = asset_dict.set_index(col)

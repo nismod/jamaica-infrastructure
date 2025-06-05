@@ -139,7 +139,17 @@ def map_network_assets_to_protection(RCP, RP, output, networks, data_path, netwo
         layer_type = n['asset_layer']
         # ref = n['asset_description']
         # ref = ref.replace(" ", "_")
-        cost_col = n['asset_mean_cost_column']
+        # cost_col = n['asset_mean_cost_column']
+
+        def is_empty(val):
+            return val is None or val == '' or str(val).lower() == 'none' or pd.isna(val)
+
+        cost_col = n.get('asset_mean_cost_column')
+        if is_empty(cost_col):
+            cost_col = n.get('asset_max_cost_column')
+        if is_empty(cost_col):
+            cost_col = n.get('asset_min_cost_column')
+
         gpkg = n['asset_gpkg']
         layer = n['asset_layer']
         ref = f"{gpkg}_{layer}"
