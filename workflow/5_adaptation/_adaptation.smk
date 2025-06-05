@@ -123,6 +123,8 @@ rule benefit_cost_ratio:
         disruption_duration = config["adaptation_options"]["disruption_duration_days"],
         flood_thresholds = config["adaptation_options"]["flood_thresholds_meters"],
         TC_factors = config["adaptation_options"]["TC_winds_damage_curve_squash"],
+        rcp = config["coastal_adaptation"]["max_rcp"],
+        rp = config["coastal_adaptation"]["max_rp"],
     output:
         bcr = f"{OUTPUT}/adaptation_benefits_costs_bcr/{{hazard}}_{{gpkg}}_{{layer}}_adaptation_benefits_costs_bcr.csv",
         EAD = f"{OUTPUT}/adaptation_benefits_costs_bcr/{{hazard}}_{{gpkg}}_{{layer}}_adaptation_costs_avoided_EAD_EAEL.csv",
@@ -147,6 +149,8 @@ rule benefit_cost_ratio:
             --asset-gpkg {wildcards.gpkg} \
             --asset-layer {wildcards.layer} \
             --proj-end-year {params.projection_end_year} \
+            --rcp {params.rcp} \
+            --rp {params.rp} \
             --disruption-duration-days {params.disruption_duration} \
             $FLOOD_THRESHOLDS \
             $TC_FACTORS \

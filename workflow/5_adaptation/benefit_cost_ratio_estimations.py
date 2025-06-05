@@ -133,28 +133,22 @@ def bcr_estimates(
     risk_df,
     hazard_thresholds_column_name,
     adapt_benefit_columns,
-    adapt_cost_npv_cols
 ):
     option_cost_df["cost_units"] = "J$"
-
-    if isinstance(hazard_thresholds_column_name, str):
-        hazard_columns = [hazard_thresholds_column_name]
-    else:
-        hazard_columns = hazard_thresholds_column_name
-    
-    merge_columns = (
-        [asset_id, "adaptation_option"]
-        + hazard_columns
-        + ["cost_units", "adapt_cost_npv"]
-        + adapt_cost_npv_cols
-    )
     risk_df = pd.merge(
-        option_cost_df[merge_columns],
+        option_cost_df[
+            [
+                asset_id,
+                "adaptation_option",
+                hazard_thresholds_column_name,
+                "cost_units",
+                "adapt_cost_npv",
+            ]
+        ],
         risk_df,
         how="left",
         on=[asset_id],
     ).fillna(0)
-
     risk_df = risk_df[risk_df["adapt_cost_npv"] > 0]
     bcr_columns = [
         c.replace("avoided_risk", "BCR")
@@ -195,97 +189,69 @@ def ead_eael_estimates(
 
     return risk_df
 
-def scale_coastal_adaptation_costs(protection_asset_breakdown, option_cost_df, proj_end_year, rcps, asset_id, protection_asset_dict):
-    # Load input file
+def scale_coastal_adaptation_costs(protection_asset_breakdown, option_cost_df, hazard_thresholds_column_name, asset_id, protection_asset_dict, rcp, rp, epoch):
     protection_asset_breakdown = pd.read_csv(protection_asset_breakdown)
     protet_dict = pd.read_parquet(protection_asset_dict)
-
-    # Loop over RCPs
-    for rcp in rcps:
-        # Create the new column and initialize with NaNs
-        new_col = f"adapt_cost_npv_{rcp}"
-        option_cost_df[new_col] = pd.NA
-
-        for index, row in option_cost_df.iterrows():
-            f_id = row.get(f"flood_id_rcp_{rcp}")
-            if pd.isna(f_id):
-                option_cost_df.loc[index, new_col] = 0
-                continue
-
-            match = protection_asset_breakdown[
-                (protection_asset_breakdown["polygon_id"] == f_id) &
-                (protection_asset_breakdown["rcp"] == str(rcp)) &
-                (protection_asset_breakdown["epoch"] == proj_end_year)
-            ]
-
-            if match.empty:
-                continue
-
-            f_info = match.iloc[0]
-            tot_cost = f_info['total_cost']
-            f_length = f_info['coastline_length']
-
-            scaled_cost = row["adapt_cost_npv"] * f_length
-
-            protect_asset = protet_dict[protet_dict[asset_id] == row[asset_id]]
-            if protect_asset.empty or tot_cost == 0:
-                option_cost_df.loc[index, new_col] = scaled_cost
-            else:
-                k = protect_asset['mean_cost'].values[0] / tot_cost
-                option_cost_df.loc[index, new_col] = scaled_cost * k
-
-    # print (option_cost_df)
+    
+    for index, row in option_cost_df.iterrows():
+        f_id = row.get("flood_id")
+        if pd.isna(f_id):
+            option_cost_df.loc[index, "adapt_cost_npv"] = 0
+            continue
+            
+        match = protection_asset_breakdown[
+            (protection_asset_breakdown["polygon_id"] == f_id) &
+            (protection_asset_breakdown["rcp"] == str(rcp)) &
+            (protection_asset_breakdown["epoch"] == epoch) &
+            (protection_asset_breakdown["rp"] == rp)
+        ]
+        
+        if match.empty:
+            continue
+            
+        f_info = match.iloc[0]
+        tot_cost = f_info['total_cost']
+        f_length = f_info['coastline_length']
+        scaled_cost = row["adapt_cost_npv"] * f_length
+        
+        protect_asset = protet_dict[protet_dict[asset_id] == row[asset_id]]
+        if protect_asset.empty or tot_cost == 0:
+            final_cost = scaled_cost
+        else:
+            k = protect_asset['mean_cost'].values[0] / tot_cost
+            final_cost = scaled_cost * k
+        
+        # Final multiplication by hazard threshold value
+        option_cost_df.loc[index, "adapt_cost_npv"] = final_cost * row[hazard_thresholds_column_name]
     return option_cost_df
-        
-def assign_coastal_protection_ft(option_cost_df, protection_asset_dict, hazard_thresholds_column_name, rcps, asset_id, proj_end_year):
+
+def assign_coastal_protection_ft(option_cost_df, protection_asset_dict, hazard_thresholds_column_name, asset_id, rcp, rp, epoch):
     df = pd.read_parquet(protection_asset_dict)
-    cols = df.columns.tolist()
-    new_columns = {}
-    keep_columns = {asset_id, 'mean_cost'}  
-    flood_height_cols = set()
-    flood_id_cols = set()
     
-    for rcp in rcps:
-        rcp_str = str(int(rcp * 10))
-        
-        # Handle flood height columns
-        flood_height_pattern = f"flood_height_rcp_{rcp_str}{proj_end_year}_rp_.*"
-        for col in cols:
-            if re.match(flood_height_pattern, col):
-                new_col_name = f"{hazard_thresholds_column_name}_rcp_{rcp}"
-                new_columns[col] = new_col_name
-                keep_columns.add(new_col_name)
-                flood_height_cols.add(new_col_name)
-        
-        # Handle flood ID columns
-        flood_id_pattern = f"flood_id_rcp_{rcp_str}{proj_end_year}_rp_.*"
-        for col in cols:
-            if re.match(flood_id_pattern, col):
-                new_col_name = f"flood_id_rcp_{rcp}"
-                new_columns[col] = new_col_name
-                keep_columns.add(new_col_name)
-                flood_id_cols.add(new_col_name)
+    # Create column names based on parameters
+    rcp_str = str(int(rcp * 10))
+    flood_height_col = f"flood_height_rcp_{rcp_str}{epoch}_rp_{rp}"
+    flood_id_col = f"flood_id_rcp_{rcp_str}{epoch}_rp_{rp}"
     
-    # Rename and keep only needed columns
-    df = df.rename(columns=new_columns)
-    df = df[[col for col in df.columns if col in keep_columns]]
+    # Select and rename columns
+    columns_to_keep = [asset_id, 'mean_cost', flood_height_col, flood_id_col]
+    df = df[columns_to_keep].rename(columns={
+        flood_height_col: hazard_thresholds_column_name,
+        flood_id_col: 'flood_id'
+    })
     
     # Fill and round flood heights
-    df[list(flood_height_cols)] = df[list(flood_height_cols)].fillna(0)
-    df[list(flood_height_cols)] = df[list(flood_height_cols)].map(lambda x: math.ceil(x * 2) / 2)
+    df[hazard_thresholds_column_name] = df[hazard_thresholds_column_name].fillna(0)
+    df[hazard_thresholds_column_name] = df[hazard_thresholds_column_name].map(lambda x: math.ceil(x * 2) / 2)
     
-    # Merge
+    # Merge with option_cost_df
     merged_df = option_cost_df.merge(df, on=asset_id, how='left')
     
-    # Fill missing flood height with 0
-    for col in flood_height_cols:
-        merged_df[col] = merged_df[col].fillna(0)
+    # Fill missing flood height with 0 and convert flood_id to nullable integer
+    merged_df[hazard_thresholds_column_name] = merged_df[hazard_thresholds_column_name].fillna(0)
+    merged_df['flood_id'] = pd.to_numeric(merged_df['flood_id'], errors='coerce').astype('Int64')
     
-    # Convert flood ID columns to nullable integers
-    for col in flood_id_cols:
-        merged_df[col] = pd.to_numeric(merged_df[col], errors='coerce').astype('Int64')
-
-    return merged_df, list(flood_height_cols)
+    return merged_df
 
 def get_bcr_values(
     results_path,
@@ -304,7 +270,7 @@ def get_bcr_values(
     hazard_thresholds_column_name,
     protection_type_name,
     protection_asset_dict,
-    proj_end_year,
+    flood_params,
     protection_asset_breakdown,
     days=10,
 ):
@@ -335,44 +301,35 @@ def get_bcr_values(
                 risk_columns,
                 adapt_risk_columns,
             )
-
             option_cost_df = option_df.copy()
-            option_cost_df, hazard_threshold_cols = assign_coastal_protection_ft(option_cost_df, protection_asset_dict, hazard_thresholds_column_name,rcps,asset_id,proj_end_year)
+            rcp = flood_params[0]
+            rp = flood_params[1]
+            epoch = flood_params[2]
 
-            option_cost_df = scale_coastal_adaptation_costs(protection_asset_breakdown, option_cost_df, proj_end_year ,rcps, asset_id, protection_asset_dict)
-              
-            adapt_cost_npv_cols = []
-            for rcp in rcps:
-                option_cost_df[f"adapt_cost_npv_{rcp}"] = (
-                    option_cost_df[f"{hazard_thresholds_column_name}_rcp_{rcp}"] * option_cost_df[f"adapt_cost_npv_{rcp}"] 
-                )  
-                adapt_cost_npv_cols.append(f"adapt_cost_npv_{rcp}")
-
+            option_cost_df = assign_coastal_protection_ft(option_cost_df, protection_asset_dict, hazard_thresholds_column_name,asset_id,rcp, rp, epoch)
+            option_cost_df = scale_coastal_adaptation_costs(protection_asset_breakdown, option_cost_df, hazard_thresholds_column_name, asset_id, protection_asset_dict, rcp, rp, epoch)
             risk_df, bcr_columns = bcr_estimates(
                 asset_id,
                 option_cost_df,
                 risk_df,
-                hazard_threshold_cols,
+                hazard_thresholds_column_name,
                 adapt_benefit_columns,
-                adapt_cost_npv_cols
             )
-            # risk_df.to_csv('test.csv')
             risk_df = risk_df[
                 [
                     asset_id,
                     "adaptation_option",
-                ] 
-                + hazard_threshold_cols  
-                + [ "cost_units", "adapt_cost_npv" ]
-                + adapt_cost_npv_cols
+                    hazard_thresholds_column_name,
+                    "cost_units",
+                    "adapt_cost_npv",
+                ]
                 + adapt_benefit_columns
                 + bcr_columns
             ]
 
             bcr_results.append(risk_df)
-
-        return bcr_results
-    
+            return bcr_results
+            
     else:
         for idx, (ft, cmf) in enumerate(
             list(zip(hazard_thresholds, cost_multiplication_factors))
@@ -448,8 +405,8 @@ def get_ead_eael_costs(
     hazard_thresholds_column_name,
     protection_type_name,
     protection_asset_dict, 
-    proj_end_year,
-    protection_asset_breakdown
+    flood_params,
+    protection_asset_breakdown,
 ):
     if isinstance(hazard_thresholds, str):
         folder_name = protection_type_name
@@ -469,43 +426,36 @@ def get_ead_eael_costs(
                 risk_type,
                 val_type,
             )
+            # print (no_adapt_ead_eael_df.columns.values.tolist())
             ead_eael_df, ead_eael_benefit_columns = get_ead_eael_benefits(
-                    asset_id,
-                    no_adapt_ead_eael_df.copy(),
-                    adapt_ead_eael_df,
-                    ead_eael_columns,
-                    adapt_ead_eael_columns,
-                )
+                asset_id,
+                no_adapt_ead_eael_df.copy(),
+                adapt_ead_eael_df,
+                ead_eael_columns,
+                adapt_ead_eael_columns,
+            )
             option_cost_df = option_df.copy()
-            option_cost_df, hazard_threshold_cols = assign_coastal_protection_ft(option_cost_df, protection_asset_dict, hazard_thresholds_column_name,rcps,asset_id,proj_end_year)
+            rcp = flood_params[0]
+            rp = flood_params[1]
+            epoch = flood_params[2]
 
-            option_cost_df = scale_coastal_adaptation_costs(protection_asset_breakdown, option_cost_df, proj_end_year ,rcps, asset_id, protection_asset_dict)
-              
-            adapt_cost_npv_cols = []
-            for rcp in rcps:
-                option_cost_df[f"adapt_cost_npv_{rcp}"] = (
-                    option_cost_df[f"{hazard_thresholds_column_name}_rcp_{rcp}"] * option_cost_df[f"adapt_cost_npv_{rcp}"] 
-                )   
-                adapt_cost_npv_cols.append(f"adapt_cost_npv_{rcp}")
+            option_cost_df = assign_coastal_protection_ft(option_cost_df, protection_asset_dict, hazard_thresholds_column_name,asset_id,rcp, rp, epoch)
+            option_cost_df = scale_coastal_adaptation_costs(protection_asset_breakdown, option_cost_df, hazard_thresholds_column_name, asset_id, protection_asset_dict, rcp, rp, epoch)
 
             option_cost_df["adapt_cost_unit"] = "J$"
             option_cost_df["ead_cost_unit"] = "J$"
             option_cost_df["eael_cost_unit"] = "J$/day"
-
             ead_eael_df = pd.merge(
                 option_cost_df[
                     [
                         asset_id,
                         "adaptation_option",
-                    ] 
-                    + hazard_threshold_cols 
-                    + [
+                        hazard_thresholds_column_name,
                         "adapt_cost_unit",
                         "ead_cost_unit",
                         "eael_cost_unit",
-                        "adapt_cost_npv" 
-                    ] 
-                    + adapt_cost_npv_cols
+                        "adapt_cost_npv",
+                    ]
                 ],
                 ead_eael_df,
                 how="left",
@@ -515,21 +465,18 @@ def get_ead_eael_costs(
             ead_eael_df = ead_eael_df[
                 [
                     asset_id,
-                    "adaptation_option"
-                ] 
-                + hazard_threshold_cols 
-                + [
+                    "adaptation_option",
+                    hazard_thresholds_column_name,
                     "adapt_cost_unit",
                     "ead_cost_unit",
                     "eael_cost_unit",
+                    "adapt_cost_npv",
                 ]
-                + adapt_cost_npv_cols
                 + ead_eael_benefit_columns
             ]
 
             ead_eael_results.append(ead_eael_df)
-
-        return ead_eael_results
+            return ead_eael_results
     else:
         for idx, (ft, cmf) in enumerate(
             list(zip(hazard_thresholds, cost_multiplication_factors))
@@ -679,6 +626,20 @@ def get_ead_eael_costs(
     help="Projection End Year",
 )
 @click.option(
+    "--rcp",
+    "-rcp",
+    required=True,
+    type=float,
+    help="RPS value",
+)
+@click.option(
+    "--rp",
+    "-rp",
+    required=True,
+    type=int,
+    help="RP value",
+)
+@click.option(
     "--disruption-duration-days", "-d", "days", required=True, type=float,
     help="Assumed duration in days of any wider economic loss.",
 )
@@ -711,6 +672,8 @@ def benefit_cost_ratio(
     asset_gpkg,
     asset_layer,
     proj_end_year,
+    rcp,
+    rp,
     days,
     flood_thresholds,
     cyclone_damage_curve_change,
@@ -823,6 +786,7 @@ def benefit_cost_ratio(
     )
     bcr_results = []
     ead_eael_results = []
+    flood_params = [rcp, rp, proj_end_year]
     for option in adaptation_options:
         option_df = cost_df[cost_df["adaptation_option"] == option]
         asset_adaptation_cost = option_df[
@@ -849,7 +813,7 @@ def benefit_cost_ratio(
                 "flood_depth_protection_level",
                 "flood_threshold",
                 protection_asset_dict,
-                proj_end_year,
+                flood_params,
                 protection_asset_breakdown,
                 days=days,
             )
@@ -870,7 +834,7 @@ def benefit_cost_ratio(
                 "flood_depth_protection_level",
                 "flood_threshold",
                 protection_asset_dict,
-                proj_end_year,
+                flood_params,
                 protection_asset_breakdown,
             )
         elif (
@@ -895,7 +859,7 @@ def benefit_cost_ratio(
                 "flood_depth_protection_level",
                 "coastal_adaptation",
                 protection_asset_dict,
-                proj_end_year,
+                flood_params,
                 protection_asset_breakdown,
                 days=days,
             )
@@ -916,7 +880,7 @@ def benefit_cost_ratio(
                 "flood_depth_protection_level",
                 "coastal_adaptation",
                 protection_asset_dict, 
-                proj_end_year,
+                flood_params,
                 protection_asset_breakdown,
             )
         elif hazard_label == "TC" and asset_info.sector == "energy":
@@ -937,7 +901,7 @@ def benefit_cost_ratio(
                 "cyclone_damage_curve_reduction",
                 "cyclone_damage_curve_change",
                 protection_asset_dict,
-                proj_end_year,
+                flood_params,
                 protection_asset_breakdown,
                 days=days,
             )
@@ -958,7 +922,7 @@ def benefit_cost_ratio(
                 "cyclone_damage_curve_reduction",
                 "cyclone_damage_curve_change",
                 protection_asset_dict, 
-                proj_end_year,
+                flood_params,
                 protection_asset_breakdown,
             )
         else:
