@@ -109,24 +109,46 @@ def get_dimension_factor(x):
 
     return dimension, cost_unit
 
-def get_coastal_dimension_factor(x):
-    dimension = 1
+def get_coastal_dimension_factor(x, flood_params, protect_feature, protect_dict, asset_id):
+    rcp, rp, epoch = flood_params
+    flood_id_col = f"flood_id_rcp_{int(rcp*10)}{epoch}_rp_{rp}"
+    
+    # Look up flood_id for this asset
+    asset_match = protect_dict[protect_dict[asset_id] == x[asset_id]]
+    if asset_match.empty:
+        dimension = 1
+    else:
+        flood_id = int(asset_match[flood_id_col].iloc[0])
+        if pd.isna(flood_id):  # Handle NaN values explicitly
+            dimension = 1
+        else:
+            # Look up coastline length for this flood_id
+            feature_match = protect_feature[protect_feature["polygon_id"] == flood_id]
+            if feature_match.empty:
+                dimension = 1
+            else:
+                dimension = feature_match["coastline_length"].iloc[0]
+            print (f"{x[asset_id]}----{flood_id}------{dimension}")
+    
+    # Determine cost unit
     change_type = x["change_parameter"]
     if change_type == "flood depth":
         cost_unit = "J$/m"
     else:
         cost_unit = "J$"
-
+    
     return dimension, cost_unit
 
-def get_adaptation_options_costs(asset_df, asset_id, hazard_label):
+def get_adaptation_options_costs(asset_df, asset_id, hazard_label, flood_params, protection_feature_breakdown, protection_asset_dict):
     if hazard_label!='coastal':
         asset_df["dimension_cost_factor"] = asset_df.progress_apply(
             lambda x: get_dimension_factor(x), axis=1
         )
     else:
+        protect_feature = pd.read_csv(protection_feature_breakdown)
+        protect_dict = pd.read_parquet(protection_asset_dict)
         asset_df["dimension_cost_factor"] = asset_df.progress_apply(
-            lambda x: get_coastal_dimension_factor(x), axis=1
+            lambda x: get_coastal_dimension_factor(x, flood_params, protect_feature, protect_dict, asset_id), axis=1
         )
     asset_df[["dimension_factor", "asset_adaptation_cost"]] = asset_df[
         "dimension_cost_factor"
@@ -169,8 +191,7 @@ def get_adaptation_options_costs(asset_df, asset_id, hazard_label):
         ]
     ]
 
-
-def get_adaptation_options_costs_roads(asset_df, adapt_costs, asset_id, hazard_label):
+def get_adaptation_options_costs_roads(asset_df, adapt_costs, asset_id, hazard_label, flood_params, protection_feature_breakdown, protection_asset_dict):
     road_costs = adapt_costs[adapt_costs["asset_description"] == "roads"]
     roads_df = []
     for rc in road_costs.itertuples():
@@ -201,7 +222,7 @@ def get_adaptation_options_costs_roads(asset_df, adapt_costs, asset_id, hazard_l
                 df[column] = getattr(rc, column) * df["lane_factor"]
             else:
                 df[column] = getattr(rc, column)
-        df = get_adaptation_options_costs(df, asset_id, hazard_label)
+        df = get_adaptation_options_costs(df, asset_id, hazard_label, flood_params, protection_feature_breakdown, protection_asset_dict)
         roads_df.append(df)
 
     roads_df = pd.concat(roads_df, axis=0, ignore_index=True)
@@ -259,6 +280,18 @@ def get_adaptation_options_costs_roads(asset_df, adapt_costs, asset_id, hazard_l
     help="Path to directroy with network assets to flood portectoin area relatoinal dictionary",
 )
 @click.option(
+    "--protection-feature-breakdown",
+    "-pfb",
+    required=True,
+    type=click.Path(
+        exists=True,
+        dir_okay=False,
+        file_okay=True,
+        readable=True
+    ),
+    help="Path to directroy with breakdown of network assets for each flood protection feature",
+)
+@click.option(
     "--hazard-label",
     "-h",
     required=True,
@@ -305,6 +338,20 @@ def get_adaptation_options_costs_roads(asset_df, adapt_costs, asset_id, hazard_l
     help="Projection end year",
 )
 @click.option(
+    "--rcp",
+    "-rcp",
+    required=True,
+    type=float,
+    help="RPS value",
+)
+@click.option(
+    "--rp",
+    "-rp",
+    required=True,
+    type=int,
+    help="RP value",
+)
+@click.option(
     "--discounting-rate",
     "-d",
     default=10,
@@ -325,16 +372,20 @@ def adaptation_options_costs(
     asset_file,
     cost_file,
     protection_asset_dict,
+    protection_feature_breakdown,
     hazard_label,
     asset_gpkg,
     asset_layer,
     output_dir,
     baseline_year,
     projection_end_year,
+    rcp,
+    rp,
     discounting_rate,
     epsg,
 ):
     epsg_jamaica = epsg
+    flood_params = [rcp, rp, projection_end_year]
 
     cost_df = pd.read_excel(
         cost_file,
@@ -394,10 +445,10 @@ def adaptation_options_costs(
             left_on=asset_hazard,
             right_on="asset_name",
         )
-        asset_df = get_adaptation_options_costs(asset_df, asset_id, hazard_label)
+        asset_df = get_adaptation_options_costs(asset_df, asset_id, hazard_label, flood_params, protection_feature_breakdown, protection_asset_dict)
     else:
         asset_df = get_adaptation_options_costs_roads(
-            asset_df, adapt_costs, asset_id, hazard_label
+            asset_df, adapt_costs, asset_id, hazard_label, flood_params, protection_feature_breakdown, protection_asset_dict
         )
     
 

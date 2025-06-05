@@ -106,6 +106,7 @@ def get_risks(
     return df[[asset_id] + risk_rcp_columns], risk_rcp_columns
 
 
+
 def get_ead_eael(
     df, asset_id, hazard, hazard_types, rcps, risk_type, val_type
 ):
@@ -191,7 +192,7 @@ def ead_eael_estimates(
 
 def scale_coastal_adaptation_costs(protection_asset_breakdown, option_cost_df, hazard_thresholds_column_name, asset_id, protection_asset_dict, rcp, rp, epoch):
     protection_asset_breakdown = pd.read_csv(protection_asset_breakdown)
-    protet_dict = pd.read_parquet(protection_asset_dict)
+    protect_dict = pd.read_parquet(protection_asset_dict)
     
     for index, row in option_cost_df.iterrows():
         f_id = row.get("flood_id")
@@ -211,10 +212,9 @@ def scale_coastal_adaptation_costs(protection_asset_breakdown, option_cost_df, h
             
         f_info = match.iloc[0]
         tot_cost = f_info['total_cost']
-        f_length = f_info['coastline_length']
-        scaled_cost = row["adapt_cost_npv"] * f_length
+        scaled_cost = row["adapt_cost_npv"]
         
-        protect_asset = protet_dict[protet_dict[asset_id] == row[asset_id]]
+        protect_asset = protect_dict[protect_dict[asset_id] == row[asset_id]]
         if protect_asset.empty or tot_cost == 0:
             final_cost = scaled_cost
         else:
@@ -691,7 +691,7 @@ def benefit_cost_ratio(
         },
         {
             "hazard": "coastal",
-            "hazard_type": ["coastal"]
+            "hazard_type": ["coastal", "fluvial", "surface"]
         },
         {
             "hazard": "TC",
@@ -765,6 +765,7 @@ def benefit_cost_ratio(
     adaptation_options = list(
         set(cost_df["adaptation_option"].values.tolist())
     )
+    breakpoint()
     no_adapt_risk_df, risk_columns = get_risks(
         no_adapt_risk,
         asset_id,

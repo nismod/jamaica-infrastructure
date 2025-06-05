@@ -15,10 +15,13 @@ rule adaptation_options_costs:
         cost_file = f"{DATA}/adaptation/adaptation_options_and_costs_jamaica.xlsx",
         network_csv = config["paths"]["network_layers"],
         protection_asset_dict = f"{OUTPUT}/coastal_protection_assets/network_protection_mappings/{{gpkg}}_{{layer}}_coastal_filtered.parquet",
+        protection_feature_breakdown = f"{OUTPUT}/coastal_protection_assets/coastal_protection_assets_breakdown.csv",
         asset_file = lambda wildcards: f"{DATA}/{get_asset_metadata(wildcards).path}",  # gpkg
     params:
         baseline_year = config["adaptation_options"]["baseline_year"],
         projection_end_year = config["adaptation_options"]["projection_end_year"],
+        rcp = config["coastal_adaptation"]["max_rcp"],
+        rp = config["coastal_adaptation"]["max_rp"],
         discounting_rate = config["adaptation_options"]["discounting_rate"],
         epsg = config["adaptation_options"]["epsg_jamaica"]
     output:
@@ -31,12 +34,15 @@ rule adaptation_options_costs:
             --asset-file {input.asset_file} \
             --cost-file {input.cost_file} \
             --protection-asset-dict {input.protection_asset_dict} \
+            --protection-feature-breakdown {input.protection_feature_breakdown} \
             --hazard-label {wildcards.hazard} \
             --asset-gpkg {wildcards.gpkg} \
             --asset-layer {wildcards.layer} \
             --output-dir {OUTPUT} \
             --baseline-year {params.baseline_year} \
             --projection-end-year {params.projection_end_year} \
+            --rcp {params.rcp} \
+            --rp {params.rp} \
             --discounting-rate {params.discounting_rate} \
             --epsg {params.epsg}
         """

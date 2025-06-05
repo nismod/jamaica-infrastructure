@@ -1591,7 +1591,9 @@ def Generate_Coastal_Flood_Protection_Areas(
     # Add the resulting dbscan_voronoi_intersection layer to a processing file (GeoPackage format)
     layer_name = "scape_voronoi_intersection"
     add_Layer_to_File(scape_intersection, processing_file, layer_name, "GPKG")
+    #------------------------------------------------------------------------------------------------#
 
+    #------------------------------------------------------------------------------------------------#
     logging.info ("[4] Generating Voronoi Polygons")
     # Create the Voronoi polygons clipped to Jamaica's convex hull
     voronoi_polygons, voronoi_centroid_points = create_voronoi(
@@ -1626,7 +1628,9 @@ def Generate_Coastal_Flood_Protection_Areas(
     # Add the resulting dbscan_voronoi_intersection layer to a processing file (GeoPackage format)
     layer_name = "dbscan_voronoi_intersection"
     add_Layer_to_File(dbscan_voronoi_intersection, processing_file, layer_name, "GPKG")
+    #------------------------------------------------------------------------------------------------#
 
+    #------------------------------------------------------------------------------------------------#
     # Calculate initial and final intersections
     flood_protection_coastline, flood_protection_areas = linestring_intersect_polygons(
         default_inland_distance=0.4,  # Buffer radius in kilometers
