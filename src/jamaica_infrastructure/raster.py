@@ -1,6 +1,7 @@
 import os
 from collections import namedtuple
 
+import numpy as np
 import pandas as pd
 import rasterio
 
@@ -58,7 +59,10 @@ def sum_rasters(input_paths: list[str], output_path: str, driver="GTiff") -> Non
 
         for path in other_paths:
             with rasterio.open(path) as other_raster:
-                arr += other_raster.read()[0]
+                other = other_raster.read()[0]
+                arr = np.nansum(
+                    np.dstack((arr, other)), 2
+                )  # nansum to avoid propagating nans over values
 
         with rasterio.open(
             output_path,
@@ -69,6 +73,7 @@ def sum_rasters(input_paths: list[str], output_path: str, driver="GTiff") -> Non
             count=1,
             dtype=arr.dtype,
             crs=base_dataset.crs,
-            transform=base_dataset.transform
+            transform=base_dataset.transform,
+            nodata=base_dataset.nodata,
         ) as output_dataset:
             output_dataset.write(arr, 1)
