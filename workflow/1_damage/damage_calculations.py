@@ -284,10 +284,16 @@ def direct_damages(
 
         if getattr(asset_info, f"{hazard_info.hazard}_asset_damage_lookup_column") != "none":
             asset_hazard = getattr(asset_info, f"{hazard_info.hazard}_asset_damage_lookup_column")
+
+            # include hazard key columns containing intensity values
             hazard_keys = hazard_data_details[hazard_data_details["hazard"] == hazard_info.hazard][
                 "key"
             ].values.tolist()
-            hazard_effect_df = hazard_df[[asset_id, "exposure", "exposure_unit"] + hazard_keys]
+
+            # include cell index columns
+            cell_index_columns = [c for c in hazard_df.columns if "cell_index_" in c]
+
+            hazard_effect_df = hazard_df[[asset_id, "exposure", "exposure_unit"] + hazard_keys + cell_index_columns]
             damages_df = damage_curves[
                 (damage_curves["sector"] == asset_sector) & (damage_curves["hazard"] == hazard_info.hazard)
             ]
@@ -354,7 +360,7 @@ def direct_damages(
                                     "exposure_unit",
                                     "damage_cost_unit",
                                     "exposure",
-                                ],
+                                ] + cell_index_columns,
                                 dropna=False,
                             )
                             .agg(sum_dict)
