@@ -84,7 +84,7 @@ def risks(
 )
 @click.option(
     "--asset-gpkg-label",
-    "-g",
+    "-gl",
     required=True,
     help="asset_gpkg value in the network CSV",
 )
