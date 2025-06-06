@@ -4,9 +4,9 @@ import click
 import geopandas as gpd
 import numpy as np
 import pandas as pd
-import rioxarray
 
 from jamaica_infrastructure.utils import is_sole_value
+from jamaica_infrastructure.raster import write_indexed_splits_to_tiff
 
 
 @click.command()
@@ -47,51 +47,43 @@ def exposure(network_csv: str, splits_path: str, grid_path: str, asset_gpkg: str
     logging.info(f"{asset_layer=}")
 
     if asset_layer == "nodes":
-        assert is_sole_value(splits[asset_info.asset_cost_unit_column], "J$"), f"Expected J$ but got {set(splits[asset_info.asset_cost_unit_column].unique())}"
+        assert is_sole_value(
+            splits[asset_info.asset_cost_unit_column], "J$"
+        ), f"Expected J$ but got {set(splits[asset_info.asset_cost_unit_column].unique())}"
         splits["split_rehab_cost_J$"] = splits[asset_info.asset_mean_cost_column]
-        exposure = splits.loc[:, ["split_rehab_cost_J$", "cell_index_0_x", "cell_index_0_y"]] \
-            .groupby(["cell_index_0_x", "cell_index_0_y"]).sum()
 
     elif asset_layer == "edges":
-        assert is_sole_value(splits[asset_info.asset_cost_unit_column], "J$/m"), f"Expected J$/m but got {set(splits[asset_info.asset_cost_unit_column].unique())}"
+        assert is_sole_value(
+            splits[asset_info.asset_cost_unit_column], "J$/m"
+        ), f"Expected J$/m but got {set(splits[asset_info.asset_cost_unit_column].unique())}"
         splits["split_length_m"] = splits.geometry.length
-        splits["split_rehab_cost_J$"] = splits["split_length_m"] * splits[asset_info.asset_mean_cost_column]
-        exposure = splits.loc[:, ["split_rehab_cost_J$", "cell_index_0_x", "cell_index_0_y"]] \
-            .groupby(["cell_index_0_x", "cell_index_0_y"]).sum()
+        splits["split_rehab_cost_J$"] = (
+            splits["split_length_m"] * splits[asset_info.asset_mean_cost_column]
+        )
 
     elif asset_layer == "areas":
-        assert is_sole_value(splits[asset_info.asset_cost_unit_column], "J$/m2"), f"Expected J$/m2 but got {set(splits[asset_info.asset_cost_unit_column].unique())}"
+        assert is_sole_value(
+            splits[asset_info.asset_cost_unit_column], "J$/m2"
+        ), f"Expected J$/m2 but got {set(splits[asset_info.asset_cost_unit_column].unique())}"
         splits["split_area_m2"] = splits.geometry.area
-        splits["split_rehab_cost_J$"] = splits["split_area_m2"] * splits[asset_info.asset_mean_cost_column]
-        exposure = splits.loc[:, ["split_rehab_cost_J$", "cell_index_0_x", "cell_index_0_y"]] \
-            .groupby(["cell_index_0_x", "cell_index_0_y"]).sum()
-
+        splits["split_rehab_cost_J$"] = (
+            splits["split_area_m2"] * splits[asset_info.asset_mean_cost_column]
+        )
     else:
-        raise NotImplementedError(f"Exposure calculation for {asset_layer=} not implemented")
+        raise NotImplementedError(
+            f"Exposure calculation for {asset_layer=} not implemented"
+        )
 
-    exposure = exposure.reset_index()
-
-    # set np.nan for non-positive values, store as nodata in raster
-    no_data_value = np.nan
-    exposure.loc[exposure["split_rehab_cost_J$"] <= 0, "split_rehab_cost_J$"] = no_data_value
-
-    logging.info("Reading raster grid")
-    # use the hotspots grid as a template -- inherit the transform for output
-    grid = rioxarray.open_rasterio(grid_path).astype(float)  # promote to float
-    grid[
-        {
-            "band": 0,
-            "x": exposure.cell_index_0_x.to_xarray(),
-            "y": exposure.cell_index_0_y.to_xarray()
-        }
-    ] = exposure["split_rehab_cost_J$"]
-    grid.name = f"{asset_gpkg}_{asset_layer}_rehab_cost_J$"
-    grid = grid.rio.write_nodata(no_data_value)
-
-    logging.info(f"Exposure:\n{grid}")
-
-    logging.info("Write out calculated exposure as GeoTIFF")
-    grid.rio.to_raster(output_path)
+    write_indexed_splits_to_tiff(
+        splits,
+        grid_path=grid_path,
+        output_path=output_path,
+        grid_name=f"{asset_gpkg}_{asset_layer}_rehab_cost_J$",
+        value_colname="split_rehab_cost_J$",
+        index_x="cell_index_0_x",
+        index_y="cell_index_0_y",
+        no_data_value=np.nan,
+    )
 
     return
 
