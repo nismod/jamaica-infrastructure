@@ -140,7 +140,7 @@ def estimate_direct_damage_costs_and_units(
 )
 @click.option(
     "--asset-gpkg-label",
-    "-g",
+    "-gl",
     required=True,
     help="asset_gpkg value in the network CSV",
 )
