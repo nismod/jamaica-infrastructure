@@ -9,6 +9,9 @@ The rules in this file produce raster maps of 'hotspots' of infrastructure risk.
 3) Sum exposure results over asset classes for each sector
 4) Perform a transport criticality assessment where assets within a cell are
     failed and calculate the resulting wider economic losses
+5) Calculate the sum of EAD in each grid cell. Read from direct damages, summarise
+    across sensitivity parameter sets, spatial join to hotpots grid. For each asset
+    class, summed per sector, and total.
 """
 
 
@@ -43,6 +46,8 @@ rule split_assets_by_hotspots_grid:
     Split an asset class by the hotspots grid. This will split linestrings and
     polygons on cell boundaries, creating new split rows for assets that span
     more than one cell.
+
+    NB: hotspots_grid_metadata must include the hazard layers for hotspot damage/risk calculations
 
     Test with:
     snakemake -c1 results/hotspots/splits/roads_splits__hazard_layers__edges.geoparquet
@@ -96,53 +101,200 @@ rule hotspots_exposure:
         """
 
 
-def exposure_paths_for_sector(wildcards) -> list[str]:
+rule hotspots_damage:
     """
-    Given e.g. 'energy', return the paths to all matching sector exposre files.
+    Calculate direct damages for an asset across all hazards with a given
+    parameter set.
+
+    Duplicated from `1_damage/_damage.smk::direct_damage` with different
+    hazard_csv, sensitivity_parameters, hazard_intersection_file and
+    output.damages.
+
+    Test with: snakemake -c1
+    results/hotspots/damages_rp/roads_edges/roads_edges_direct_damages.parquet
+    """
+    input:
+        script = "workflow/1_damage/damage_calculations.py",
+        network_csv = config["paths"]["network_layers"],
+        hazard_csv = "workflow/hotspots_layers.csv",
+        sensitivity_parameters = f"workflow/hotspots_sensitivity.csv",
+        asset_gpkg = lambda wildcards: f"{DATA}/{get_asset_metadata(wildcards).path}",
+        damage_curve_mapping = f"{DATA}/damage_curves/asset_damage_curve_mapping.csv",
+        threshold_and_uplift = f"{OUTPUT}/direct_damages/hazard_damage_parameters.csv",
+        damage_curves_dir = f"{DATA}/damage_curves",
+        damage_curves = lambda wildcards: expand(
+            f"{DATA}/damage_curves/damage_curves_{get_asset_metadata(wildcards).sector}_{{hazard_type}}.xlsx",
+            hazard_type = HAZARD_TYPES
+        ),
+        hazard_intersection_file = f"{OUTPUT}/hotspots/splits/{{gpkg}}_splits__hazard_layers__{{layer}}.geoparquet",
+    params:
+        USD_per_JMD = config["economics"]["USD_per_JMD"],
+        sensitivity_id = 0,
+    output:
+        damages = f"{OUTPUT}/hotspots/damages_rp/{{gpkg}}_{{layer}}/{{gpkg}}_{{layer}}_direct_damages.parquet",
+    shell:
+        """
+        python {input.script} \
+            --network-csv {input.network_csv} \
+            --hazard-csv {input.hazard_csv} \
+            --sensitivity-csv {input.sensitivity_parameters} \
+            --sensitivity-id {params.sensitivity_id} \
+            --asset-gpkg-file {input.asset_gpkg} \
+            --asset-gpkg-label {wildcards.gpkg} \
+            --asset-layer {wildcards.layer} \
+            --damage-curve-mapping-csv {input.damage_curve_mapping} \
+            --damage-threshold-uplift-csv {input.threshold_and_uplift} \
+            --damage-curves-dir {input.damage_curves_dir} \
+            --intersection {input.hazard_intersection_file} \
+            --USD-per-JMD {params.USD_per_JMD} \
+            --output-path {output.damages}
+        """
+
+
+rule hotspots_ead:
+    """Calculate EAD from direct damages, per hazard, per asset layer. Output summed to the hotspots grid.
+    """
+    input:
+        script = "workflow/4b_hotspots/hotspots_ead.py",
+        damages = f"{OUTPUT}/hotspots/damages_rp/{{gpkg}}_{{layer}}/{{gpkg}}_{{layer}}_direct_damages.parquet",
+        grid = f"{DATA}/hotspots/grid.tiff",
+    output:
+        ead = f"{OUTPUT}/hotspots/EAD/{{gpkg}}__{{layer}}__{{hazard}}.tiff",
+    shell:
+        """
+        python {input.script} \
+            --splits-path {input.damages} \
+            --grid-path {input.grid} \
+            --hazard {wildcards.hazard} \
+            --output-path {output.ead}
+        """
+
+
+rule hotspots_ead_sector_all_flood:
+    """Per asset layer, sum all flood EAD
+    """
+    input:
+        ead_coastal = f"{OUTPUT}/hotspots/EAD/{{gpkg}}__{{layer}}__coastal.tiff",
+        ead_fluvial = f"{OUTPUT}/hotspots/EAD/{{gpkg}}__{{layer}}__fluvial.tiff",
+        ead_surface = f"{OUTPUT}/hotspots/EAD/{{gpkg}}__{{layer}}__surface.tiff",
+    output:
+        ead_flood = f"{OUTPUT}/hotspots/EAD/{{gpkg}}__{{layer}}__all_flood.tiff",
+    run:
+        from jamaica_infrastructure.raster import sum_rasters
+        sum_rasters([input.ead_coastal, input.ead_fluvial, input.ead_surface], output.ead_flood)
+
+
+rule hotspots_ead_total:
+    """Per asset layer, sum all hazard EAD
+    """
+    input:
+        ead_flood = f"{OUTPUT}/hotspots/EAD/{{gpkg}}__{{layer}}__all_flood.tiff",
+        ead_cyclone = f"{OUTPUT}/hotspots/EAD/{{gpkg}}__{{layer}}__cyclone.tiff",
+    output:
+        ead_total = f"{OUTPUT}/hotspots/EAD/{{gpkg}}__{{layer}}.tiff",
+    run:
+        from jamaica_infrastructure.raster import sum_rasters
+        sum_rasters([input.ead_flood, input.ead_cyclone], output.ead_total)
+
+
+def hotspot_paths_for_ead_sector(wildcards) -> list[str]:
+    """Given a sector, return the paths to all matching sector/hazard EAD files.
     """
     df = pd.read_csv(config["paths"]["network_layers"])
     asset_classes_in_sector = df[df['sector'] == wildcards.sector]
     if len(asset_classes_in_sector) == 0:
         raise ValueError(f"No assets found for {wildcards.sector=}")
-    exposure_paths = []
+    paths = []
     for asset_class in asset_classes_in_sector.itertuples():
-        # as for `hotspots_exposure` rule
-        exposure_paths.append(f"{OUTPUT}/hotspots/exposure/{asset_class.asset_gpkg}__{asset_class.asset_layer}.tiff")
-    return exposure_paths
+        # as for e.g. `hotspots_exposure` rule
+        paths.append(f"{OUTPUT}/hotspots/EAD/{asset_class.asset_gpkg}__{asset_class.asset_layer}__{wildcards.hazard}.tiff")
+    return paths
 
-rule hotspots_exposure_by_sector:
+
+rule hotspots_ead_hazard_by_sector:
+    """Per sector, for a given hazard, sum over asset layers EAD
     """
-    Sum exposed value of all asset classes for each sector
+    input:
+        asset_classes = hotspot_paths_for_ead_sector
+    output:
+        sector_sum = f"{OUTPUT}/hotspots/EAD/{{sector}}__{{hazard}}.tiff"
+    wildcard_constraints:
+        sector="(water|transport|energy)",
+        hazard="(cyclone|surface|fluvial|coastal|all_flood)",
+    run:
+        from jamaica_infrastructure.raster import sum_rasters
+        sum_rasters(input.asset_classes, output.sector_sum)
+
+
+rule ead_by_hazard_all_sectors:
+    """Per hazard, sum over all sector EAD
+
+    Test with:
+    snakemake -c1 results/hotspots/exposure/all_sectors__all_flood.tiff
+    """
+    input:
+        water = f"{OUTPUT}/hotspots/EAD/water__{{hazard_class}}.tiff",
+        energy = f"{OUTPUT}/hotspots/EAD/energy__{{hazard_class}}.tiff",
+        transport = f"{OUTPUT}/hotspots/EAD/transport__{{hazard_class}}.tiff",
+    output:
+        all_sector_sum = f"{OUTPUT}/hotspots/EAD/all_sectors__{{hazard_class}}.tiff"
+    wildcard_constraints:
+        hazard_class="(cyclone|all_flood|fluvial|surface|coastal)"
+    run:
+        from jamaica_infrastructure.raster import sum_rasters
+        sum_rasters([input.water, input.energy, input.transport], output.all_sector_sum)
+
+
+def hotspot_paths_for_sector(wildcards) -> list[str]:
+    """
+    Given e.g. 'energy', return the paths to all matching sector hotspot files.
+    """
+    df = pd.read_csv(config["paths"]["network_layers"])
+    asset_classes_in_sector = df[df['sector'] == wildcards.sector]
+    if len(asset_classes_in_sector) == 0:
+        raise ValueError(f"No assets found for {wildcards.sector=}")
+    paths = []
+    for asset_class in asset_classes_in_sector.itertuples():
+        # as for e.g. `hotspots_exposure` rule
+        paths.append(f"{OUTPUT}/hotspots/{wildcards.hotspot_metric}/{asset_class.asset_gpkg}__{asset_class.asset_layer}.tiff")
+    return paths
+
+
+rule hotspots_metric_by_sector:
+    """
+    Sum exposed value or EAD of all asset classes for each sector
 
     Test with:
     snakemake -c1 results/hotspots/exposure/water.tiff
     """
     input:
-        asset_classes = exposure_paths_for_sector
+        asset_classes = hotspot_paths_for_sector
     output:
-        sector_sum = f"{OUTPUT}/hotspots/exposure/{{sector}}.tiff"
+        sector_sum = f"{OUTPUT}/hotspots/{{hotspot_metric}}/{{sector}}.tiff"
+    wildcard_constraints:
+        hotspot_metric="(exposure|EAD)"
     run:
         from jamaica_infrastructure.raster import sum_rasters
-
         sum_rasters(input.asset_classes, output.sector_sum)
 
 
-rule hotspots_exposure_all_sectors:
+rule hotspots_metric_all_sectors:
     """
-    Sum exposed value of assets from water, energy and transport sectors.
+    Sum exposed value or EAD of assets from water, energy and transport sectors.
 
     Test with:
     snakemake -c1 results/hotspots/exposure/all_sectors.tiff
     """
     input:
-        water = f"{OUTPUT}/hotspots/exposure/water.tiff",
-        energy = f"{OUTPUT}/hotspots/exposure/energy.tiff",
-        transport = f"{OUTPUT}/hotspots/exposure/transport.tiff",
+        water = f"{OUTPUT}/hotspots/{{hotspot_metric}}/water.tiff",
+        energy = f"{OUTPUT}/hotspots/{{hotspot_metric}}/energy.tiff",
+        transport = f"{OUTPUT}/hotspots/{{hotspot_metric}}/transport.tiff",
     output:
-        all_sector_sum = f"{OUTPUT}/hotspots/exposure/all_sectors.tiff"
+        all_sector_sum = f"{OUTPUT}/hotspots/{{hotspot_metric}}/all_sectors.tiff"
+    wildcard_constraints:
+        hotspot_metric="(exposure|EAD)"
     run:
         from jamaica_infrastructure.raster import sum_rasters
-
         sum_rasters([input.water, input.energy, input.transport], output.all_sector_sum)
 
 
@@ -185,6 +337,7 @@ def hotspots_grid_latitude_slices(*args, **kwargs) -> list[str]:
         arr: np.ndarray[float] = grid_dataset.read()[0]
         y, x = arr.shape
     return expand(f"{OUTPUT}/hotspots/transport/y/{{grid_y_index}}.parquet", grid_y_index=range(0, y))
+
 
 rule economic_loss_transport_hotspots:
     """
@@ -246,7 +399,7 @@ rule economic_loss_transport_hotspots:
                 output_dataset.write(arr, 1)
 
 
-rule economic_loss_transport_hotspots_gaussian_kernel:
+rule smooth_raster:
     """
     Apply quantity preserving smoothing Gaussian kernel to hotspots quantities.
 
@@ -255,14 +408,12 @@ rule economic_loss_transport_hotspots_gaussian_kernel:
     """
     input:
         script = "workflow/4b_hotspots/kde.py",
-        coarse = f"{OUTPUT}/hotspots/transport/{{hotspots_variable}}_loss.tiff",
+        coarse = "{output_path}/{filename}.tiff",
     params:
         resolution = config["hotspots"]["kernel_density_estimation"]["resolution_meters"],
         bandwidth = config["hotspots"]["kernel_density_estimation"]["bandwidth_meters"],
     output:
-        smoothed = f"{OUTPUT}/hotspots/transport/{{hotspots_variable}}_loss_smoothed.tiff",
-    wildcard_constraints:
-        hotspots_variable="(economic|isolation|rerouting)"
+        smoothed = "{output_path}/{filename}_smoothed.tiff",
     shell:
         """
         python {input.script} \
@@ -271,3 +422,19 @@ rule economic_loss_transport_hotspots_gaussian_kernel:
             --output-resolution {params.resolution} \
             --bandwidth {params.bandwidth}
         """
+
+
+rule target_hotspot_tiffs:
+    input:
+        tiffs = (
+            expand(
+                f"{OUTPUT}/hotspots/{{hotspot_metric}}/{{sector}}_smoothed.tiff",
+                hotspot_metric=["EAD", "exposure"],
+                sector=["water", "energy", "transport", "all_sectors"]
+            ) +
+            expand(
+                f"{OUTPUT}/hotspots/EAD/{{sector}}__{{hazard}}_smoothed.tiff",
+                sector=["water", "energy", "transport", "all_sectors"],
+                hazard=["all_flood", "cyclone"],
+            )
+        )
