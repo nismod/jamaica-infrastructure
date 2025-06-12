@@ -280,11 +280,14 @@ def get_bcr_values(
     if isinstance(hazard_thresholds, str):
         #Added to handle coasatal adaptation option
         folder_name = protection_type_name
+
         risk_file = os.path.join(
                 results_path,
                 folder_name,
                 risk_filepath,
             )
+        
+        # breakpoint()
         if os.path.isfile(risk_file) is True:
             adapt_risk_df = pd.read_csv(risk_file)
             adapt_risk_df, adapt_risk_columns = get_risks(
@@ -694,7 +697,7 @@ def benefit_cost_ratio(
         },
         {
             "hazard": "coastal",
-            "hazard_type": ["coastal", "fluvial", "surface"]
+            "hazard_type": ["coastal"]
         },
         {
             "hazard": "TC",

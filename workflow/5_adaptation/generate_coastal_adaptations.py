@@ -18,6 +18,7 @@ from pathlib import Path
 import rasterio
 from rasterio.transform import from_origin
 from rasterstats import zonal_stats
+from shapely.strtree import STRtree
 
 import sklearn.cluster
 
@@ -355,103 +356,94 @@ def rotate_bounding_box(bounding_box, midpoint, angle):
 def join_polygons_by_flood_height(gdf, flood_height_threshold, length_limit, group_size, full_coastline_layer):
     """
     Groups polygons in a GeoDataFrame based on their maximum flood height, with additional grouping 
-    conditions based on area size and maximum group size. 
+    conditions based on total distance/width and maximum group size. 
     
-    Polygons are joined together if their flood height exceeds a specified threshold or if their combined area
-    exceeds a specified limit.
+    Polygons are joined together if their flood height exceeds a specified threshold, but groups
+    are finalized when the total distance exceeds the specified limit or when switching between
+    above/below threshold states.
 
     Parameters:
-    - gdf (GeoDataFrame): Input GeoDataFrame containing polygons and their associated maximum flood heights
+    - gdf (GeoDataFrame): Input GeoDataFrame containing polygons with "distance" column for width
     - flood_height_threshold (float): The flood height threshold above which polygons are grouped together
-    - area_limit (float): The area limit for groups; groups with areas exceeding this limit are finalized
-    - group_size (int): The  minimum number of polygons that can make up a group
+    - length_limit (float): The total distance limit for groups; groups exceeding this limit are finalized
+    - group_size (int): The minimum number of polygons that can make up a group
+    - full_coastline_layer: The coastline layer (kept for compatibility, not used in distance calculation)
 
     Returns:
-    - GeoDataFrame: A new GeoDataFrame containing the grouped polygons, with a new 'max_flood_height' column
+    - GeoDataFrame: A new GeoDataFrame containing the grouped polygons
     """
     
     # Initialize lists to store results for each group
     groups = []  # List of combined polygons (grouped geometries)
     heights = []  # List of maximum flood heights for each group
     ids = []  # List of original polygon IDs for each group
+    total_distances = []  # List of total distances for each group
     
     # Initialize variables to track the current group being processed
     current_group = []  # List of polygons in the current group
     current_heights = []  # List of max flood heights for the current group
     current_ids = []  # List of original IDs for the current group
+    current_distances = []  # List of distances for the current group
     is_below_threshold = None  # Flag indicating whether the current polygon is below the threshold
 
-    # Iterate over each polygon in the GeoDataFrame
-    for index, row in gdf.iterrows():
-        if row["max_flood_height"] > flood_height_threshold:
-            # If the polygon's flood height exceeds the threshold, handle grouping
-            coastline_length = find_max_coast_length(find_coast_segment_for_polygon(full_coastline_layer, unary_union(current_group)))
-            if is_below_threshold is True or (current_group and coastline_length > length_limit):
-                # Finalize the current group if necessary (area limit exceeded or threshold state changed)
-                if len(current_group) < group_size and groups:
-                    # Add the current polygon to the previous group (if the group reached max size)
-                    groups[-1] = unary_union([groups[-1], current_group[0]]).convex_hull
-                    heights[-1] = max(heights[-1], current_heights[0])  # Update max height
-                    ids[-1].extend(current_ids)  # Add original IDs to the group
-                else:
-                    # Finalize the group normally by combining geometries
-                    combined_geometry = unary_union(current_group)
-                    groups.append(combined_geometry.convex_hull)
-                    heights.append(max(current_heights))  # Store the max flood height for the group
-                    ids.append(current_ids)  # Store the original IDs for the group
-
-                # Reset the current group and associated data for the next set of polygons
-                current_group = []
-                current_heights = []
-                current_ids = []
-
-            # Switch to above-threshold mode
-            is_below_threshold = False
-            current_group.append(row["geometry"])  # Add the polygon's geometry to the current group
-            current_heights.append(row["max_flood_height"])  # Add max flood height to the current group
-            current_ids.append(row["id"])  # Add the polygon's ID to the current group
-
-        else:  # Polygons below or equal to the flood height threshold
-            # If the polygon is below the threshold, handle the grouping similarly
-            coastline_length = find_max_coast_length(find_coast_segment_for_polygon(full_coastline_layer, unary_union(current_group)))
-            if is_below_threshold is False or (current_group and coastline_length> length_limit):
-                # Finalize the current group if necessary (area limit exceeded or threshold state changed)
-                if len(current_group) < group_size and groups:
-                    # Add the current polygon to the previous group
-                    groups[-1] = unary_union([groups[-1], current_group[0]]).convex_hull
-                    heights[-1] = max(heights[-1], current_heights[0])  # Update max height
-                    ids[-1].extend(current_ids)  # Add original IDs to the group
-                else:
-                    # Finalize the group normally by combining geometries
-                    combined_geometry = unary_union(current_group)
-                    groups.append(combined_geometry.convex_hull)
-                    heights.append(max(current_heights))  # Store the max flood height for the group
-                    ids.append(current_ids)  # Store the original IDs for the group
-
-                # Reset the current group and associated data for the next set of polygons
-                current_group = []
-                current_heights = []
-                current_ids = []
-
-            # Switch to below-threshold mode
-            is_below_threshold = True
-            current_group.append(row["geometry"])  # Add the polygon's geometry to the current group
-            current_heights.append(row["max_flood_height"])  # Add max flood height to the current group
-            current_ids.append(row["id"])  # Add the polygon's ID to the current group
-
-    # Finalize the last group if any polygons remain
-    if current_group:
+    def finalize_current_group():
+        """Helper function to finalize the current group"""
+        if not current_group:
+            return
+            
+        # Calculate total distance for the current group
+        total_distance = sum(current_distances)
+            
         if len(current_group) < group_size and groups:
-            # Add the current polygon to the previous group (if group size exceeded)
-            groups[-1] = unary_union([groups[-1], current_group[0]]).convex_hull
-            heights[-1] = max(heights[-1], current_heights[0])  # Update max height
-            ids[-1].extend(current_ids)  # Add original IDs to the group
+            # Add the current polygons to the previous group if current group is too small
+            groups[-1] = unary_union([groups[-1]] + current_group).convex_hull
+            heights[-1] = max(heights[-1], max(current_heights))
+            ids[-1].extend(current_ids)
+            # Add distances to the previous group's total
+            total_distances[-1] += total_distance
         else:
             # Finalize the group normally by combining geometries
             combined_geometry = unary_union(current_group)
             groups.append(combined_geometry.convex_hull)
-            heights.append(max(current_heights))  # Store max flood height
-            ids.append(current_ids)  # Store original IDs
+            heights.append(max(current_heights))
+            ids.append(current_ids)
+            total_distances.append(total_distance)
+
+    # Iterate over each polygon in the GeoDataFrame
+    for index, row in gdf.iterrows():
+        polygon_above_threshold = row["max_flood_height"] > flood_height_threshold
+        
+        # Check if threshold state is changing - if so, finalize current group
+        if is_below_threshold is not None and is_below_threshold != (not polygon_above_threshold):
+            finalize_current_group()
+            # Reset the current group and associated data
+            current_group = []
+            current_heights = []
+            current_ids = []
+            current_distances = []
+        
+        # Check if adding this polygon would exceed the length limit
+        if current_group:
+            test_total_distance = sum(current_distances) + row["distance"]
+            
+            if test_total_distance > length_limit:
+                # Finalize current group before adding this polygon
+                finalize_current_group()
+                # Reset the current group and associated data
+                current_group = []
+                current_heights = []
+                current_ids = []
+                current_distances = []
+
+        # Update threshold state and add polygon to current group
+        is_below_threshold = not polygon_above_threshold
+        current_group.append(row["geometry"])
+        current_heights.append(row["max_flood_height"])
+        current_ids.append(row["id"])
+        current_distances.append(row["distance"])
+
+    # Finalize the last group if any polygons remain
+    finalize_current_group()
 
     # Convert the grouped data back into a GeoDataFrame
     result_gdf = gpd.GeoDataFrame(
@@ -459,6 +451,7 @@ def join_polygons_by_flood_height(gdf, flood_height_threshold, length_limit, gro
             "geometry": gpd.GeoSeries(groups),  # Combined geometries for each group
             "max_flood_height": heights,  # Max flood heights for each group
             "original_ids": ids,  # Original IDs for each group
+            "total_distance": total_distances,  # Total distances for each group
         }
     )
 
@@ -466,9 +459,10 @@ def join_polygons_by_flood_height(gdf, flood_height_threshold, length_limit, gro
     result_gdf["id"] = range(len(result_gdf))
 
     # Set the CRS (Coordinate Reference System) to match the original GeoDataFrame
-    result_gdf.set_crs(gdf.crs, inplace=True)
+    if not result_gdf.empty:
+        result_gdf.set_crs(gdf.crs, inplace=True)
 
-    return result_gdf  # Return the GeoDataFrame with grouped polygons
+    return result_gdf
 
 def order_edges_around_island(edge_layer):
     """
@@ -1001,146 +995,513 @@ def create_voronoi(jamaica_polygon, jam_contour, coastline_polygons, intersectio
     """
     Create Voronoi tessellation based on the centroids of smaller polygons (coastline),
     clipped to the boundary of a larger polygon (Jamaica's convex hull).
+    Uses a combined approach with multiple strategies to guarantee length constraint compliance.
     
     Args:
         jamaica_polygon (GeoDataFrame): The larger polygon (e.g., Jamaica's convex hull).
         jam_contour (GeoDataFrame): A GeoDataFrame containing the exact contour of the Jamaica.
         coastline_polygons (GeoDataFrame): The smaller polygons (e.g., coastline polygons) for which Voronoi regions will be calculated.
+        intersections (GeoDataFrame): Intersections for computing centroids.
+        length_limit (float): Maximum allowed coastal length for any Voronoi region.
+        coastline (GeoDataFrame): The coastline geometry.
 
     Returns:
         GeoDataFrame: Clipped Voronoi polygons inside the larger polygon with associated centroid IDs.
         GeoDataFrame: Centroids of the smaller polygons used for Voronoi tessellation with a 'c_id' column.
     """
-    #Combine all coastline polygons into one polygon
+    import numpy as np
+    import pandas as pd
+    import geopandas as gpd
+    from shapely.geometry import Point, Polygon
+    from shapely.ops import unary_union, voronoi_diagram
+    from shapely.geometry import MultiPoint
+    
+    logging.info("   [4.0] Starting Combined Voronoi Refinement Strategy")
+    
+    # Initial setup
     combined_coastline_polygons = unary_union(coastline_polygons.geometry)
-
-    # Get the larger polygon (Jamaica's convex hull)
     larger_polygon = get_larger_polygon(jamaica_polygon)
-
-    # Get the smaller coastline polygons
     smaller_polygons = coastline_polygons
-
-    # Ensure the CRS is consistent for all GeoDataFrames
-    smaller_polygons.crs = coastline_polygons.crs  # Ensure the coordinate reference system is consistent
-
-    # Compute centroids for Voronoi tessellation
-    centroids = compute_centroids(intersections, smaller_polygons)
-
-    # Add centroid IDs to the centroids GeoDataFrame
-    centroid_gdf = create_centroid_gdf(centroids, smaller_polygons)
-
-    def process_voronoi(centroids, centroid_gdf, larger_polygon, smaller_polygons):
-        adjusted_centroids = adjust_centroids_to_polygon(centroids, jam_contour.iloc[0].geometry) # Adjust centroids to be within the larger polygon
-        adjusted_centroids_gs = gpd.GeoSeries(adjusted_centroids, crs=centroid_gdf.crs) # Convert the adjusted centroids back to a GeoSeries
-        centroid_gdf.geometry = adjusted_centroids_gs # Update the GeoDataFrame with adjusted centroids
-        voronoi = create_voronoi_tessellation(adjusted_centroids) # Create Voronoi tessellation based on centroids
-        clipped_regions = clip_voronoi_to_polygon(voronoi, larger_polygon) # Clip Voronoi regions to the boundary of the larger polygon
-        valid_regions = [region for region in clipped_regions if not region.is_empty and isinstance(region, Polygon)]  # Filter out invalid or empty regions, keeping only valid polygons
-        associated_centroid_ids, associated_polygon_ids = associate_centroids_to_regions(valid_regions, centroids, centroid_gdf) # Match centroids to Voronoi regions based on proximity
-        clipped_gdf = create_clipped_voronoi_gdf(valid_regions,associated_centroid_ids ,associated_polygon_ids, smaller_polygons.crs) # Create GeoDataFrame for clipped Voronoi regions with associated centroid IDs
-        return clipped_gdf, centroid_gdf
-
-    clipped_gdf, centroid_gdf = process_voronoi(centroids, centroid_gdf, larger_polygon, smaller_polygons)
-    clipped_gdf["coastal_length"] = clipped_gdf.geometry.apply(lambda poly: find_coastline_length(coastline, poly))
-    longest_polygon = clipped_gdf.loc[clipped_gdf["coastal_length"].idxmax()]     # Get the longest coastline polygon
-
+    smaller_polygons.crs = coastline_polygons.crs
+    
+    # Calculate scale factor for point generation
     areas = coastline_polygons.geometry.area.values
     scale_factor = np.mean(areas) / len(areas)
-
-    tracked_flood = []
-    count = 0
-    override = False
-    logging.info ("   [4.5] Modifying Voronoi to Match Length Limit")
-    while longest_polygon['coastal_length'] > length_limit or override:
-        override = False
-        # Select the polygon
+    
+    # Helper function: process_voronoi (from your original code)
+    def process_voronoi(centroids, centroid_gdf, larger_polygon, smaller_polygons):
+        """Process Voronoi tessellation with the given centroids"""
+        # Adjust centroids to be within the larger polygon
+        adjusted_centroids = adjust_centroids_to_polygon(centroids, jam_contour.iloc[0].geometry)
         
-        polygon_id = longest_polygon['centroid_id']
-        scape_id = longest_polygon['flood_zone_id']
-        polygon_row = coastline_polygons[coastline_polygons['id'] == scape_id].iloc[0]
-        polygon = polygon_row.geometry
-
-        # v_poly = polygon.buffer(50).intersection(longest_polygon.geometry)
-
-        if scape_id not in tracked_flood:
-            num_pts = round(coastline.intersection(polygon).iloc[0].length / length_limit)
-            new_points = generate_extra_points(polygon, coastline, num_pts, scale_factor)
-            centroid_gdf = centroid_gdf[centroid_gdf['c_id'] != polygon_id].reset_index(drop=True)
-
-        else:
-            centroid_gdf = centroid_gdf[centroid_gdf['s_id'] != scape_id].reset_index(drop=True)
-            num_pts = len(clipped_gdf[clipped_gdf["flood_zone_id"] == scape_id])
-            # print (f"Removed old points for {scape_id} redoing  num_pts from {num_pts} to {num_pts + 1}")
-            num_pts += 1
-
-
-            new_points = generate_extra_points(polygon, coastline, num_pts, scale_factor)
-
-        if new_points:
-            existing_c_ids = set(centroid_gdf['c_id'])
-            start_c_id = max(existing_c_ids) + 1 if existing_c_ids else 1
-            new_c_ids = [start_c_id + i for i in range(len(new_points))]
-
-            new_centroid_gdf = pd.concat([
-                centroid_gdf,
-                gpd.GeoDataFrame(
-                    {'c_id': new_c_ids, 's_id': [scape_id] * len(new_points)},  # s_id repeats for each new point
-                    geometry=new_points, 
-                    crs=centroid_gdf.crs
-                )
-            ], ignore_index=True)
-
-            centroid_gdf = new_centroid_gdf
+        # Convert the adjusted centroids back to a GeoSeries
+        adjusted_centroids_gs = gpd.GeoSeries(adjusted_centroids, crs=centroid_gdf.crs)
+        
+        # Update the GeoDataFrame with adjusted centroids
+        centroid_gdf.geometry = adjusted_centroids_gs
+        
+        # Create Voronoi tessellation based on centroids
+        voronoi = create_voronoi_tessellation(adjusted_centroids)
+        
+        # Clip Voronoi regions to the boundary of the larger polygon
+        clipped_regions = clip_voronoi_to_polygon(voronoi, larger_polygon)
+        
+        # Filter out invalid or empty regions, keeping only valid polygons
+        valid_regions = [region for region in clipped_regions if not region.is_empty and isinstance(region, Polygon)]
+        
+        # Match centroids to Voronoi regions based on proximity
+        associated_centroid_ids, associated_polygon_ids = associate_centroids_to_regions(valid_regions, centroids, centroid_gdf)
+        
+        # Create GeoDataFrame for clipped Voronoi regions with associated centroid IDs
+        clipped_gdf = create_clipped_voronoi_gdf(valid_regions, associated_centroid_ids, associated_polygon_ids, smaller_polygons.crs)
+        
+        return clipped_gdf, centroid_gdf
+    
+    # Strategy 1: Pre-calculation Strategy
+    def calculate_required_points_strategy(coastline_polygons, coastline, length_limit):
+        """Pre-calculate exactly how many points each coastline polygon needs"""
+        required_points = {}
+        
+        for idx, row in coastline_polygons.iterrows():
+            polygon_id = row['id']
+            polygon = row.geometry
             
+            # Get coastline intersection with this polygon
+            try:
+                coast_intersection = coastline.intersection(polygon)
+                if hasattr(coast_intersection, 'length') and coast_intersection.length > 0:
+                    # Calculate required number of segments to meet length limit
+                    required_segments = max(2, int(np.ceil(coast_intersection.length / length_limit)))
+                    required_points[polygon_id] = required_segments
+                else:
+                    required_points[polygon_id] = 2
+            except:
+                required_points[polygon_id] = 2
+        
+        return required_points
 
-            centroids = centroid_gdf.geometry
-            clipped_gdf, centroid_gdf = process_voronoi(centroids, centroid_gdf, larger_polygon, smaller_polygons)
-            # print(f"Added {len(new_points)} new points with c_ids {new_c_ids} for polygon {scape_id}")
-            
-            if scape_id not in tracked_flood:
-                tracked_flood.append(scape_id)
+    def generate_all_points_upfront(coastline_polygons, coastline, length_limit, scale_factor):
+        """Generate all required seed points upfront based on pre-calculated requirements"""
+        required_points = calculate_required_points_strategy(coastline_polygons, coastline, length_limit)
+        
+        all_centroids = []
+        centroid_data = []
+        c_id_counter = 0
+        
+        for polygon_id, num_points in required_points.items():
+            polygon_row = coastline_polygons[coastline_polygons['id'] == polygon_id]
+            if polygon_row.empty:
+                continue
                 
-            clipped_gdf["coastal_length"] = clipped_gdf.geometry.apply(lambda poly: find_coastline_length(coastline, poly))
-            longest_polygon = clipped_gdf.loc[clipped_gdf["coastal_length"].idxmax()]
-            # print(f"Longest Polygon: {longest_polygon["id"]}    -   Length: {longest_polygon["coastal_length"]}")
-
-            long_poly_coast = longest_polygon.geometry.buffer(50).intersection(coastline.geometry.iloc[0])
-            flood_area = coastline_polygons[coastline_polygons['id'] == scape_id].iloc[0].geometry
-            matching_clipped_gdf = clipped_gdf[clipped_gdf["flood_zone_id"] == scape_id]
+            polygon = polygon_row.iloc[0].geometry
             
-            # Check if long_poly_coast is NOT contained within its corresponding coastline polygon
-            if not flood_area.contains(long_poly_coast):
-
-                def is_intersection_contained(row):
-                    intersection = row.geometry.intersection(coastline.geometry.iloc[0])
-                    return flood_area.contains(intersection)
-
-                # Apply the check to filter only relevant polygons
-                fully_contained = matching_clipped_gdf[matching_clipped_gdf.apply(is_intersection_contained, axis=1)]
-                fraction_fully_contained = len(fully_contained) / len(matching_clipped_gdf) if len(matching_clipped_gdf) > 0 else 0
-                # print (fraction_fully_contained)
-
-                # Check if all fully contained polygons have a "coastal_length" < length_limit
-                if not fully_contained.empty and (fully_contained["coastal_length"] < length_limit).all() and fraction_fully_contained > 0.50:
-                    # Find all coastline polygons that intersect long_poly_coast
-                    intersecting_polygons = coastline_polygons[coastline_polygons.geometry.intersects(long_poly_coast)]
-
-                    # Exclude the current coastline polygon (scape_id) since we already checked it
-                    other_intersecting = intersecting_polygons[intersecting_polygons['id'] != scape_id]
-
-                    # Get the ID(s) of the intersecting polygons
-                    if not other_intersecting.empty:
-                        other_scape_id = other_intersecting.iloc[0]['id']  # Get the first match
-                        # logging.info ("            - Correcting Edge Case Scenario")
-                        longest_polygon = clipped_gdf[clipped_gdf["flood_zone_id"] == other_scape_id].iloc[0]
-                        override = True
-
-        else:
-            logging.info (f"No points {new_points}, was polygon worked on? - {scape_id in tracked_flood}")
+            # Generate the required number of points
+            new_points = generate_extra_points(polygon, coastline, num_points, scale_factor)
             
-        # break
+            if new_points:
+                for point in new_points:
+                    centroid_data.append({
+                        'c_id': c_id_counter,
+                        's_id': polygon_id,
+                        'geometry': point
+                    })
+                    c_id_counter += 1
+                all_centroids.extend(new_points)
+            else:
+                # Fallback to centroid if no points generated
+                centroid_point = polygon.centroid
+                centroid_data.append({
+                    'c_id': c_id_counter,
+                    's_id': polygon_id,
+                    'geometry': centroid_point
+                })
+                c_id_counter += 1
+                all_centroids.append(centroid_point)
         
-    # Return both the clipped Voronoi regions and the centroids GeoDataFrame
+        # Create GeoDataFrame with all centroids
+        if centroid_data:
+            centroid_gdf = gpd.GeoDataFrame(centroid_data, crs=coastline_polygons.crs)
+        else:
+            # Fallback to original centroids if something went wrong
+            centroids = compute_centroids(intersections, smaller_polygons)
+            centroid_gdf = create_centroid_gdf(centroids, smaller_polygons)
+        
+        return centroid_gdf, all_centroids
+
+    # Strategy 2: Hierarchical Subdivision
+    def hierarchical_subdivision_strategy(clipped_gdf, centroid_gdf, coastline_polygons, 
+                                        coastline, length_limit, larger_polygon, 
+                                        smaller_polygons, scale_factor):
+        """Use hierarchical approach to subdivide all problematic regions simultaneously"""
+        max_depth = 10
+        current_depth = 0
+        
+        logging.info("   [4.2] Applying Hierarchical Subdivision")
+        
+        while current_depth < max_depth:
+            # Calculate coastal lengths for all regions
+            clipped_gdf["coastal_length"] = clipped_gdf.geometry.apply(
+                lambda poly: find_coastline_length(coastline, poly)
+            )
+            
+            # Find ALL regions that exceed the limit
+            problematic_regions = clipped_gdf[clipped_gdf["coastal_length"] > length_limit]
+            
+            if problematic_regions.empty:
+                logging.info(f"   Hierarchical subdivision complete at depth {current_depth}")
+                break
+            
+            logging.info(f"   Depth {current_depth}: Subdividing {len(problematic_regions)} regions")
+            
+            # Group by flood_zone_id to process each coastline polygon
+            problematic_by_zone = problematic_regions.groupby('flood_zone_id')
+            
+            new_points_batch = []
+            zones_to_remove = set()
+            
+            for zone_id, zone_regions in problematic_by_zone:
+                zones_to_remove.add(zone_id)
+                
+                # Get the coastline polygon
+                polygon_row = coastline_polygons[coastline_polygons['id'] == zone_id]
+                if polygon_row.empty:
+                    continue
+                    
+                polygon = polygon_row.iloc[0].geometry
+                
+                # Calculate how many MORE points we need
+                max_length_in_zone = zone_regions["coastal_length"].max()
+                current_points_in_zone = len(zone_regions)
+                
+                # Calculate multiplication factor needed
+                subdivision_factor = max(2, int(np.ceil(max_length_in_zone / length_limit)))
+                new_total_points = max(current_points_in_zone * 2, subdivision_factor)
+                
+                # Generate new points for this zone
+                new_points = generate_extra_points(polygon, coastline, new_total_points, scale_factor)
+                
+                if new_points:
+                    for point in new_points:
+                        new_points_batch.append({
+                            'c_id': len(centroid_gdf) + len(new_points_batch),
+                            's_id': zone_id,
+                            'geometry': point
+                        })
+            
+            # Remove old centroids for problematic zones
+            centroid_gdf = centroid_gdf[~centroid_gdf['s_id'].isin(zones_to_remove)].reset_index(drop=True)
+            
+            # Add all new points at once
+            if new_points_batch:
+                new_centroid_gdf = gpd.GeoDataFrame(new_points_batch, crs=centroid_gdf.crs)
+                centroid_gdf = pd.concat([centroid_gdf, new_centroid_gdf], ignore_index=True)
+            
+            # Regenerate Voronoi with all new points
+            centroids = centroid_gdf.geometry
+            clipped_gdf, centroid_gdf = process_voronoi(
+                centroids, centroid_gdf, larger_polygon, smaller_polygons
+            )
+            
+            current_depth += 1
+        
+        return clipped_gdf, centroid_gdf
+
+    # Strategy 3: Constraint-Based Refinement
+    def constraint_based_refinement(clipped_gdf, centroid_gdf, coastline_polygons, 
+                                   coastline, length_limit, larger_polygon, 
+                                   smaller_polygons, scale_factor):
+        """Constraint-based approach with progress monitoring"""
+        previous_max_length = float('inf')
+        stagnation_count = 0
+        max_stagnation = 3
+        iteration_count = 0
+        
+        logging.info("   [4.3] Applying Constraint-Based Refinement")
+        
+        while True:
+            # Calculate current state
+            clipped_gdf["coastal_length"] = clipped_gdf.geometry.apply(
+                lambda poly: find_coastline_length(coastline, poly)
+            )
+            
+            current_max_length = clipped_gdf["coastal_length"].max()
+            regions_exceeding = len(clipped_gdf[clipped_gdf["coastal_length"] > length_limit])
+            
+            # Check if we're done
+            if regions_exceeding == 0:
+                logging.info(f"   Constraint satisfaction achieved after {iteration_count} iterations")
+                break
+            
+            # Check for progress
+            if current_max_length >= previous_max_length:
+                stagnation_count += 1
+                if stagnation_count >= max_stagnation:
+                    logging.info("   Stagnation detected, applying aggressive subdivision")
+                    clipped_gdf, centroid_gdf = apply_aggressive_subdivision(
+                        clipped_gdf, centroid_gdf, coastline_polygons, coastline,
+                        length_limit, larger_polygon, smaller_polygons, scale_factor
+                    )
+                    stagnation_count = 0
+            else:
+                stagnation_count = 0
+            
+            # Apply standard refinement step
+            clipped_gdf, centroid_gdf = apply_standard_refinement_step(
+                clipped_gdf, centroid_gdf, coastline_polygons, coastline,
+                length_limit, larger_polygon, smaller_polygons, scale_factor
+            )
+            
+            previous_max_length = current_max_length
+            iteration_count += 1
+            
+            logging.info(f"   Iteration {iteration_count}: Max length = {current_max_length:.1f}, "
+                  f"Violations = {regions_exceeding}")
+            
+            # Safety check - if we've done too many iterations, apply final aggressive subdivision
+            if iteration_count > 20:
+                logging.info("   Applying final aggressive subdivision")
+                clipped_gdf, centroid_gdf = apply_final_aggressive_subdivision(
+                    clipped_gdf, centroid_gdf, coastline_polygons, coastline,
+                    length_limit, larger_polygon, smaller_polygons, scale_factor
+                )
+                break
+        
+        return clipped_gdf, centroid_gdf
+
+    def apply_aggressive_subdivision(clipped_gdf, centroid_gdf, coastline_polygons, 
+                                   coastline, length_limit, larger_polygon, 
+                                   smaller_polygons, scale_factor):
+        """Apply aggressive subdivision to break through stagnation"""
+        
+        problematic_regions = clipped_gdf[clipped_gdf["coastal_length"] > length_limit]
+        
+        for zone_id in problematic_regions['flood_zone_id'].unique():
+            zone_regions = problematic_regions[problematic_regions['flood_zone_id'] == zone_id]
+            max_length = zone_regions["coastal_length"].max()
+            
+            # Calculate aggressive subdivision factor
+            subdivision_factor = max(5, int(np.ceil(max_length / (length_limit * 0.3))))
+            
+            # Remove old points
+            centroid_gdf = centroid_gdf[centroid_gdf['s_id'] != zone_id].reset_index(drop=True)
+            
+            # Add many new points
+            polygon_row = coastline_polygons[coastline_polygons['id'] == zone_id]
+            if not polygon_row.empty:
+                polygon = polygon_row.iloc[0].geometry
+                new_points = generate_extra_points(polygon, coastline, subdivision_factor, scale_factor)
+                
+                if new_points:
+                    new_data = []
+                    for point in new_points:
+                        new_data.append({
+                            'c_id': len(centroid_gdf) + len(new_data),
+                            's_id': zone_id,
+                            'geometry': point
+                        })
+                    
+                    new_centroid_gdf = gpd.GeoDataFrame(new_data, crs=centroid_gdf.crs)
+                    centroid_gdf = pd.concat([centroid_gdf, new_centroid_gdf], ignore_index=True)
+        
+        # Regenerate Voronoi
+        centroids = centroid_gdf.geometry
+        clipped_gdf, centroid_gdf = process_voronoi(
+            centroids, centroid_gdf, larger_polygon, smaller_polygons
+        )
+        
+        return clipped_gdf, centroid_gdf
+
+    def apply_standard_refinement_step(clipped_gdf, centroid_gdf, coastline_polygons, 
+                                     coastline, length_limit, larger_polygon, 
+                                     smaller_polygons, scale_factor):
+        """Apply one step of standard refinement"""
+        
+        # Find the longest region
+        longest_polygon = clipped_gdf.loc[clipped_gdf["coastal_length"].idxmax()]
+        
+        if longest_polygon['coastal_length'] <= length_limit:
+            return clipped_gdf, centroid_gdf
+        
+        # Get the problematic zone
+        scape_id = longest_polygon['flood_zone_id']
+        polygon_row = coastline_polygons[coastline_polygons['id'] == scape_id]
+        
+        if polygon_row.empty:
+            return clipped_gdf, centroid_gdf
+            
+        polygon = polygon_row.iloc[0].geometry
+        
+        # Remove existing points for this zone
+        centroid_gdf = centroid_gdf[centroid_gdf['s_id'] != scape_id].reset_index(drop=True)
+        
+        # Calculate new points needed
+        current_regions = clipped_gdf[clipped_gdf["flood_zone_id"] == scape_id]
+        num_pts = len(current_regions) + 2  # Add more points
+        
+        # Generate new points
+        new_points = generate_extra_points(polygon, coastline, num_pts, scale_factor)
+        
+        if new_points:
+            new_data = []
+            for point in new_points:
+                new_data.append({
+                    'c_id': len(centroid_gdf) + len(new_data),
+                    's_id': scape_id,
+                    'geometry': point
+                })
+            
+            new_centroid_gdf = gpd.GeoDataFrame(new_data, crs=centroid_gdf.crs)
+            centroid_gdf = pd.concat([centroid_gdf, new_centroid_gdf], ignore_index=True)
+            
+            # Regenerate Voronoi
+            centroids = centroid_gdf.geometry
+            clipped_gdf, centroid_gdf = process_voronoi(
+                centroids, centroid_gdf, larger_polygon, smaller_polygons
+            )
+        
+        return clipped_gdf, centroid_gdf
+
+    def apply_final_aggressive_subdivision(clipped_gdf, centroid_gdf, coastline_polygons, 
+                                         coastline, length_limit, larger_polygon, 
+                                         smaller_polygons, scale_factor):
+        """Final aggressive subdivision to guarantee constraint satisfaction"""
+        
+        logging.info("   Applying final aggressive subdivision to guarantee constraints")
+        
+        # Find all violating regions
+        clipped_gdf["coastal_length"] = clipped_gdf.geometry.apply(
+            lambda poly: find_coastline_length(coastline, poly)
+        )
+        
+        problematic_regions = clipped_gdf[clipped_gdf["coastal_length"] > length_limit]
+        
+        for zone_id in problematic_regions['flood_zone_id'].unique():
+            zone_regions = problematic_regions[problematic_regions['flood_zone_id'] == zone_id]
+            max_length = zone_regions["coastal_length"].max()
+            
+            # Very aggressive subdivision - guarantee we have enough points
+            subdivision_factor = max(10, int(np.ceil(max_length / (length_limit * 0.2))))
+            
+            # Remove old points
+            centroid_gdf = centroid_gdf[centroid_gdf['s_id'] != zone_id].reset_index(drop=True)
+            
+            # Get polygon and generate many points
+            polygon_row = coastline_polygons[coastline_polygons['id'] == zone_id]
+            if not polygon_row.empty:
+                polygon = polygon_row.iloc[0].geometry
+                new_points = generate_extra_points(polygon, coastline, subdivision_factor, scale_factor)
+                
+                if new_points:
+                    new_data = []
+                    for point in new_points:
+                        new_data.append({
+                            'c_id': len(centroid_gdf) + len(new_data),
+                            's_id': zone_id,
+                            'geometry': point
+                        })
+                    
+                    new_centroid_gdf = gpd.GeoDataFrame(new_data, crs=centroid_gdf.crs)
+                    centroid_gdf = pd.concat([centroid_gdf, new_centroid_gdf], ignore_index=True)
+        
+        # Final Voronoi generation
+        centroids = centroid_gdf.geometry
+        clipped_gdf, centroid_gdf = process_voronoi(
+            centroids, centroid_gdf, larger_polygon, smaller_polygons
+        )
+        
+        # Final check
+        clipped_gdf["coastal_length"] = clipped_gdf.geometry.apply(
+            lambda poly: find_coastline_length(coastline, poly)
+        )
+        
+        return clipped_gdf, centroid_gdf
+
+    # Combined Strategy Implementation
+    try:
+        # Step 1: Try pre-calculation strategy
+        logging.info("   [4.1] Attempting Pre-calculation Strategy")
+        centroid_gdf, all_centroids = generate_all_points_upfront(
+            coastline_polygons, coastline, length_limit, scale_factor
+        )
+        
+        # Generate initial Voronoi
+        clipped_gdf, centroid_gdf = process_voronoi(
+            centroid_gdf.geometry, centroid_gdf, larger_polygon, smaller_polygons
+        )
+        
+        # Check if this solved the problem
+        clipped_gdf["coastal_length"] = clipped_gdf.geometry.apply(
+            lambda poly: find_coastline_length(coastline, poly)
+        )
+        
+        violations = len(clipped_gdf[clipped_gdf["coastal_length"] > length_limit])
+        
+        if violations == 0:
+            logging.info("   [4.1] Pre-calculation strategy successful!")
+            return clipped_gdf, centroid_gdf
+        else:
+            logging.info(f"   [4.1] Pre-calculation left {violations} violations, trying hierarchical")
+            
+    except Exception as e:
+        logging.info(f"   [4.1] Pre-calculation failed: {e}, falling back to original method")
+        # Fallback to original centroid computation
+        centroids = compute_centroids(intersections, smaller_polygons)
+        centroid_gdf = create_centroid_gdf(centroids, smaller_polygons)
+        clipped_gdf, centroid_gdf = process_voronoi(centroids, centroid_gdf, larger_polygon, smaller_polygons)
+        clipped_gdf["coastal_length"] = clipped_gdf.geometry.apply(lambda poly: find_coastline_length(coastline, poly))
+
+    # Step 2: Try hierarchical subdivision
+    try:
+        clipped_gdf, centroid_gdf = hierarchical_subdivision_strategy(
+            clipped_gdf, centroid_gdf, coastline_polygons, coastline, 
+            length_limit, larger_polygon, smaller_polygons, scale_factor
+        )
+        
+        # Check if hierarchical solved it
+        clipped_gdf["coastal_length"] = clipped_gdf.geometry.apply(
+            lambda poly: find_coastline_length(coastline, poly)
+        )
+        violations = len(clipped_gdf[clipped_gdf["coastal_length"] > length_limit])
+        
+        if violations == 0:
+            logging.info("   [4.2] Hierarchical subdivision successful!")
+            return clipped_gdf, centroid_gdf
+        else:
+            logging.info(f"   [4.2] Hierarchical left {violations} violations, using constraint-based")
+            
+    except Exception as e:
+        logging.info(f"   [4.2] Hierarchical subdivision failed: {e}")
+
+    # Step 3: Final fallback to constraint-based approach
+    logging.info("   [4.3] Using constraint-based approach as final guarantee")
+    clipped_gdf, centroid_gdf = constraint_based_refinement(
+        clipped_gdf, centroid_gdf, coastline_polygons, coastline,
+        length_limit, larger_polygon, smaller_polygons, scale_factor
+    )
+    
+    # Final validation and reporting
+    clipped_gdf["coastal_length"] = clipped_gdf.geometry.apply(
+        lambda poly: find_coastline_length(coastline, poly)
+    )
+    
+    final_violations = len(clipped_gdf[clipped_gdf["coastal_length"] > length_limit])
+    max_length = clipped_gdf["coastal_length"].max()
+    mean_length = clipped_gdf["coastal_length"].mean()
+    
+    logging.info(f"   [4.4] Final Results:")
+    logging.info(f"   Total regions: {len(clipped_gdf)}")
+    logging.info(f"   Regions exceeding limit: {final_violations}")
+    logging.info(f"   Max coastal length: {max_length:.2f}")
+    logging.info(f"   Mean coastal length: {mean_length:.2f}")
+    logging.info(f"   Length limit: {length_limit}")
+    
+    if final_violations > 0:
+        logging.info(f"   WARNING: {final_violations} regions still exceed the length limit!")
+        violating_regions = clipped_gdf[clipped_gdf["coastal_length"] > length_limit]
+        logging.info(f"   Violating lengths: {violating_regions['coastal_length'].tolist()}")
+    else:
+        logging.info("   SUCCESS: All regions comply with length limit!")
+    
     return clipped_gdf, centroid_gdf
 
 # Adapted and modified from https://github.com/thomas-fred/jam-coastal-protection
@@ -1368,73 +1729,89 @@ def split_multipart_polygons(gdf):
     return merged_gdf
 
 def merge_adjacent_polygons_by_coastline(gdf, coastline, length_limit):
-    touching_pairs = set()
-    
-    # Identify touching polygons and store as ordered pairs
-    for _, poly in gdf.iterrows():
-        for _, other_poly in gdf.iterrows():
-            if poly["id"] != other_poly["id"] and poly.geometry.buffer(0.5).intersects(other_poly.geometry.buffer(0.5)):
-                pair = (poly["id"], other_poly["id"]) \
-                    if poly.geometry.area < other_poly.geometry.area else \
-                    (other_poly["id"], poly["id"])
-                touching_pairs.add(pair)
-    
-    touching_pairs = list(touching_pairs)
-    max_area = np.mean(gdf.geometry.area.values) / 2
-    area_dict = {row["id"]: row.geometry.area for _, row in gdf.iterrows()}
-    
-    # Sort touching pairs by polygon area
-    touching_pairs.sort(key=lambda x: area_dict[x[0]])
-    
+    # Ensure coastline is a single (multi)line geometry
+    if isinstance(coastline, gpd.GeoDataFrame) or isinstance(coastline, gpd.GeoSeries):
+        coastline = coastline.union_all()
+
     buffer_distance = 0.5
+    gdf = gdf.copy()
+    gdf["buffered"] = gdf.geometry.buffer(buffer_distance)
+    gdf["area"] = gdf.geometry.area
+    area_dict = dict(zip(gdf["id"], gdf["area"]))
+    geom_dict = dict(zip(gdf["id"], gdf.geometry))
+    buffered_dict = dict(zip(gdf["id"], gdf["buffered"]))
+
+    sindex = gdf.sindex
+    touching_pairs = set()
+
+    for idx, row in gdf.iterrows():
+        possible_matches_index = list(sindex.intersection(row["buffered"].bounds))
+        for other_idx in possible_matches_index:
+            other_row = gdf.iloc[other_idx]
+            if row["id"] != other_row["id"] and row["buffered"].intersects(other_row["buffered"]):
+                pair = (row["id"], other_row["id"]) if row["area"] < other_row["area"] else (other_row["id"], row["id"])
+                touching_pairs.add(pair)
+
+    touching_pairs = list(touching_pairs)
+    max_area = np.mean(gdf["area"].values) / 2
+
+    touching_pairs.sort(key=lambda x: area_dict[x[0]])
     sorted_pairs = []
-    
+
     for first_id, second_id in touching_pairs:
         if area_dict[first_id] > max_area:
-            continue  
-        
-        first_polygon = gdf.loc[gdf['id'] == first_id, 'geometry'].values[0]
-        second_polygon = gdf.loc[gdf['id'] == second_id, 'geometry'].values[0]
-        shared_border_length = first_polygon.buffer(buffer_distance).intersection(second_polygon).length  
-        length = first_polygon.buffer(buffer_distance).intersection(coastline).length.iloc[0] + second_polygon.buffer(buffer_distance).intersection(coastline).length.iloc[0]
-        
-        if length <= length_limit:
+            continue
+
+        poly1 = geom_dict[first_id]
+        poly2 = geom_dict[second_id]
+        buf1 = buffered_dict[first_id]
+        buf2 = buffered_dict[second_id]
+
+        shared_border_length = buf1.intersection(poly2).length
+        total_coastline_length = (
+            buf1.intersection(coastline).length +
+            buf2.intersection(coastline).length
+        )
+
+        if total_coastline_length <= length_limit:
             sorted_pairs.append((first_id, second_id, shared_border_length))
-    
-    sorted_pairs.sort(key=lambda x: (area_dict[x[0]], -x[2]))  
-    sorted_pairs = [(x[0], x[1]) for x in sorted_pairs]
-    
-    merged_gdf = gdf.copy()
-    srtdp = sorted_pairs.copy()
-    merged_polygons = []
-    
+
+    sorted_pairs.sort(key=lambda x: (area_dict[x[0]], -x[2]))
+    srtdp = [(x[0], x[1]) for x in sorted_pairs]
+
+    merged_ids = set()
     i = 0
     while i < len(srtdp):
         first_id, second_id = srtdp[i]
-        
-        poly1 = merged_gdf.loc[merged_gdf["id"] == first_id, "geometry"].values[0]
-        poly2 = merged_gdf.loc[merged_gdf["id"] == second_id, "geometry"].values[0]
-        length1 = poly1.buffer(buffer_distance).intersection(coastline).length.iloc[0]
-        length2 = poly2.buffer(buffer_distance).intersection(coastline).length.iloc[0]
-        
-        new_coastline_length = length1 + length2
-        
-        if new_coastline_length < length_limit:
-            new_polygon = poly1.union(poly2.buffer(buffer_distance))
-            new_coastline_intersection = new_polygon.buffer(buffer_distance).intersection(coastline).length.iloc[0]
-            new_id = first_id
-            
-            merged_gdf.loc[merged_gdf["id"] == first_id, "geometry"] = new_polygon
-            # merged_gdf.loc[merged_gdf["id"] == first_id, "coastline_length"] = new_coastline_intersection
-            merged_polygons.append(second_id)
-            
-            srtdp = [(new_id if x == second_id else x, new_id if y == second_id else y) for x, y in srtdp]
-        
+        if first_id in merged_ids or second_id in merged_ids:
+            i += 1
+            continue
+
+        poly1 = geom_dict[first_id]
+        poly2 = geom_dict[second_id]
+        buf1 = poly1.buffer(buffer_distance)
+        buf2 = poly2.buffer(buffer_distance)
+
+        length1 = buf1.intersection(coastline).length
+        length2 = buf2.intersection(coastline).length
+
+        new_length = length1 + length2
+
+        if new_length < length_limit:
+            new_geom = poly1.union(buf2)
+            geom_dict[first_id] = new_geom
+            buffered_dict[first_id] = new_geom.buffer(buffer_distance)
+            area_dict[first_id] = new_geom.area
+            merged_ids.add(second_id)
+
+            srtdp = [(first_id if x == second_id else x, first_id if y == second_id else y) for x, y in srtdp]
+
         i += 1
-    
-    merged_gdf = merged_gdf[~merged_gdf['id'].isin(merged_polygons)].reset_index(drop=True)
-    return merged_gdf
-    
+
+    merged_gdf = gdf[~gdf["id"].isin(merged_ids)].copy()
+    merged_gdf["geometry"] = merged_gdf["id"].map(geom_dict)
+    merged_gdf = merged_gdf.drop(columns=["buffered", "area"]).reset_index(drop=True)
+    return merged_gdf   
 
 
 """ Main Function that calls the processes
@@ -1833,7 +2210,8 @@ def main(island_inputs, output_dir, data_dir, inland_buffer, flood_threshold, rc
     initial_inland_buffer_distance = inland_buffer  # Buffer distance (in kilometers) to expand the inital bounding boxes & coastline buffeering
     flood_depth_threshold = flood_threshold  # Flood height threshold above which flood pixels will be considered
     eps_threshold = eps # DBSCAN epsilon value
-    minPts = minGrpSize = minpts #DBSCAN minPts value & Minimum number of polygons to make up a group (Used in SCAPE)
+    minPts = minpts #DBSCAN minPts value & Minimum number of polygons to make up a group (Used in SCAPE)
+    minGrpSize = 2
     max_coast_segement_length = coast_length
     overlap_threshold = overlap #Minimum % groups can overlap to trigger merging (Used in SCAPE)
     # max_separation_distance = 8_000 #Max Distacne flooding can be from coastline to be included in flood area

@@ -128,7 +128,7 @@ def get_coastal_dimension_factor(x, flood_params, protect_feature, protect_dict,
                 dimension = 1
             else:
                 dimension = feature_match["coastline_length"].iloc[0]
-            print (f"{x[asset_id]}----{flood_id}------{dimension}")
+            # print (f"{x[asset_id]}----{flood_id}------{dimension}")
     
     # Determine cost unit
     change_type = x["change_parameter"]
@@ -173,7 +173,7 @@ def get_adaptation_options_costs(asset_df, asset_id, hazard_label, flood_params,
     ].multiply(
         asset_df["cost_multiplier"], axis="index"
     )
-
+    
     return asset_df[
         [
             asset_id,
