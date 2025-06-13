@@ -157,7 +157,7 @@ def indexed_splits_df_to_xarray(
         splits[[value_colname, index_x, index_y]]
         .groupby([index_x, index_y])
         .sum()
-        .query(f"`{value_colname}` > 0")  # select only non-positive values
+        .query(f"`{value_colname}` > 0")  # select only positive values
         .reset_index()
     )
 
