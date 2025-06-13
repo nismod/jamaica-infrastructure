@@ -78,8 +78,11 @@ rule preprocess_road_network:
             edges.loc[(edges.tag_highway == road_class) & edges.tag_maxspeed.isna(), "speed_kph"] = modal_limit_kph
 
         logging.info("Gap-filling # lanes")
-        edges.lanes = edges.lanes.astype(int)
-        edges[edges.lanes == 0] = 1
+        edges.loc[edges.lanes == 0, "lanes"] = 1
+        # Set lanes to 2 (single carriageway) where OSM was missing data
+        # This matches the approach in the CCRI phase
+        edges.loc[edges.tag_lanes.isna(), "lanes"] = 2
+        edges.lanes = edges.lanes.astype(float)
 
         logging.info("Set asset_type (for damage curve lookup)")
         edges["asset_type"] = edges.tag_highway.map(config["road_classification"]["OSM_to_damage_curve"])
@@ -136,6 +139,9 @@ rule preprocess_road_network:
         network.nodes.loc[bridge_mask, "asset_type"] = "bridge"
         for cost_column in [f"{agg}_damage_cost" for agg in ["min", "mean", "max"]]:
             network.nodes[cost_column] *= network.nodes["length_m"]
+            # We do not want to double count things like EAD when summing across asset layers
+            # so, zero out the costs for the bridge edges -- the rehab cost is now with the nodes
+            network.edges.loc[network.edges.bridge, cost_column] = 0
         network.nodes.loc[bridge_mask, "cost_unit"] = "J$"
 
         logging.info("Label road network with components")
