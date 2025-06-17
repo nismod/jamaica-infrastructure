@@ -194,4 +194,6 @@ coastal_adaptation:
   # and continuity of protection, and to prevent duplicated efforts in 
   # protecting assets within the flood protection areas.
   overlap: 0.50
+
+  coastal_layer: "workflow/coastal_protection_layers.csv"
     

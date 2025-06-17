@@ -125,6 +125,12 @@ def preprocess_for_visualisation(
     asset_gpkg: str,
     asset_layer: str
 ) -> None:
+    
+    if asset_gpkg == "coastal_protection_feature" and asset_layer == "edges":
+        coastal = True
+    else:
+        coastal = False
+        
 
     layer = get_asset(network_csv, asset_gpkg, asset_layer)
     logging.info(f"Processing {layer.sector}, {layer.asset_gpkg}, {layer.asset_layer}")
@@ -156,14 +162,15 @@ def preprocess_for_visualisation(
     logging.info(f"Writing ID lookup: {uid_fname}")
     layer_data.loc[:, [layer.asset_id_column, 'uid']].to_parquet(uid_fname, index=False)
 
-    logging.info("Writing results files in parquet format")
-    pathlib.Path(f"{results_dir}/direct_damages_summary_uids").mkdir(parents=True, exist_ok=True)
-    if 'buildings' in layer.asset_gpkg:
-        process_buildings(layer, processed_data_dir, results_dir)
-    else:
-        process_layer(layer, processed_data_dir, results_dir)
+    if not coastal:
+        logging.info("Writing results files in parquet format")
+        pathlib.Path(f"{results_dir}/direct_damages_summary_uids").mkdir(parents=True, exist_ok=True)
+        if 'buildings' in layer.asset_gpkg:
+            process_buildings(layer, processed_data_dir, results_dir)
+        else:
+            process_layer(layer, processed_data_dir, results_dir)
 
-    return
+        return
 
 
 if __name__ == "__main__":

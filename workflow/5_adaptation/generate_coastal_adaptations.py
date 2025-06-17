@@ -1824,6 +1824,7 @@ def Generate_Coastal_Flood_Protection_Areas(
         raster_file,
         processing_file, 
         output_file,
+        output_file_2,
         initial_inland_buffer_distance,
         flood_depth_threshold,
         eps_threshold,
@@ -2084,8 +2085,15 @@ def Generate_Coastal_Flood_Protection_Areas(
     add_Layer_to_File(final_coastal_protection_area, output_file, layer_name, "GPKG")
 
     final_coastal_protection_coastline = flood_protection_coastline
+
+    # Add the asset_type column with "revetment" for all rows
+    final_coastal_protection_coastline["asset_type"] = "revetment"
+
     layer_name = f"edges"
     add_Layer_to_File(final_coastal_protection_coastline, output_file, layer_name, "GPKG")
+    add_Layer_to_File(final_coastal_protection_coastline, output_file_2, layer_name, "GPKG")
+
+
     #------------------------------------------------------------------------------------------------#
 
 @click.command()
@@ -2200,8 +2208,13 @@ def main(island_inputs, output_dir, data_dir, inland_buffer, flood_threshold, rc
     output_dir = Path(output_dir) / "coastal_protection_assets"
     output_dir.mkdir(parents=True, exist_ok=True)
 
+    output_dir_2 = Path(data_dir) / "networks" / "coastal_infrastructure"
+    output_dir_2.mkdir(parents=True, exist_ok=True)
+
     processing_file = f"{output_dir}/coastal_protection_processing_layers.gpkg"  # GeoPackage file to store intermediate processing layers
     output_file = f"{output_dir}/Jamaica_coastal_protection_areas.gpkg"
+
+    output_file_2 = f"{output_dir_2}/Jamaica_coastal_protection_areas.gpkg"
 
     # print (processing_file)
     #------------------------------------------------------
@@ -2245,6 +2258,7 @@ def main(island_inputs, output_dir, data_dir, inland_buffer, flood_threshold, rc
                 raster_file = raster_file,
                 processing_file = processing_file, 
                 output_file = output_file,
+                output_file_2 = output_file_2,
                 initial_inland_buffer_distance = initial_inland_buffer_distance,
                 flood_depth_threshold = flood_depth_threshold,
                 eps_threshold = eps_threshold,
