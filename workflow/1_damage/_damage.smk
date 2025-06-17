@@ -77,7 +77,10 @@ checkpoint sensitivity_parameters:
             )
 
         elif config["sensitivity_analysis"] == False:
-            values = [(1.0, 1.0)]  # one sample, no variation
+            # one sample, no variation
+            # perturbation is applied: min + sensitivity parameter * (max - min)
+            # therefore a sensitivity parameter of 0.5 is the middle estimate
+            values = [[0.5] * len(variables)]
 
         else:
             raise ValueError("config['sensitivity_analysis'] must be boolean")
