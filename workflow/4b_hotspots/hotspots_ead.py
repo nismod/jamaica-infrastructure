@@ -80,7 +80,7 @@ def ead_to_grid(splits_path, grid_path, hazard, output_path):
     meta = get_hazard_meta(splits)
 
     if hazard not in set(meta.hazard):
-        write_constant_tiff(np.nan, grid_path, output_path)
+        write_constant_tiff(0.0, grid_path, output_path)
         return
 
     splits[ead_colname] = ead(splits, meta, hazard)
@@ -93,6 +93,7 @@ def ead_to_grid(splits_path, grid_path, hazard, output_path):
         index_x="cell_index_0_x",
         index_y="cell_index_0_y",
         no_data_value=np.nan,
+        default_value=0.0,
     )
 
 

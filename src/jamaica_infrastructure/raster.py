@@ -117,6 +117,7 @@ def write_indexed_splits_to_tiff(
     index_x: str,
     index_y: str,
     no_data_value: float = np.nan,
+    default_value: float = 0.0,
 ) -> None:
     """Given a dataframe of cell-indexed values and a template grid, write the
     total per-cell values to file"""
@@ -124,7 +125,7 @@ def write_indexed_splits_to_tiff(
     # use the hotspots grid as a template -- inherit the transform for output
     grid = rioxarray.open_rasterio(grid_path)
     grid = grid.astype(float)  # promote to float
-    grid.data[:, :] = np.nan  # fill with NaN by default
+    grid.data[:, :] = default_value  # initialise with default
 
     grid = indexed_splits_df_to_xarray(
         splits,
