@@ -107,6 +107,29 @@ rule map_networks_to_coastal_protection:
             --output-dir {OUTPUT} \
         """
 
+
+def generate_coastal_protection_mapping_paths(wildcards) -> list[str]:
+    metadata = pd.read_csv(config["paths"]["network_layers"])
+    paths = []
+    for row in metadata.itertuples():
+        paths.append(
+            f"{OUTPUT}/coastal_protection_assets/network_protection_mappings/{row.asset_gpkg}_{row.asset_layer}_coastal_filtered.parquet"
+        )
+    return paths
+
+rule map_networks_to_coastal_protection_all_layers:
+    """
+        Expand map_networks_to_coastal_protection for all network layers.
+
+        Test with:
+        snakemake -c1 results/coastal_protection_assets/network_protection_mappings/all_layers.flag
+    """
+    input:
+        generate_coastal_protection_mapping_paths
+    output:
+        flag = f"{OUTPUT}/coastal_protection_assets/network_protection_mappings/all_layers.flag"
+
+
 rule count_assets_per_coastal_protection:
     """
         Counts the number of assets for each network layer that intersect with each coastal
