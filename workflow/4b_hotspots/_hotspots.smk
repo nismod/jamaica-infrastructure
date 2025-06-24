@@ -124,7 +124,7 @@ rule hotspots_damage:
         damage_curves_dir = f"{DATA}/damage_curves",
         damage_curves = lambda wildcards: expand(
             f"{DATA}/damage_curves/damage_curves_{get_asset_metadata(wildcards).sector}_{{hazard_type}}.xlsx",
-            hazard_type = HAZARD_TYPES
+            hazard_type = ("TC", "flooding")
         ),
         hazard_intersection_file = f"{OUTPUT}/hotspots/splits/{{gpkg}}_splits__hazard_layers__{{layer}}.geoparquet",
     params:
