@@ -270,8 +270,6 @@ def main(network_csv,
     
     networks_csv = network_csv
     networks = pd.read_csv(networks_csv)
-    networks = networks[networks["asset_description"] != "buildings"]
-    # print (networks)
 
     flood_areas = coastal_adaptation_assets
     output_path = output_dir
