@@ -163,3 +163,21 @@ rule count_assets_per_coastal_protection:
         """
 
 
+def generate_coastal_protection_BCR_paths(wildcards) -> list[str]:
+    metadata = pd.read_csv(config["paths"]["network_layers"])
+    paths = []
+    for row in metadata.itertuples():
+        paths.append(
+            f"{OUTPUT}/adaptation_benefits_costs_bcr/coastal_{row.asset_gpkg}_{row.asset_layer}_adaptation_benefits_costs_bcr.csv",
+        )
+    return paths
+
+rule benefit_cost_ratio_coastal_protection_all_assets:
+    """
+    Coastal adaptation BCR files for all protected network layers.
+    """
+    input:
+        generate_coastal_protection_BCR_paths
+    output:
+        flag = f"{OUTPUT}/adaptation_benefits_costs_bcr/coastal.flag",
+
