@@ -975,25 +975,13 @@ def benefit_cost_ratio(
 
     if len(bcr_results) > 0:
         bcr_results = pd.concat(bcr_results, axis=0, ignore_index=False)
-
-        bcr_results.to_csv(
-            output_bcr,
-            index=False,
-        )
-
-        logging.info(f"Writing BCR results to disk: {output_bcr}")
+    pd.DataFrame(bcr_results).to_csv(output_bcr, index=False)
+    logging.info(f"Writing BCR results to disk: {output_bcr}")
 
     if len(ead_eael_results) > 0:
-        ead_eael_results = pd.concat(
-            ead_eael_results, axis=0, ignore_index=False
-        )
-
-        ead_eael_results.to_csv(
-            output_ead,
-            index=False,
-        )
-
-        logging.info(f"Writing EAD & EAEL results to disk: {output_ead}")
+        ead_eael_results = pd.concat(ead_eael_results, axis=0, ignore_index=False)
+    pd.DataFrame(ead_eael_results).to_csv(output_ead, index=False)
+    logging.info(f"Writing EAD & EAEL results to disk: {output_ead}")
 
 
 if __name__ == "__main__":

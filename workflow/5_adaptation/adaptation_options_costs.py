@@ -446,7 +446,16 @@ def adaptation_options_costs(
     if adapt_assets.empty:
         logging.info("No adaptation options for assets, skipping...")
         pd.DataFrame([]).to_csv(asset_unit_costs_csv, index=False)
-        pd.DataFrame([]).to_csv(asset_timeseries_csv, index=False)
+        # Schema necessary for subsequent script to open timeseries file,
+        # so write the header but nothing else
+        pd.DataFrame(
+            [],
+            columns=[
+                "undefined_asset_id",
+                "adaptation_option",
+                "asset_adaptation_cost",
+            ] + list(map(str, range(baseline_year, projection_end_year + 1)))
+        ).to_csv(asset_timeseries_csv, index=False)
         return
 
     asset_info = adapt_assets.squeeze()
