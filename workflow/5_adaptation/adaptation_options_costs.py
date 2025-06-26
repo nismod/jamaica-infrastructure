@@ -119,10 +119,11 @@ def get_coastal_dimension_factor(x, flood_params, protect_feature, protect_dict,
     if asset_match.empty:
         dimension = 1
     else:
-        flood_id = int(asset_match[flood_id_col].iloc[0])
-        if pd.isna(flood_id):  # Handle NaN values explicitly
+        value = asset_match[flood_id_col].iloc[0]
+        if pd.isna(value):  # Handle NaN values explicitly
             dimension = 1
         else:
+            flood_id = int(value)
             # Look up coastline length for this flood_id
             feature_match = protect_feature[protect_feature["polygon_id"] == flood_id]
             if feature_match.empty:
