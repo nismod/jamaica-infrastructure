@@ -180,4 +180,8 @@ rule benefit_cost_ratio_coastal_protection_all_assets:
         generate_coastal_protection_BCR_paths
     output:
         flag = f"{OUTPUT}/adaptation_benefits_costs_bcr/coastal.flag",
+    shell:
+        """
+        touch {output.flag}
+        """
 
