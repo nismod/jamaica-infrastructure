@@ -401,35 +401,15 @@ def adaptation_options_costs(
 
     logging.info("Read network metadata")
     network_metadata = pd.read_csv(network_csv)
-    # e.g.
-    #    sector      asset_description   asset_gpkg     asset_layer
-    # 3  transport   ports               port_polygon   areas
-    network_layers = network_metadata[
+    network_layer = network_metadata[
         (network_metadata["asset_gpkg"] == asset_gpkg)
         & (network_metadata["asset_layer"] == asset_layer)
-    ]
+    ].squeeze()
 
     logging.info("Read adaptation option costs")
     all_adaptation_costs = pd.read_excel(cost_file, sheet_name="Sheet1").fillna(0)
     hazard_adaptation_costs = all_adaptation_costs[all_adaptation_costs["hazard"] == hazard_label]
-    network_layers_with_options = network_layers[network_layers["asset_description"].isin(hazard_adaptation_costs.asset_description)]
 
-    if network_layers_with_options.empty:
-        logging.info("No adaptation options for assets, skipping...")
-        pd.DataFrame([]).to_csv(asset_unit_costs_csv, index=False)
-        # Schema necessary for subsequent script to open timeseries file,
-        # so write the header but nothing else
-        pd.DataFrame(
-            [],
-            columns=[
-                "undefined_asset_id",
-                "adaptation_option",
-                "asset_adaptation_cost",
-            ] + list(map(str, range(baseline_year, projection_end_year + 1)))
-        ).to_csv(asset_timeseries_csv, index=False)
-        return
-
-    network_layer = network_layers_with_options.squeeze()
     asset_id_col = network_layer.asset_id_column
     asset_type_col = network_layer[f"{hazard_label}_asset_damage_lookup_column"]
 
@@ -438,8 +418,24 @@ def adaptation_options_costs(
 
     logging.info("Lookup costs for network assets")
     if network_layer.asset_description != "roads":
+
         # Join adaptation option costs 'asset_name' on assets `asset_type_col`
         assets = assets[assets[asset_type_col].isin(hazard_adaptation_costs.asset_name)]
+        if assets.empty:
+            logging.info("No adaptation options for assets, skipping...")
+            pd.DataFrame([]).to_csv(asset_unit_costs_csv, index=False)
+            # Schema necessary for subsequent script to open timeseries file,
+            # so write the header but nothing else
+            pd.DataFrame(
+                [],
+                columns=[
+                    "undefined_asset_id",
+                    "adaptation_option",
+                    "asset_adaptation_cost",
+                ] + list(map(str, range(baseline_year, projection_end_year + 1)))
+            ).to_csv(asset_timeseries_csv, index=False)
+            return
+
         assets = pd.merge(
             assets,
             hazard_adaptation_costs,
