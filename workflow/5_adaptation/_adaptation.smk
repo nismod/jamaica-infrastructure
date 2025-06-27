@@ -12,7 +12,7 @@ rule adaptation_options_costs:
     """
     input:
         script = "workflow/5_adaptation/adaptation_options_costs.py",
-        cost_file = f"{DATA}/adaptation/adaptation_options_and_costs_jamaica.xlsx",
+        cost_file = f"{DATA}/adaptation/adaptation_options_and_costs.xlsx",
         network_csv = config["paths"]["network_layers"],
         protection_asset_dict = f"{OUTPUT}/coastal_protection_assets/network_protection_mappings/{{gpkg}}_{{layer}}_coastal_filtered.parquet",
         protection_feature_breakdown = f"{OUTPUT}/coastal_protection_assets/coastal_protection_assets_breakdown.csv",
