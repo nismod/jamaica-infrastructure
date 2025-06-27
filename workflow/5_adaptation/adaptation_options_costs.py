@@ -1,10 +1,9 @@
-import click
 import os
 import logging
 import warnings
 
+import click
 import pandas as pd
-
 import geopandas as gpd
 import numpy as np
 from tqdm import tqdm
@@ -388,32 +387,8 @@ def adaptation_options_costs(
     discounting_rate,
     epsg,
 ):
-    epsg_jamaica = epsg
-    flood_params = [rcp, rp, projection_end_year]
 
-    cost_df = pd.read_excel(
-        cost_file,
-        sheet_name="Sheet1",
-    ).fillna(0)
-
-    asset_df = pd.read_csv(network_csv)
-    asset_data_details = asset_df[
-        (asset_df["asset_gpkg"] == asset_gpkg)
-        & (asset_df["asset_layer"] == asset_layer)
-    ]
-    asset_df = gpd.read_file(
-        asset_file,
-        layer=asset_layer,
-    )
-
-    dsc_rate = calculate_discounting_rate_factor(
-        discount_rate=discounting_rate,
-        start_year=baseline_year,
-        end_year=projection_end_year,
-        maintain_period=1,
-    )
-    cost_timeseries = np.arange(baseline_year, projection_end_year + 1, 1)
-
+    # make output folders
     adaptation_results = os.path.join(output_dir, "adaptation_costs")
     if os.path.exists(adaptation_results) is False:
         os.mkdir(adaptation_results)
@@ -422,18 +397,27 @@ def adaptation_options_costs(
     if os.path.exists(hazard_outputs) is False:
         os.mkdir(hazard_outputs)
 
-    adapt_costs = cost_df[cost_df["hazard"] == hazard_label]
-    
-    cost_description = list(
-        set(adapt_costs["asset_description"].values.tolist())
-    )
-    costed_assets = list(set(adapt_costs["asset_name"].values.tolist()))
-    # print(f"-----------------------{costed_assets}-----------------------")
+    epsg_jamaica = epsg
+    flood_params = [rcp, rp, projection_end_year]
 
-    adapt_assets = asset_data_details[
-        asset_data_details["asset_description"].isin(cost_description)
+    logging.info("Read network metadata")
+    network_metadata = pd.read_csv(network_csv)
+    # e.g.
+    #    sector      asset_description   asset_gpkg     asset_layer
+    # 3  transport   ports               port_polygon   areas
+    asset_data_details = network_metadata[
+        (network_metadata["asset_gpkg"] == asset_gpkg)
+        & (network_metadata["asset_layer"] == asset_layer)
     ]
 
+    logging.info("Read adaptation option costs")
+    cost_df = pd.read_excel(cost_file, sheet_name="Sheet1").fillna(0)
+    adapt_costs = cost_df[cost_df["hazard"] == hazard_label]
+    cost_description = list(set(adapt_costs["asset_description"].values.tolist()))
+    costed_assets = list(set(adapt_costs["asset_name"].values.tolist()))
+    adapt_assets = asset_data_details[asset_data_details["asset_description"].isin(cost_description)]
+
+    # output paths
     asset_unit_costs_csv = os.path.join(
         hazard_outputs,
         f"{asset_gpkg}_{asset_layer}_adaptation_unit_costs.csv",
@@ -463,8 +447,12 @@ def adaptation_options_costs(
     asset_hazard = getattr(
         asset_info, f"{hazard_label}_asset_damage_lookup_column"
     )
+
+    logging.info("Read network layer")
+    asset_df = gpd.read_file(asset_file, layer=asset_layer)
     asset_df = asset_df.to_crs(epsg=epsg_jamaica)
 
+    logging.info("Lookup costs for network assets")
     if asset_info.asset_description != "roads":
         asset_df = asset_df[asset_df[asset_hazard].isin(costed_assets)]
         asset_df = pd.merge(
@@ -474,17 +462,30 @@ def adaptation_options_costs(
             left_on=asset_hazard,
             right_on="asset_name",
         )
-        asset_df = get_adaptation_options_costs(asset_df, asset_id, hazard_label, flood_params, protection_feature_breakdown, protection_asset_dict)
+        asset_df = get_adaptation_options_costs(
+            asset_df,
+            asset_id,
+            hazard_label,
+            flood_params,
+            protection_feature_breakdown,
+            protection_asset_dict
+        )
     else:
         asset_df = get_adaptation_options_costs_roads(
-            asset_df, adapt_costs, asset_id, hazard_label, flood_params, protection_feature_breakdown, protection_asset_dict
+            asset_df,
+            adapt_costs,
+            asset_id,
+            hazard_label,
+            flood_params,
+            protection_feature_breakdown,
+            protection_asset_dict
         )
 
+    logging.info("Write out per asset costs")
     protect_dict = pd.read_parquet(protection_asset_dict)
     asset_df = asset_df[asset_df[asset_id].isin(protect_dict[asset_id])]
-
     asset_df.to_csv(asset_unit_costs_csv, index=False)
-    logging.info(asset_unit_costs_csv)
+
     asset_df = assign_costs_over_time(
         asset_df,
         asset_id,
@@ -492,11 +493,18 @@ def adaptation_options_costs(
         end_year=projection_end_year,
         discounting_rate=discounting_rate,
     )
-
+    dsc_rate = calculate_discounting_rate_factor(
+        discount_rate=discounting_rate,
+        start_year=baseline_year,
+        end_year=projection_end_year,
+        maintain_period=1,
+    )
     df = asset_df.copy()
+    cost_timeseries = np.arange(baseline_year, projection_end_year + 1, 1)
     df[cost_timeseries] = np.multiply(df[cost_timeseries], dsc_rate)
     asset_df["adapt_cost_npv"] = df[cost_timeseries].sum(axis=1)
 
+    logging.info("Write out per asset per year costs")
     asset_df = asset_df[asset_df[asset_id].isin(protect_dict[asset_id])]
     asset_df.to_csv(asset_timeseries_csv, index=False)
     logging.info(asset_timeseries_csv)
