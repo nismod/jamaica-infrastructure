@@ -397,8 +397,6 @@ def adaptation_options_costs(
     asset_unit_costs_csv = os.path.join(hazard_outputs, f"{asset_gpkg}_{asset_layer}_adaptation_unit_costs.csv")
     asset_timeseries_csv = os.path.join(hazard_outputs, f"{asset_gpkg}_{asset_layer}_adaptation_timeseries_and_npvs.csv")
 
-    flood_params = [rcp, rp, projection_end_year]
-
     logging.info("Read network metadata")
     network_metadata = pd.read_csv(network_csv)
     network_layer = network_metadata[
@@ -447,7 +445,7 @@ def adaptation_options_costs(
             assets,
             asset_id_col,
             hazard_label,
-            flood_params,
+            [rcp, rp, projection_end_year],
             protection_feature_breakdown,
             protection_asset_dict
         )
@@ -457,7 +455,7 @@ def adaptation_options_costs(
             hazard_adaptation_costs,
             asset_id_col,
             hazard_label,
-            flood_params,
+            [rcp, rp, projection_end_year],
             protection_feature_breakdown,
             protection_asset_dict
         )
