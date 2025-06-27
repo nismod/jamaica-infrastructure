@@ -116,6 +116,7 @@ rule benefit_cost_ratio:
     
     Test with:
     snakemake -c1 results/adaptation_benefits_costs_bcr/flooding_waste_water_facilities_NWC_nodes_adaptation_costs_avoided_EAD_EAEL.csv
+    snakemake -c1 results/adaptation_benefits_costs_bcr/coastal_waste_water_facilities_NWC_nodes_adaptation_costs_avoided_EAD_EAEL.csv
     """
     input:
         script = "workflow/5_adaptation/benefit_cost_ratio_estimations.py",
