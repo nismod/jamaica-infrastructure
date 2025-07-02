@@ -37,6 +37,7 @@ rule preprocess_for_visualisation:
             --asset-layer {{wildcards.layer}} \
         """
 
+
 rule preprocess_coastal_features_for_visualisation:
     """
     Tag coastal feature asset data with unique IDs and reserialise risk data into parquet format.
@@ -48,17 +49,18 @@ rule preprocess_coastal_features_for_visualisation:
         script = "workflow/6_etl/preprocess_for_visualisation.py",
         network_csv = config["coastal_adaptation"]["coastal_layer"],
     output:
-        id_lookups = f"{DATA}/networks_uids/id_lookups/{{gpkg}}_{{layer}}_ids.parquet",
-        network_csv_fragment = f"{DATA}/networks_uids/network_layer_{{gpkg}}_{{layer}}.csv",
+        id_lookups = f"{DATA}/networks_uids/id_lookups/coastal_protection_feature_edges_ids.parquet",
+        network_csv_fragment = f"{DATA}/networks_uids/network_layer_coastal_protection_feature_edges.csv",
     shell:
         f"""
         python {{input.script}} \
             --network-csv {{input.network_csv}} \
             --processed-data-dir {DATA} \
             --results-dir {OUTPUT} \
-            --asset-gpkg {{wildcards.gpkg}} \
-            --asset-layer {{wildcards.layer}} \
+            --asset-gpkg coastal_protection_feature \
+            --asset-layer edges \
         """
+
 
 def network_layer_csv_fragments_for_all_layers(wildcards) -> list[str]:
     assets: pd.DataFrame = pd.read_csv(config["paths"]["network_layers"])
