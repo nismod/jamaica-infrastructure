@@ -53,12 +53,7 @@ rule preprocess_coastal_features_for_visualisation:
         network_csv_fragment = f"{DATA}/networks_uids/network_layer_coastal_protection_feature_edges.csv",
     shell:
         f"""
-        python {{input.script}} \
-            --network-csv {{input.network_csv}} \
-            --processed-data-dir {DATA} \
-            --results-dir {OUTPUT} \
-            --asset-gpkg coastal_protection_feature \
-            --asset-layer edges \
+        python {{input.script}} --network-csv {{input.network_csv}} --processed-data-dir {DATA} --results-dir {OUTPUT} --asset-gpkg coastal_protection_feature --asset-layer edges
         """
 
 
