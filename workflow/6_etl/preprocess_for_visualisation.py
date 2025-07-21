@@ -60,7 +60,7 @@ def process_buildings(layer, processed_data_dir, results_dir):
                     base_cols = ['osm_id'] + [col for col in pf.schema.names if 'unit' in col]
                     data_cols = [col for col in pf.schema.names if hazard in col and rcp in col and epoch in col]
                     if data_cols:
-                        logging.info(base_cols, hazard, rcp, epoch, len(data_cols))
+                        logging.info(f"{base_cols}, {hazard}, {rcp}, {epoch}, {len(data_cols)}")
                         process_subset(layer, fname, base_cols, data_cols, id_lookup, hazard, rcp, epoch, suffix, results_dir)
 
             elif 'csv' in suffix:
