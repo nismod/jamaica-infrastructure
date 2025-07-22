@@ -28,14 +28,14 @@ rule preprocess_for_visualisation:
         EAD_EAEL = f"{OUTPUT}/direct_damages_summary_uids/{{gpkg}}_{{layer}}_EAD_EAEL.parquet",
         network_csv_fragment = f"{DATA}/networks_uids/network_layer_{{gpkg}}_{{layer}}.csv",
     shell:
-        f"""
-        python {{input.script}} \
-            --network-csv {{input.network_csv}} \
-            --processed-data-dir {DATA} \
-            --results-dir {OUTPUT} \
-            --asset-gpkg {{wildcards.gpkg}} \
-            --asset-layer {{wildcards.layer}} \
         """
+        python {{input.script}} \\
+            --network-csv {{input.network_csv}} \\
+            --processed-data-dir {data} \\
+            --results-dir {output} \\
+            --asset-gpkg {{wildcards.gpkg}} \\
+            --asset-layer {{wildcards.layer}}
+        """.format(data=DATA, output=OUTPUT)
 
 
 rule preprocess_coastal_features_for_visualisation:
@@ -52,9 +52,14 @@ rule preprocess_coastal_features_for_visualisation:
         id_lookups = f"{DATA}/networks_uids/id_lookups/coastal_protection_feature_edges_ids.parquet",
         network_csv_fragment = f"{DATA}/networks_uids/network_layer_coastal_protection_feature_edges.csv",
     shell:
-        f"""
-        python {{input.script}} --network-csv {{input.network_csv}} --processed-data-dir {DATA} --results-dir {OUTPUT} --asset-gpkg coastal_protection_feature --asset-layer edges
         """
+        python {{input.script}} \\
+            --network-csv {{input.network_csv}} \\
+            --processed-data-dir {data} \\
+            --results-dir {output} \\
+            --asset-gpkg coastal_protection_feature \\
+            --asset-layer edges
+        """.format(data=DATA, output=OUTPUT)
 
 
 def network_layer_csv_fragments_for_all_layers(wildcards) -> list[str]:
