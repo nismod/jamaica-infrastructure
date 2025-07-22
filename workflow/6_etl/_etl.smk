@@ -38,6 +38,39 @@ rule preprocess_for_visualisation:
         """.format(data=DATA, output=OUTPUT)
 
 
+rule preprocess_buildings_for_visualisation:
+    """
+    Buildings are a special case with a different set of output files.
+
+    Test with:
+    snakemake -c1 processed_data/networks_uids/id_lookups/buildings_assigned_economic_activity_areas_ids.parquet
+    """
+    input:
+        script = "workflow/6_etl/preprocess_for_visualisation.py",
+        network_csv = config["paths"]["network_layers"],
+        losses = f"{OUTPUT}/direct_damages_summary/buildings_assigned_economic_activity_areas_losses.parquet",
+        damages = f"{OUTPUT}/direct_damages_summary/buildings_assigned_economic_activity_areas_damages.parquet",
+        exposures = f"{OUTPUT}/direct_damages_summary/buildings_assigned_economic_activity_areas_exposures.parquet",
+        EAD_EAEL = f"{OUTPUT}/direct_damages_summary/buildings_assigned_economic_activity_areas_EAD_EAEL.csv",
+    output:
+        id_lookups = f"{DATA}/networks_uids/id_lookups/buildings_assigned_economic_activity_areas_ids.parquet",
+        EAD_EAEL = f"{OUTPUT}/direct_damages_summary_uids/buildings_assigned_economic_activity_areas_EAD_EAEL.parquet",
+        network_csv_fragment = f"{DATA}/networks_uids/network_layer_buildings_assigned_economic_activity_areas.csv",
+        # Additionally, buildings produce losses, damages and exposures for a
+        # combination of RCPS, HAZARDS, EPOCHS (see script header).
+        # These look like:
+        # results/direct_damages_summary_uids/buildings_assigned_economic_activity_areas_coastal__rcp_4.5__epoch_2050__damages.parquet
+    shell:
+        """
+        python {{input.script}} \\
+            --asset-gpkg buildings_assigned_economic_activity \\
+            --asset-layer areas \\
+            --network-csv {{input.network_csv}} \\
+            --processed-data-dir {data} \\
+            --results-dir {output}
+        """.format(data=DATA, output=OUTPUT)
+
+
 rule preprocess_coastal_features_for_visualisation:
     """
     Tag coastal feature asset data with unique IDs and reserialise risk data into parquet format.
