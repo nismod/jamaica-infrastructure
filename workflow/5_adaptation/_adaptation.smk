@@ -147,19 +147,19 @@ rule benefit_cost_ratio:
             TC_FACTORS="$TC_FACTORS --tc-damage-curve-factor $VALUE"
         done
 
-        python {input.script} \
-            --network-csv {input.network_csv} \
-            --cost-file {input.cost_file} \
-            --protection-asset-breakdown {input.protection_asset_breakdown} \
-            --protection-asset-dict {input.protection_asset_dict} \
-            --hazard-label {wildcards.hazard} \
-            --asset-gpkg {wildcards.gpkg} \
-            --asset-layer {wildcards.layer} \
-            --proj-end-year {params.projection_end_year} \
-            --rcp {params.rcp} \
-            --rp {params.rp} \
-            --disruption-duration-days {params.disruption_duration} \
-            $FLOOD_THRESHOLDS \
-            $TC_FACTORS \
+        python {input.script} \\
+            --network-csv {input.network_csv} \\
+            --cost-file {input.cost_file} \\
+            --protection-asset-breakdown {input.protection_asset_breakdown} \\
+            --protection-asset-dict {input.protection_asset_dict} \\
+            --hazard-label {wildcards.hazard} \\
+            --asset-gpkg {wildcards.gpkg} \\
+            --asset-layer {wildcards.layer} \\
+            --proj-end-year {params.projection_end_year} \\
+            --rcp {params.rcp} \\
+            --rp {params.rp} \\
+            --disruption-duration-days {params.disruption_duration} \\
+            $FLOOD_THRESHOLDS \\
+            $TC_FACTORS \\
             --output-dir {OUTPUT}
         """
