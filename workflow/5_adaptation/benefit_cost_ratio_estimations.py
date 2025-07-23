@@ -547,6 +547,18 @@ def get_ead_eael_costs(
         return ead_eael_results
 
 
+def write_empty(asset_id: str, output_bcr: str, output_ead: str) -> None:
+    """
+    Write out CSV files with no data and a simple header.
+    """
+    for path in (output_bcr, output_ead):
+        pd.DataFrame(
+            [],
+            columns=(asset_id, "adaptation_option", "protection_level", "adapt_cost_npv")
+        ).to_csv(path, index=False)
+    return
+
+
 @click.command()
 @click.version_option("1.0")
 @click.option(
@@ -714,6 +726,11 @@ def benefit_cost_ratio(
     logging.info("Reading costs")
     cost_df = pd.read_csv(cost_file)
 
+    if cost_df.empty:
+        logging.info("No adaptation options (costs) available, skipping...")
+        write_empty(asset_id, output_bcr, output_ead)
+        return
+
     logging.info("Reading risks with no adaptation")
     no_adapt_risk = pd.read_csv(no_adapt_risk_file)
 
@@ -741,6 +758,7 @@ def benefit_cost_ratio(
     bcr_results = []
     ead_eael_results = []
     flood_params = [rcp, rp, proj_end_year]
+
     for option in adaptation_options:
         option_df = cost_df[cost_df["adaptation_option"] == option]
         asset_adaptation_cost = option_df["asset_adaptation_cost"].values[0]
