@@ -71,22 +71,42 @@ rule preprocess_buildings_for_visualisation:
         """.format(data=DATA, output=OUTPUT)
 
 
+def get_coastal_defence_to_asset_map_paths(wildcards: dict) -> list[str]:
+    layers: pd.DataFrame = pd.read_csv(config["paths"]["network_layers"])
+    return [
+        f"{OUTPUT}/coastal_protection_assets/network_protection_mappings/{row.asset_gpkg}_{row.asset_layer}_coastal_filtered.parquet"
+        for row in layers.itertuples()
+    ]
+
+def get_coastal_defence_avoided_cost_paths(wildcards: dict) -> list[str]:
+    layers: pd.DataFrame = pd.read_csv(config["paths"]["network_layers"])
+    return [
+        f"{OUTPUT}/adaptation_benefits_costs_bcr/coastal_{row.asset_gpkg}_{row.asset_layer}_adaptation_costs_avoided_EAD_EAEL.csv"
+        for row in layers.itertuples()
+    ]
+
 rule preprocess_coastal_features_for_visualisation:
     """
-    Tag coastal feature asset data with unique IDs and reserialise risk data into parquet format.
+    Tag coastal feature asset data with unique IDs, find sum of avoided damages
+    & losses for each coastal defence feature and save data in parquet format.
     
     Test with:
-    snakemake -c1 processed_data/networks_uids/network_layer_coastal_protection_feature_edges.csv
+    snakemake -c1 results/direct_damages_summary_uids/coastal_protection_feature_edges_EAD_EAEL.parquet
     """
     input:
-        script = "workflow/6_etl/preprocess_for_visualisation.py",
-        network_csv = config["coastal_adaptation"]["coastal_layer"],
+        script = "workflow/6_etl/preprocess_coastal_for_visualisation.py",
+        coastal_network_csv = config["coastal_adaptation"]["coastal_layer"],
+        network_csv = config["paths"]["network_layers"],
+        defence_to_asset_map = get_coastal_defence_to_asset_map_paths,
+        avoided_costs_by_asset_class = get_coastal_defence_avoided_cost_paths,
     output:
         id_lookups = f"{DATA}/networks_uids/id_lookups/coastal_protection_feature_edges_ids.parquet",
         network_csv_fragment = f"{DATA}/networks_uids/network_layer_coastal_protection_feature_edges.csv",
+        avoided_EAD_EAEL = f"{OUTPUT}/direct_damages_summary_uids/coastal_protection_feature_edges_EAD_EAEL.parquet",
     shell:
         """
         python {{input.script}} \\
+            --coastal-network-csv {{input.coastal_network_csv}} \\
             --network-csv {{input.network_csv}} \\
             --processed-data-dir {data} \\
             --results-dir {output} \\
