@@ -81,7 +81,7 @@ def get_coastal_defence_to_asset_map_paths(wildcards: dict) -> list[str]:
 def get_coastal_defence_avoided_cost_paths(wildcards: dict) -> list[str]:
     layers: pd.DataFrame = pd.read_csv(config["paths"]["network_layers"])
     return [
-        f"{OUTPUT}/adaptation_benefits_costs_bcr/coastal_{row.asset_gpkg}_{row.asset_layer}_adaptation_costs_avoided_EAD_EAEL.csv"
+        f"{OUTPUT}/coastal_adaptation/direct_damages_summary/{row.asset_gpkg}_{row.asset_layer}_EAD_EAEL.csv"
         for row in layers.itertuples()
     ]
 
