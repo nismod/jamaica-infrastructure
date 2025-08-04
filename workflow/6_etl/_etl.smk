@@ -91,7 +91,7 @@ rule preprocess_coastal_features_for_visualisation:
     & losses for each coastal defence feature and save data in parquet format.
     
     Test with:
-    snakemake -c1 results/direct_damages_summary_uids/coastal_protection_feature_edges_EAD_EAEL.parquet
+    snakemake -c1 results/direct_damages_summary_uids/coastal_protection_feature_areas_EAD_EAEL.parquet
     """
     input:
         script = "workflow/6_etl/preprocess_coastal_for_visualisation.py",
@@ -100,9 +100,9 @@ rule preprocess_coastal_features_for_visualisation:
         defence_to_asset_map = get_coastal_defence_to_asset_map_paths,
         avoided_costs_by_asset_class = get_coastal_defence_avoided_cost_paths,
     output:
-        id_lookups = f"{DATA}/networks_uids/id_lookups/coastal_protection_feature_edges_ids.parquet",
-        network_csv_fragment = f"{DATA}/networks_uids/network_layer_coastal_protection_feature_edges.csv",
-        avoided_EAD_EAEL = f"{OUTPUT}/direct_damages_summary_uids/coastal_protection_feature_edges_EAD_EAEL.parquet",
+        id_lookups = f"{DATA}/networks_uids/id_lookups/coastal_protection_feature_areas_ids.parquet",
+        network_csv_fragment = f"{DATA}/networks_uids/network_layer_coastal_protection_feature_areas.csv",
+        avoided_EAD_EAEL = f"{OUTPUT}/direct_damages_summary_uids/coastal_protection_feature_areas_EAD_EAEL.parquet",
     shell:
         """
         python {{input.script}} \\
@@ -111,7 +111,7 @@ rule preprocess_coastal_features_for_visualisation:
             --processed-data-dir {data} \\
             --results-dir {output} \\
             --asset-gpkg coastal_protection_feature \\
-            --asset-layer edges
+            --asset-layer areas
         """.format(data=DATA, output=OUTPUT)
 
 
