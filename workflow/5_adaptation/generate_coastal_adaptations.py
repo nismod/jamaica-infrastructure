@@ -2049,6 +2049,7 @@ def Generate_Coastal_Flood_Protection_Areas(
         raster_path = raster_file,  # Path to the raster file containing flood height data
         new_column_name= "max_flood_height"  # New column to store the maximum flood height value
     )
+    final_coastal_protection_area["asset_type"] = "revetment_protection_zone"
     #------------------------------------------------------------------------------------------------#
     
     #------------------------------------------------------------------------------------------------#
@@ -2083,6 +2084,7 @@ def Generate_Coastal_Flood_Protection_Areas(
     # Also save the final protection area to the output file in GeoPackage format
     layer_name = f"areas"
     add_Layer_to_File(final_coastal_protection_area, output_file, layer_name, "GPKG")
+    add_Layer_to_File(final_coastal_protection_area, output_file_2, layer_name, "GPKG")
 
     final_coastal_protection_coastline = flood_protection_coastline
 

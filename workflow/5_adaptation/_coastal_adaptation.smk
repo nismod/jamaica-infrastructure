@@ -27,7 +27,8 @@ rule coastal_flood_protection_assets:
         overlap = config["coastal_adaptation"]["overlap"],
     output:
         cpa_processing = f"{OUTPUT}/coastal_protection_assets/coastal_protection_processing_layers.gpkg",
-        cpa = f"{OUTPUT}/coastal_protection_assets/Jamaica_coastal_protection_areas.gpkg"
+        cpa_processed_data = f"{DATA}/networks/coastal_infrastructure/Jamaica_coastal_protection_areas.gpkg",
+        cpa = f"{OUTPUT}/coastal_protection_assets/Jamaica_coastal_protection_areas.gpkg",
     shell:
         """
         python {input.script} \
