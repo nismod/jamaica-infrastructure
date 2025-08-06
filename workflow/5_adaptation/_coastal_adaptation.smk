@@ -164,6 +164,46 @@ rule count_assets_per_coastal_protection:
         """
 
 
+rule benefit_cost_ratio_coastal_protection:
+    """
+    Generate the benefit cost ratio for each coastal defence adaptation option.
+    
+    Test with:
+    snakemake -c1 results/adaptation_benefits_costs_bcr/coastal_waste_water_facilities_NWC_nodes_adaptation_costs_avoided_EAD_EAEL.csv
+    """
+    input:
+        script = "workflow/5_adaptation/benefit_cost_ratio_estimations_coastal.py",
+        network_csv = config["paths"]["network_layers"],
+        cost_file = f"{OUTPUT}/adaptation_costs/coastal_costs/{{gpkg}}_{{layer}}_adaptation_timeseries_and_npvs.csv",
+        protection_asset_dict = f"{OUTPUT}/coastal_protection_assets/network_protection_mappings/{{gpkg}}_{{layer}}_coastal_filtered.parquet",
+        protection_asset_breakdown = f"{OUTPUT}/coastal_protection_assets/coastal_protection_assets_breakdown.csv",
+        risk_files = get_risk_files
+    params:
+        projection_end_year = config["adaptation_options"]["projection_end_year"],
+        disruption_duration = config["adaptation_options"]["disruption_duration_days"],
+        rcp = config["coastal_adaptation"]["max_rcp"],
+        rp = config["coastal_adaptation"]["max_rp"],
+    output:
+        bcr = f"{OUTPUT}/adaptation_benefits_costs_bcr/coastal_{{gpkg}}_{{layer}}_adaptation_benefits_costs_bcr.csv",
+        EAD = f"{OUTPUT}/adaptation_benefits_costs_bcr/coastal_{{gpkg}}_{{layer}}_adaptation_costs_avoided_EAD_EAEL.csv",
+    shell:
+        """
+        python {input.script} \\
+            --network-csv {input.network_csv} \\
+            --cost-file {input.cost_file} \\
+            --protection-asset-breakdown {input.protection_asset_breakdown} \\
+            --protection-asset-dict {input.protection_asset_dict} \\
+            --hazard-label {wildcards.hazard} \\
+            --asset-gpkg {wildcards.gpkg} \\
+            --asset-layer {wildcards.layer} \\
+            --proj-end-year {params.projection_end_year} \\
+            --rcp {params.rcp} \\
+            --rp {params.rp} \\
+            --disruption-duration-days {params.disruption_duration} \\
+            --output-dir {OUTPUT}
+        """
+
+
 def generate_coastal_protection_BCR_paths(wildcards) -> list[str]:
     metadata = pd.read_csv(config["paths"]["network_layers"])
     paths = []
