@@ -73,7 +73,9 @@ def get_bcr_values(
     protection_type_name,
     days=10,
 ):
+    logging.info("Calculate BCR")
     for idx, (ft, cmf) in enumerate(list(zip(hazard_thresholds, cost_multiplication_factors))):
+        logging.info(f"{ft=} {cmf=}")
         folder_name = f"{protection_type_name}_{str(ft).replace('.','p')}"
         risk_file = os.path.join(
             results_path,
@@ -124,7 +126,7 @@ def get_bcr_values(
 
             bcr_results.append(risk_df)
 
-        return bcr_results
+    return bcr_results
 
 
 def get_ead_eael_costs(
@@ -144,7 +146,9 @@ def get_ead_eael_costs(
     hazard_thresholds_column_name,
     protection_type_name,
 ):
+    logging.info("Find EAD EAEL benefits")
     for idx, (ft, cmf) in enumerate(list(zip(hazard_thresholds, cost_multiplication_factors))):
+        logging.info(f"{ft=} {cmf=}")
         folder_name = f"{protection_type_name}_{str(ft).replace('.','p')}"
         risk_file = os.path.join(
             results_path,
@@ -209,7 +213,7 @@ def get_ead_eael_costs(
 
             ead_eael_results.append(ead_eael_df)
 
-        return ead_eael_results
+    return ead_eael_results
 
 
 @click.command()
@@ -345,8 +349,6 @@ def benefit_cost_ratio(
 
     logging.info("Reading risks with no adaptation")
     no_adapt_risk = pd.read_csv(no_adapt_risk_file)
-
-    logging.info("Calculate BCR")
     adaptation_options = list(set(cost_df["adaptation_option"].values.tolist()))
     no_adapt_risk_df, risk_columns = get_risks(
         no_adapt_risk,
@@ -371,6 +373,7 @@ def benefit_cost_ratio(
     ead_eael_results = []
 
     for option in adaptation_options:
+        logging.info(f"{option=}")
         option_df = cost_df[cost_df["adaptation_option"] == option]
         asset_adaptation_cost = option_df["asset_adaptation_cost"].values[0]
         if hazard_label == "flooding" and asset_adaptation_cost == "J$/m":
