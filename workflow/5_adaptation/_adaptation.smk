@@ -127,6 +127,8 @@ rule benefit_cost_ratio:
         disruption_duration = config["adaptation_options"]["disruption_duration_days"],
         flood_thresholds = config["adaptation_options"]["flood_thresholds_meters"],
         TC_factors = config["adaptation_options"]["TC_winds_damage_curve_squash"],
+    wildcard_constraints:
+        hazard=r"(flooding|TC)"
     output:
         bcr = f"{OUTPUT}/adaptation_benefits_costs_bcr/{{hazard}}_{{gpkg}}_{{layer}}_adaptation_benefits_costs_bcr.csv",
         EAD = f"{OUTPUT}/adaptation_benefits_costs_bcr/{{hazard}}_{{gpkg}}_{{layer}}_adaptation_costs_avoided_EAD_EAEL.csv",

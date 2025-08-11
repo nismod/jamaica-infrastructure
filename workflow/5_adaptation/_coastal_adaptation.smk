@@ -182,9 +182,11 @@ rule benefit_cost_ratio_coastal_protection:
         disruption_duration = config["adaptation_options"]["disruption_duration_days"],
         rcp = config["coastal_adaptation"]["max_rcp"],
         rp = config["coastal_adaptation"]["max_rp"],
+    wildcard_constraints:
+        hazard=r"(coastal)"
     output:
-        bcr = f"{OUTPUT}/adaptation_benefits_costs_bcr/coastal_{{gpkg}}_{{layer}}_adaptation_benefits_costs_bcr.csv",
-        EAD = f"{OUTPUT}/adaptation_benefits_costs_bcr/coastal_{{gpkg}}_{{layer}}_adaptation_costs_avoided_EAD_EAEL.csv",
+        bcr = f"{OUTPUT}/adaptation_benefits_costs_bcr/{{hazard}}_{{gpkg}}_{{layer}}_adaptation_benefits_costs_bcr.csv",
+        EAD = f"{OUTPUT}/adaptation_benefits_costs_bcr/{{hazard}}_{{gpkg}}_{{layer}}_adaptation_costs_avoided_EAD_EAEL.csv",
     shell:
         """
         python {input.script} \\
@@ -192,7 +194,6 @@ rule benefit_cost_ratio_coastal_protection:
             --cost-file {input.cost_file} \\
             --protection-asset-breakdown {input.protection_asset_breakdown} \\
             --protection-asset-dict {input.protection_asset_dict} \\
-            --hazard-label {wildcards.hazard} \\
             --asset-gpkg {wildcards.gpkg} \\
             --asset-layer {wildcards.layer} \\
             --proj-end-year {params.projection_end_year} \\
