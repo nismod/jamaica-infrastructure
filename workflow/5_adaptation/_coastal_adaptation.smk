@@ -7,10 +7,10 @@ import pandas
 
 rule coastal_flood_protection_assets:
     """
-        Generates the coastal protection areas and coastal protection segments
+    Generates the coastal protection areas and coastal protection segments
 
-        Test with:
-        snakemake -c1 results/coastal_protection_assets/Jamaica_coastal_protection_areas.gpkg
+    Test with:
+    snakemake -c1 results/coastal_protection_assets/Jamaica_coastal_protection_areas.gpkg
     """
     input:
         script = "workflow/5_adaptation/generate_coastal_adaptations.py",
@@ -48,10 +48,10 @@ rule coastal_flood_protection_assets:
 
 rule combine_coastal_protection:
     """
-        Combines all the coastal protection areas for all the RCP'S & RP's into one GeoPackage
+    Combines all the coastal protection areas for all the RCP'S & RP's into one GeoPackage
 
-        Test with:
-        snakemake -c1 results/coastal_protection_assets/combined_coastal_protection_area.gpkg
+    Test with:
+    snakemake -c1 results/coastal_protection_assets/combined_coastal_protection_area.gpkg
     """
     input:
         script = "workflow/5_adaptation/combine_coastal_protection.py",
@@ -75,11 +75,11 @@ rule combine_coastal_protection:
 
 rule map_networks_to_coastal_protection:
     """
-        Maps each network layer's assets to the coastal protection area its in and the height of the 
-        required coastal protection feature'
+    Maps each network layer's assets to the coastal protection area its in and the height of the 
+    required coastal protection feature'
 
-        Test with:
-        snakemake -c1 results/coastal_protection_assets/network_protection_mappings/electricity_network_v3.1_nodes_coastal_filtered.parquet
+    Test with:
+    snakemake -c1 results/coastal_protection_assets/network_protection_mappings/electricity_network_v3.1_nodes_coastal_filtered.parquet
     """
     input:
         script = "workflow/5_adaptation/asset_to_coastal_protection_mapping.py",
@@ -120,10 +120,10 @@ def generate_coastal_protection_mapping_paths(wildcards) -> list[str]:
 
 rule map_networks_to_coastal_protection_all_layers:
     """
-        Expand map_networks_to_coastal_protection for all network layers.
+    Expand map_networks_to_coastal_protection for all network layers.
 
-        Test with:
-        snakemake -c1 results/coastal_protection_assets/network_protection_mappings/all_layers.flag
+    Test with:
+    snakemake -c1 results/coastal_protection_assets/network_protection_mappings/all_layers.flag
     """
     input:
         generate_coastal_protection_mapping_paths
@@ -133,12 +133,11 @@ rule map_networks_to_coastal_protection_all_layers:
 
 rule count_assets_per_coastal_protection:
     """
-        Counts the number of assets for each network layer that intersect with each coastal
-         flood protection area and sums the costs of the network assets.
+    Counts the number of assets for each network layer that intersect with each coastal
+    flood protection area and sums the costs of the network assets.
 
-        Test with:
-        snakemake -c1 results/coastal_protection_assets/coastal_protection_assets_breakdown.csv
-
+    Test with:
+    snakemake -c1 results/coastal_protection_assets/coastal_protection_assets_breakdown.csv
     """
     input:
         script = "workflow/5_adaptation/count_coastal_protection_assets.py",

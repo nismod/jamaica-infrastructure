@@ -113,8 +113,6 @@ def get_risk_files(wildcards) -> list[str]:
 rule benefit_cost_ratio:
     """
     Generate the benefit cost ratio for each adaptation option.
-
-    TODO: Separate out coastal BCR into another rule, given its additional files and config.
     
     Test with:
     snakemake -c1 results/adaptation_benefits_costs_bcr/flooding_waste_water_facilities_NWC_nodes_adaptation_costs_avoided_EAD_EAEL.csv
