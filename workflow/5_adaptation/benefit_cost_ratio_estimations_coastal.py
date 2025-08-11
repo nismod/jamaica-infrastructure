@@ -435,7 +435,7 @@ def benefit_cost_ratio(
         no_adapt_risk,
         asset_id,
         hazard_label,
-        hazard_label,
+        hazard["hazard_type"],
         rcps,
         risk_type,
         val_type,
@@ -445,7 +445,7 @@ def benefit_cost_ratio(
         no_adapt_risk,
         asset_id,
         hazard_label,
-        hazard_label,
+        hazard["hazard_type"],
         rcps,
         risk_type,
         val_type,
@@ -455,6 +455,7 @@ def benefit_cost_ratio(
     flood_params = [rcp, rp, proj_end_year]
 
     for option in adaptation_options:
+        logging.info(f"{option=}")
         option_df = cost_df[cost_df["adaptation_option"] == option]
         asset_adaptation_cost = option_df["asset_adaptation_cost"].values[0]
         if asset_adaptation_cost == "J$/m":
