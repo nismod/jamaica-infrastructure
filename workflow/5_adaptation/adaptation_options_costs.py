@@ -295,7 +295,7 @@ def write_empty_output(asset_unit_costs_csv: str, asset_timeseries_csv: str, bas
         file_okay=True,
         readable=True
     ),
-    help="Path to directroy with network assets to flood portectoin area relatoinal dictionary",
+    help="Path to directory with network assets to flood protection area map",
 )
 @click.option(
     "--protection-feature-breakdown",
@@ -307,7 +307,7 @@ def write_empty_output(asset_unit_costs_csv: str, asset_timeseries_csv: str, bas
         file_okay=True,
         readable=True
     ),
-    help="Path to directroy with breakdown of network assets for each flood protection feature",
+    help="Path to directory with breakdown of network assets for each flood protection feature",
 )
 @click.option(
     "--hazard-label",
