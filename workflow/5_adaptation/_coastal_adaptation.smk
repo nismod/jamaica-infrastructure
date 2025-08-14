@@ -165,7 +165,9 @@ rule count_assets_per_coastal_protection:
 
 rule benefit_cost_ratio_coastal_protection:
     """
-    Generate the benefit cost ratio for each coastal defence adaptation option.
+    Generate the asset-wise (e.g. road edge 7, road edge 8, airport 2, etc.)
+    benefit cost ratio for every asset defended by a coastal defence adaptation
+    option.
     
     Test with:
     snakemake -c1 results/adaptation_benefits_costs_bcr/coastal_waste_water_facilities_NWC_nodes_adaptation_costs_avoided_EAD_EAEL.csv
@@ -203,6 +205,23 @@ rule benefit_cost_ratio_coastal_protection:
             --output-dir {OUTPUT}
         """
 
+def generate_coastal_protection_cost_paths(wildcards) -> list[str]:
+    metadata = pd.read_csv(config["paths"]["network_layers"])
+    paths = []
+    for row in metadata.itertuples():
+        paths.append(
+            f"{OUTPUT}/adaptation_costs/coastal_costs/{row.asset_gpkg}_{row.asset_layer}_adaptation_timeseries_and_npvs.csv",
+        )
+    return paths
+
+def generate_coastal_protection_avoided_EAD_EAEL_paths(wildcards) -> list[str]:
+    metadata = pd.read_csv(config["paths"]["network_layers"])
+    paths = []
+    for row in metadata.itertuples():
+        paths.append(
+            f"{OUTPUT}/adaptation_benefits_costs_bcr/coastal_{row.asset_gpkg}_{row.asset_layer}_adaptation_costs_avoided_EAD_EAEL.csv",
+        )
+    return paths
 
 def generate_coastal_protection_BCR_paths(wildcards) -> list[str]:
     metadata = pd.read_csv(config["paths"]["network_layers"])
@@ -226,3 +245,49 @@ rule benefit_cost_ratio_coastal_protection_all_assets:
         touch {output.flag}
         """
 
+
+rule benefit_cost_ratio_coastal_protection_aggregate:
+    """
+    Generate the aggregate benefit cost ratio for each coastal defence
+    adaptation option. That is, what is the BCR for each coastal defence zone
+    given:
+        1) Coastal protection build costs
+        2) Avoided damages and losses to all protected assets
+
+    Test with:
+    snakemake -c1 results/adaptation_benefits_costs_bcr/coastal_coastal_protection_feature_areas_adaptation_costs_avoided_EAD_EAEL.csv
+    """
+    input:
+        script = "workflow/5_adaptation/coastal_protection_aggregate.py",
+        costs = generate_coastal_protection_cost_paths,
+        EAD_EAEL = generate_coastal_protection_avoided_EAD_EAEL_paths,
+        maps = generate_coastal_protection_mapping_paths,
+        network = config["paths"]["network_layers"],
+    output:
+        BCR = f"{OUTPUT}/adaptation_benefits_costs_bcr/coastal_coastal_protection_feature_areas_adaptation_benefits_costs_bcr.csv",
+        EAD_EAEL = f"{OUTPUT}/adaptation_benefits_costs_bcr/coastal_coastal_protection_feature_areas_adaptation_costs_avoided_EAD_EAEL.csv",
+    shell:
+        """
+        COST=""
+        for VALUE in {input.costs}; do
+            COST="$COST --cost $VALUE"
+        done
+
+        EAD_EAEL=""
+        for VALUE in {input.EAD_EAEL}; do
+            EAD_EAEL="$EAD_EAEL --EAD-EAEL $VALUE"
+        done
+
+        LOOKUPS=""
+        for VALUE in {input.maps}; do
+            LOOKUPS="$LOOKUPS --lookup $VALUE"
+        done
+
+        python {input.script} \\
+            $COST \\
+            $EAD_EAEL \\
+            $LOOKUPS \\
+            --network {input.network} \\
+            --output-BCR {output.BCR} \\
+            --output-EAD-EAEL {output.EAD_EAEL}
+        """
