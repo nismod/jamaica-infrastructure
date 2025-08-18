@@ -1,4 +1,4 @@
-#
+# Working data/results directories
 processed_data/
 results/
 drought/
@@ -28,16 +28,17 @@ __pycache__
 *.pyc
 .ipynb_checkpoints
 
-# Data
+# Data files
+*.cpg
+*.dbf
+*.gpkg*
 *.osm.pbf
+*.prj
+*.qgz
 *.shp
 *.shx
-*.dbf
-*.cpg
-*.prj
+*.tif
 *.xml
-*.gpkg*
 *.zip
-*.qgz
 
 .tmp/
