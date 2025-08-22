@@ -303,6 +303,13 @@ def get_ead_eael_costs(
     help="Path to adaptation cost data",
 )
 @click.option(
+    "--no-adapt-risk-file",
+    "-r",
+    required=True,
+    type=click.Path(exists=True, dir_okay=False, file_okay=True, readable=True),
+    help="Path to NPV of EAD & EAEL with no adaptation",
+)
+@click.option(
     "--protection-asset-breakdown",
     "-pb",
     required=True,
@@ -367,6 +374,7 @@ def get_ead_eael_costs(
 def benefit_cost_ratio(
     network_csv,
     cost_file,
+    no_adapt_risk_file,
     protection_asset_breakdown,
     protection_asset_dict,
     asset_gpkg,
@@ -388,7 +396,6 @@ def benefit_cost_ratio(
 
     risk_filepath = os.path.join("loss_damage_npvs", f"{asset_gpkg}_{asset_layer}_EAD_EAEL_npvs.csv")
 
-    no_adapt_risk_file = os.path.join(output_dir, risk_filepath)
     if not os.path.isfile(no_adapt_risk_file):
         raise FileNotFoundError(f"Risk file {no_adapt_risk_file} does not exist.")
 

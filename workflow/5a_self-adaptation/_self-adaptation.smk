@@ -91,17 +91,12 @@ def get_hazard_thresholds(hazard: str) -> list[str]:
         return ["p".join(str(x).split(".")) for x in config["adaptation_options"]["TC_winds_damage_curve_squash"]]
     elif hazard == "flooding":
         return ["p".join(str(x).split(".")) for x in config["adaptation_options"]["flood_thresholds_meters"]]
-    elif hazard == "coastal":
-        return ["coastal_adaptation"]
     else:
         raise ValueError(f"Unknown hazard type: {hazard}")
 
 def get_risk_dir(hazard: str, threshold: str) -> str:
     """Get the risk directory for a hazard and threshold."""
-    if hazard == "coastal":
-        return f"{OUTPUT}/{threshold}"
-    else:
-        return f"{OUTPUT}/{'flood_threshold' if hazard == 'flooding' else 'cyclone_damage_curve_change'}_{threshold}"
+    return f"{OUTPUT}/{'flood_threshold' if hazard == 'flooding' else 'cyclone_damage_curve_change'}_{threshold}"
 
 def get_risk_files(wildcards) -> list[str]:
     """Get the paths to risk files for nominal and adjusted cases for a given hazard."""

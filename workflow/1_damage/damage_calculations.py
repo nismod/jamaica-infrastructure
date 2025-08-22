@@ -4,7 +4,6 @@ import logging
 import os
 import warnings
 
-import math
 import click
 import pandas as pd
 import geopandas as gpd
@@ -21,21 +20,6 @@ tqdm.pandas()
 
 epsg_jamaica = 3448
 
-
-def extract_rp_rcp_epoch(s):
-    parts = s.split("__")
-    info = {}
-
-    for part in parts:
-        if "_" in part:
-            key, value = part.split("_", 1)
-            info[key] = value
-
-    rp = info.get("rp", "")
-    rcp = info.get("rcp", "")
-    epoch = info.get("epoch", "")
-
-    return rp, rcp, epoch
 
 def get_damage_data(x, damage_data_path, uplift_factor=0, uncertainty_parameter=0):
     data = pd.read_excel(
@@ -148,29 +132,6 @@ def estimate_direct_damage_costs_and_units(
     help="Sensitivity parameter set ID",
 )
 @click.option(
-    "--ca-rcp",
-    "-rcp",
-    required=True,
-    type=float,
-    help="RPS value",
-)
-
-@click.option(
-    "--ca-rp",
-    "-rp",
-    required=True,
-    type=int,
-    help="RP value",
-)
-
-@click.option(
-    "--ca-epoch",
-    "-ep",
-    required=True,
-    type=int,
-    help="epcoh value",
-)
-@click.option(
     "--asset-gpkg-file",
     "-g",
     required=True,
@@ -218,13 +179,6 @@ def estimate_direct_damage_costs_and_units(
     help="Path to geoparquet assets split on raster grids",
 )
 @click.option(
-    "--protection-asset-dict",
-    "-a",
-    required=True,
-    type=click.Path(exists=True, dir_okay=False, file_okay=True, readable=True),
-    help="Path to directroy with network assets to flood portectoin area relatoinal dictionary",
-)
-@click.option(
     "--USD-per-JMD",
     "-x",
     "USD_per_JMD",
@@ -244,9 +198,6 @@ def direct_damages(
     hazard_csv,
     sensitivity_csv,
     sensitivity_id,
-    ca_rcp,
-    ca_epoch,
-    ca_rp,
     asset_gpkg_file,
     asset_gpkg_label,
     asset_layer,
@@ -254,7 +205,6 @@ def direct_damages(
     damage_threshold_uplift_csv,
     damage_curves_dir,
     intersection,
-    protection_asset_dict,
     USD_per_JMD,
     output_path,
 ):
@@ -355,66 +305,21 @@ def direct_damages(
             damages_df = damages_df[damages_df["asset_name"].isin(damaged_assets)]
             affected_assets = list(set(affected_assets_df[asset_id].values.tolist()))
 
-            is_coastal_adaptation = "coastal" in output_path
-            if is_coastal_adaptation and hazard_info.hazard == "coastal":
-                col = asset_info.asset_id_column
-                asset_dict = pd.read_parquet(f"{protection_asset_dict}")
-                asset_dict = asset_dict.set_index(col)
-
-                # Compute the relevant threshold column
-                thresh_col = f"flood_height_rcp_{int(ca_rcp * 10)}{ca_epoch}_rp_{ca_rp}"
-
-                # Function to get threshold for each asset
-                def get_threshold(asset_id):
-                    try:
-                        val = asset_dict.at[asset_id, thresh_col]
-                        if pd.isna(val):
-                            return 0
-                        rounded = math.ceil(val * 2) / 2
-                        return max(rounded, 0)
-                    except KeyError:
-                        return 0
-
-                # Assign threshold per asset
-                hazard_effect_df["hazard_threshold"] = hazard_effect_df[col].apply(get_threshold)
-
-                # Main hazard logic block
-                if hazard_info.hazard in flood_hazards:
-                    for key in hazard_keys:
-                        hazard_effect_df[key] = hazard_effect_df[key] - hazard_effect_df["hazard_threshold"]
-
-                    hazard_effect_df = hazard_effect_df[(hazard_effect_df[hazard_keys] > 0).any(axis=1)]
-                    hazard_effect_df = hazard_effect_df[hazard_effect_df[asset_id].isin(affected_assets)]
-                else:
-                    for key in hazard_keys:
-                        hazard_effect_df[key] = np.where(
-                            hazard_effect_df[key] <= hazard_effect_df["hazard_threshold"],
-                            0,
-                            hazard_effect_df[key],
-                        )
-
-                    hazard_effect_df = hazard_effect_df[(hazard_effect_df[hazard_keys] > hazard_effect_df["hazard_threshold"]).any(axis=1)]
-                    hazard_effect_df = hazard_effect_df[hazard_effect_df[asset_id].isin(affected_assets)]
-
-                # hazard_effect_df.to_csv("test.csv", index=False)
+            hazard_effect_df["hazard_threshold"] = hazard_info.hazard_threshold
+            if hazard_info.hazard in flood_hazards:
+                hazard_effect_df[hazard_keys] = hazard_effect_df[hazard_keys] - hazard_info.hazard_threshold
+                hazard_effect_df = hazard_effect_df[(hazard_effect_df[hazard_keys] > 0).any(axis=1)]
+                hazard_effect_df = hazard_effect_df[hazard_effect_df[asset_id].isin(affected_assets)]
             else:
-                hazard_effect_df["hazard_threshold"] = hazard_info.hazard_threshold
-                # print (hazard_effect_df["hazard_threshold"])
-
-                if hazard_info.hazard in flood_hazards:
-                    hazard_effect_df[hazard_keys] = hazard_effect_df[hazard_keys] - hazard_info.hazard_threshold
-                    hazard_effect_df = hazard_effect_df[(hazard_effect_df[hazard_keys] > 0).any(axis=1)]
-                    hazard_effect_df = hazard_effect_df[hazard_effect_df[asset_id].isin(affected_assets)]
-                else:
-                    hazard_effect_df[hazard_keys] = np.where(
-                        hazard_effect_df[hazard_keys] <= hazard_info.hazard_threshold,
-                        0,
-                        hazard_effect_df[hazard_keys],
-                    )
-                    hazard_effect_df = hazard_effect_df[(hazard_effect_df[hazard_keys] > hazard_info.hazard_threshold).any(axis=1)]
-                    hazard_effect_df = hazard_effect_df[hazard_effect_df[asset_id].isin(affected_assets)]
-
-                # hazard_effect_df.to_csv("test2.csv", index=False)
+                hazard_effect_df[hazard_keys] = np.where(
+                    hazard_effect_df[hazard_keys] <= hazard_info.hazard_threshold,
+                    0,
+                    hazard_effect_df[hazard_keys],
+                )
+                hazard_effect_df = hazard_effect_df[
+                    (hazard_effect_df[hazard_keys] > hazard_info.hazard_threshold).any(axis=1)
+                ]
+                hazard_effect_df = hazard_effect_df[hazard_effect_df[asset_id].isin(affected_assets)]
 
             if len(hazard_effect_df.index) == 0:
                 logging.info(

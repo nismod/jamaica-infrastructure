@@ -149,12 +149,9 @@ rule direct_damage:
             hazard_type = ("TC", "flooding", "coastal")
         ),
         hazard_intersection_file = f"{OUTPUT}/hazard_asset_intersection/{{gpkg}}_splits__hazard_layers__{{layer}}.geoparquet",
-        protection_asset_dict = f"{OUTPUT}/coastal_protection_assets/network_protection_mappings/{{gpkg}}_{{layer}}_coastal_filtered.parquet"
     params:
         USD_per_JMD = config["economics"]["USD_per_JMD"],
         sensitivity_id = sensitivity_id_from_slug,
-        rcp = config["coastal_adaptation"]["max_rcp"],
-        rp = config["coastal_adaptation"]["max_rp"],
         epoch = config["adaptation_options"]["projection_end_year"],
     output:
         damages = "{output_path}/direct_damages/{gpkg}_{layer}/{gpkg}_{layer}_direct_damages_{parameter_set}.parquet",
@@ -165,9 +162,6 @@ rule direct_damage:
             --hazard-csv {input.hazard_csv} \\
             --sensitivity-csv {input.sensitivity_parameters} \\
             --sensitivity-id {params.sensitivity_id} \\
-            --ca-rcp {params.rcp} \\
-            --ca-rp {params.rp} \\
-            --ca-epoch {params.epoch} \\
             --asset-gpkg-file {input.asset_gpkg} \\
             --asset-gpkg-label {wildcards.gpkg} \\
             --asset-layer {wildcards.layer} \\
@@ -176,6 +170,5 @@ rule direct_damage:
             --damage-curves-dir {input.damage_curves_dir} \\
             --intersection {input.hazard_intersection_file} \\
             --USD-per-JMD {params.USD_per_JMD} \\
-            --protection-asset-dict {input.protection_asset_dict} \\
             --output-path {output.damages}
         """

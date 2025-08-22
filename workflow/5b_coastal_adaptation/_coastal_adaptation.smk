@@ -180,7 +180,7 @@ rule benefit_cost_ratio_coastal_protection:
         cost_file = f"{OUTPUT}/adaptation_costs/coastal_costs/{{gpkg}}_{{layer}}_adaptation_timeseries_and_npvs.csv",
         protection_asset_dict = f"{OUTPUT}/coastal_protection_assets/network_protection_mappings/{{gpkg}}_{{layer}}_coastal_filtered.parquet",
         protection_asset_breakdown = f"{OUTPUT}/coastal_protection_assets/coastal_protection_assets_breakdown.csv",
-        risk_files = get_risk_files
+        no_adapt_risk = f"{OUTPUT}/loss_damage_npvs/{{gpkg}}_{{layer}}_EAD_EAEL_npvs.csv",
     params:
         projection_end_year = config["adaptation_options"]["projection_end_year"],
         disruption_duration = config["adaptation_options"]["disruption_duration_days"],
@@ -196,6 +196,7 @@ rule benefit_cost_ratio_coastal_protection:
         python {input.script} \\
             --network-csv {input.network_csv} \\
             --cost-file {input.cost_file} \\
+            --no-adapt-risk-file {input.no_adapt_risk} \\
             --protection-asset-breakdown {input.protection_asset_breakdown} \\
             --protection-asset-dict {input.protection_asset_dict} \\
             --asset-gpkg {wildcards.gpkg} \\
