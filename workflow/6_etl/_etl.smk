@@ -10,7 +10,7 @@ rule preprocess_for_visualisation:
     snakemake -c1 results/direct_damages_summary_uids/roads_edges_losses.parquet
     """
     input:
-        script = "workflow/6_etl/preprocess_for_visualisation.py",
+        script = "workflow/6_etl/label_assets.py",
         network_csv = config["paths"]["network_layers"],
         losses = f"{OUTPUT}/direct_damages_summary/{{gpkg}}_{{layer}}_losses.parquet",
         damages = f"{OUTPUT}/direct_damages_summary/{{gpkg}}_{{layer}}_damages.parquet",
@@ -46,7 +46,7 @@ rule preprocess_buildings_for_visualisation:
     snakemake -c1 processed_data/networks_uids/id_lookups/buildings_assigned_economic_activity_areas_ids.parquet
     """
     input:
-        script = "workflow/6_etl/preprocess_for_visualisation.py",
+        script = "workflow/6_etl/label_assets.py",
         network_csv = config["paths"]["network_layers"],
         losses = f"{OUTPUT}/direct_damages_summary/buildings_assigned_economic_activity_areas_losses.parquet",
         damages = f"{OUTPUT}/direct_damages_summary/buildings_assigned_economic_activity_areas_damages.parquet",
@@ -94,7 +94,7 @@ rule preprocess_coastal_features_for_visualisation:
     snakemake -c1 results/direct_damages_summary_uids/coastal_protection_feature_areas_EAD_EAEL.parquet
     """
     input:
-        script = "workflow/6_etl/preprocess_coastal_for_visualisation.py",
+        script = "workflow/6_etl/label_coastal_assets.py",
         coastal_network_csv = config["coastal_adaptation"]["coastal_layer"],
         network_csv = config["paths"]["network_layers"],
         defence_to_asset_map = get_coastal_defence_to_asset_map_paths,
