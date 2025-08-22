@@ -43,7 +43,7 @@ def get_protector_protectee_map(results_dir: str, layer: pandas.Series, protecto
     return id_map
 
 
-def process_coastal_protection(
+def process_EAD_EAEL(
     coastal_layer: pandas.Series,
     network_csv_path: str,
     processed_data_dir: str,
@@ -105,6 +105,38 @@ def process_coastal_protection(
     logging.info(f"Writing avoided costs in parquet format: {output_path}")
     logging.info(f"\n{df}")
     df.to_parquet(output_path)
+
+    return
+
+
+def process_damage_loss_and_exposure(
+    layer: pandas.Series,
+    processed_data_dir: str,
+    results_dir: str
+) -> None:
+    """
+    Read files from direct_damages_summary/
+    Tag assets with their unique database ID
+    Write to direct_damages_summary_uids/
+    """
+
+    id_to_uid = pandas.read_parquet(get_id_lookups_fname(layer, processed_data_dir))
+
+    for kind in ("damages", "losses", "exposures"):
+        df = pandas.read_parquet(
+            f"{results_dir}/direct_damages_summary/{layer.asset_gpkg}_{layer.asset_layer}_{kind}.parquet"
+        )
+
+        # Tag protector assets with unique database id
+        df = df.set_index("id").join(id_to_uid.set_index("id")).reset_index()
+
+        output_path: str = (
+            f"{results_dir}/direct_damages_summary_uids/"
+            f"{layer.asset_gpkg}_{layer.asset_layer}_{kind}.parquet"
+        )
+        logging.info(f"Writing {kind} in parquet format: {output_path}")
+        logging.info(f"\n{df}")
+        df.to_parquet(output_path)
 
     return
 
@@ -180,7 +212,9 @@ def preprocess_for_visualisation(
     layer_data.loc[:, [layer.asset_id_column, "uid"]].to_parquet(uid_fname, index=False)
 
     pathlib.Path(f"{results_dir}/direct_damages_summary_uids").mkdir(parents=True, exist_ok=True)
-    process_coastal_protection(layer, network_csv, processed_data_dir, results_dir)
+    process_EAD_EAEL(layer, network_csv, processed_data_dir, results_dir)
+
+    process_damage_loss_and_exposure(layer, processed_data_dir, results_dir)
 
 
 if __name__ == "__main__":

@@ -246,7 +246,7 @@ rule benefit_cost_ratio_coastal_protection_all_assets:
         """
 
 
-rule benefit_cost_ratio_coastal_protection_aggregate:
+rule benefit_cost_ratio_coastal_protection_aggregate_adaptation:
     """
     Generate the aggregate benefit cost ratio for each coastal defence
     adaptation option. That is, what is the BCR for each coastal defence zone
@@ -258,7 +258,7 @@ rule benefit_cost_ratio_coastal_protection_aggregate:
     snakemake -c1 results/adaptation_benefits_costs_bcr/coastal_coastal_protection_feature_areas_adaptation_costs_avoided_EAD_EAEL.csv
     """
     input:
-        script = "workflow/5_adaptation/coastal_protection_aggregate.py",
+        script = "workflow/5_adaptation/coastal_protection_aggregate_adaptation.py",
         costs = generate_coastal_protection_cost_paths,
         EAD_EAEL = generate_coastal_protection_avoided_EAD_EAEL_paths,
         maps = generate_coastal_protection_mapping_paths,
@@ -290,4 +290,68 @@ rule benefit_cost_ratio_coastal_protection_aggregate:
             --network {input.network} \\
             --output-BCR {output.BCR} \\
             --output-EAD-EAEL {output.EAD_EAEL}
+        """
+
+
+def generate_coastal_protection_avoided_damage_paths(wildcards) -> list[str]:
+    metadata = pd.read_csv(config["paths"]["network_layers"])
+    paths = []
+    for row in metadata.itertuples():
+        paths.append(
+            f"{OUTPUT}/direct_damages_summary/{row.asset_gpkg}_{row.asset_layer}_damages.parquet",
+        )
+    return paths
+
+def generate_coastal_protection_avoided_loss_paths(wildcards) -> list[str]:
+    metadata = pd.read_csv(config["paths"]["network_layers"])
+    paths = []
+    for row in metadata.itertuples():
+        paths.append(
+            f"{OUTPUT}/direct_damages_summary/{row.asset_gpkg}_{row.asset_layer}_losses.parquet",
+        )
+    return paths
+
+rule benefit_cost_ratio_coastal_protection_aggregate_rp:
+    """
+    Generate the aggregate avoided return period damages and losses for each
+    coastal defence adaptation option.
+
+    Test with:
+    snakemake -c1 results/direct_damages_summary/coastal_protection_feature_areas_damages.parquet
+    """
+    input:
+        script = "workflow/5_adaptation/coastal_protection_aggregate_rp.py",
+        damage = generate_coastal_protection_avoided_damage_paths,
+        loss = generate_coastal_protection_avoided_loss_paths,
+        maps = generate_coastal_protection_mapping_paths,
+        network = config["paths"]["network_layers"],
+    output:
+        exposure = f"{OUTPUT}/direct_damages_summary/coastal_protection_feature_areas_exposures.parquet",
+        damage = f"{OUTPUT}/direct_damages_summary/coastal_protection_feature_areas_damages.parquet",
+        loss = f"{OUTPUT}/direct_damages_summary/coastal_protection_feature_areas_losses.parquet",
+    shell:
+        """
+        DAMAGE=""
+        for VALUE in {input.damage}; do
+            DAMAGE="$DAMAGE --damage $VALUE"
+        done
+
+        LOSS=""
+        for VALUE in {input.loss}; do
+            LOSS="$LOSS --loss $VALUE"
+        done
+
+        LOOKUPS=""
+        for VALUE in {input.maps}; do
+            LOOKUPS="$LOOKUPS --lookup $VALUE"
+        done
+
+        python {input.script} \\
+            $DAMAGE \\
+            $LOSS \\
+            $LOOKUPS \\
+            --network {input.network} \\
+            --output-exposure {output.exposure} \\
+            --output-damage {output.damage} \\
+            --output-loss {output.loss}
         """

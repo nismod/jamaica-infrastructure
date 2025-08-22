@@ -99,9 +99,15 @@ rule preprocess_coastal_features_for_visualisation:
         network_csv = config["paths"]["network_layers"],
         defence_to_asset_map = get_coastal_defence_to_asset_map_paths,
         avoided_costs_by_asset_class = get_coastal_defence_avoided_cost_paths,
+        exposure = f"{OUTPUT}/direct_damages_summary/coastal_protection_feature_areas_exposures.parquet",
+        damage = f"{OUTPUT}/direct_damages_summary/coastal_protection_feature_areas_damages.parquet",
+        loss = f"{OUTPUT}/direct_damages_summary/coastal_protection_feature_areas_losses.parquet",
     output:
         id_lookups = f"{DATA}/networks_uids/id_lookups/coastal_protection_feature_areas_ids.parquet",
         network_csv_fragment = f"{DATA}/networks_uids/network_layer_coastal_protection_feature_areas.csv",
+        avoided_exposure = f"{OUTPUT}/direct_damages_summary_uids/coastal_protection_feature_areas_exposures.parquet",
+        avoided_damage = f"{OUTPUT}/direct_damages_summary_uids/coastal_protection_feature_areas_damages.parquet",
+        avoided_loss = f"{OUTPUT}/direct_damages_summary_uids/coastal_protection_feature_areas_losses.parquet",
         avoided_EAD_EAEL = f"{OUTPUT}/direct_damages_summary_uids/coastal_protection_feature_areas_EAD_EAEL.parquet",
     shell:
         """
