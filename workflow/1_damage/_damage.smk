@@ -160,22 +160,22 @@ rule direct_damage:
         damages = "{output_path}/direct_damages/{gpkg}_{layer}/{gpkg}_{layer}_direct_damages_{parameter_set}.parquet",
     shell:
         """
-        python {input.script} \
-            --network-csv {input.network_csv} \
-            --hazard-csv {input.hazard_csv} \
-            --sensitivity-csv {input.sensitivity_parameters} \
-            --sensitivity-id {params.sensitivity_id} \
-            --ca-rcp {params.rcp} \
-            --ca-rp {params.rp} \
-            --ca-epoch {params.epoch} \
-            --asset-gpkg-file {input.asset_gpkg} \
-            --asset-gpkg-label {wildcards.gpkg} \
-            --asset-layer {wildcards.layer} \
-            --damage-curve-mapping-csv {input.damage_curve_mapping} \
-            --damage-threshold-uplift-csv {input.threshold_and_uplift} \
-            --damage-curves-dir {input.damage_curves_dir} \
-            --intersection {input.hazard_intersection_file} \
-            --USD-per-JMD {params.USD_per_JMD} \
-            --protection-asset-dict {input.protection_asset_dict} \
+        python {input.script} \\
+            --network-csv {input.network_csv} \\
+            --hazard-csv {input.hazard_csv} \\
+            --sensitivity-csv {input.sensitivity_parameters} \\
+            --sensitivity-id {params.sensitivity_id} \\
+            --ca-rcp {params.rcp} \\
+            --ca-rp {params.rp} \\
+            --ca-epoch {params.epoch} \\
+            --asset-gpkg-file {input.asset_gpkg} \\
+            --asset-gpkg-label {wildcards.gpkg} \\
+            --asset-layer {wildcards.layer} \\
+            --damage-curve-mapping-csv {input.damage_curve_mapping} \\
+            --damage-threshold-uplift-csv {input.threshold_and_uplift} \\
+            --damage-curves-dir {input.damage_curves_dir} \\
+            --intersection {input.hazard_intersection_file} \\
+            --USD-per-JMD {params.USD_per_JMD} \\
+            --protection-asset-dict {input.protection_asset_dict} \\
             --output-path {output.damages}
         """
