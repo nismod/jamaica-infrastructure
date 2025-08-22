@@ -3,7 +3,6 @@ Calculate the per return period damages and losses at a coastal defence feature
 level (i.e. total across assets for each sea wall segment)
 """
 
-
 import logging
 from pathlib import Path
 
@@ -15,9 +14,9 @@ from jamaica_infrastructure.utils import is_sole_value
 
 
 def read_lookup(path: str) -> pd.DataFrame:
-    return pd.read_parquet(path) \
-        .rename(columns={"flood_id_rcp_852100_rp_100": "defence_id"}) \
-        .astype({"defence_id": int})
+    return (
+        pd.read_parquet(path).rename(columns={"flood_id_rcp_852100_rp_100": "defence_id"}).astype({"defence_id": int})
+    )
 
 
 def read_risk(
@@ -46,12 +45,13 @@ def read_risk(
         logging.info(f".. Failed to read {lookup_path=}")
         return pd.DataFrame([])
 
-    return lookup \
-        .set_index(asset_id_column) \
-        .loc[:, ["defence_id"]] \
-        .join(per_layer_risk, how="left") \
-        .reset_index() \
+    return (
+        lookup.set_index(asset_id_column)
+        .loc[:, ["defence_id"]]
+        .join(per_layer_risk, how="left")
+        .reset_index()
         .rename(columns={asset_id_column: "asset_id"})
+    )
 
 
 @click.command()
@@ -134,9 +134,9 @@ def coastal_protection_aggregate(
         gpkg_layer: str = f"{row.asset_gpkg}_{row.asset_layer}"
         logging.info(f"{gpkg_layer}")
 
-        damage_path, = filter(lambda x: Path(x).name == f"{gpkg_layer}_damages.parquet", damage_paths)
-        loss_path, = filter(lambda x: Path(x).name == f"{gpkg_layer}_losses.parquet", loss_paths)
-        lookup_path, = filter(lambda x: Path(x).name == f"{gpkg_layer}_coastal_filtered.parquet", lookup_paths)
+        (damage_path,) = filter(lambda x: Path(x).name == f"{gpkg_layer}_damages.parquet", damage_paths)
+        (loss_path,) = filter(lambda x: Path(x).name == f"{gpkg_layer}_losses.parquet", loss_paths)
+        (lookup_path,) = filter(lambda x: Path(x).name == f"{gpkg_layer}_coastal_filtered.parquet", lookup_paths)
 
         damages_by_layer.append(read_risk(row.asset_id_column, damage_path, "damage", lookup_path))
         losses_by_layer.append(read_risk(row.asset_id_column, loss_path, "loss", lookup_path))

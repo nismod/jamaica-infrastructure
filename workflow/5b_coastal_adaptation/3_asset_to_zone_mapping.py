@@ -28,9 +28,9 @@ def assign_flood_area_to_asset(asset_network, RCP, RP, path, id_label, flood_are
         )
         intersecting_floods = flood_polygons[flood_polygons.geometry.intersects(asset_geom)]
         if not intersecting_floods.empty:
-            max_flood_polygon = intersecting_floods.loc[intersecting_floods['max_flood_height'].idxmax()]
-            flood_polygon_id = max_flood_polygon['id']
-            max_flood_height = max_flood_polygon['max_flood_height']
+            max_flood_polygon = intersecting_floods.loc[intersecting_floods["max_flood_height"].idxmax()]
+            flood_polygon_id = max_flood_polygon["id"]
+            max_flood_height = max_flood_polygon["max_flood_height"]
         else:
             flood_polygon_id = None
             max_flood_height = None
@@ -39,8 +39,7 @@ def assign_flood_area_to_asset(asset_network, RCP, RP, path, id_label, flood_are
     df = pd.read_parquet(path)
     all_layers = fiona.listlayers(flood_areas)
     flood_layers = {
-        layer: gpd.read_file(flood_areas, layer=layer)
-        for layer in all_layers if layer.startswith(flood_layer)
+        layer: gpd.read_file(flood_areas, layer=layer) for layer in all_layers if layer.startswith(flood_layer)
     }
 
     # Create a lookup dictionary for mean_cost from asset_network
@@ -50,8 +49,8 @@ def assign_flood_area_to_asset(asset_network, RCP, RP, path, id_label, flood_are
         asset_id = row.iloc[0]
 
         # Add mean_cost for this asset if not already present
-        if 'mean_cost' not in df.columns or pd.isna(df.at[i, 'mean_cost']):
-            df.at[i, 'mean_cost'] = cost_lookup.get(asset_id, None)
+        if "mean_cost" not in df.columns or pd.isna(df.at[i, "mean_cost"]):
+            df.at[i, "mean_cost"] = cost_lookup.get(asset_id, None)
 
         for rcp in RCP:
             for rp in RP:
@@ -72,16 +71,16 @@ def filter_affected_assets(networks, union_flood_area_gdf, data_path, network_fi
 
     # Take just the first (or main) geometry from the flood union
     flood = flood_polygon.loc[flood_polygon.index[0]]
-    flood_polygon = gpd.GeoDataFrame([flood], geometry='geometry', crs=flood_polygon.crs)
+    flood_polygon = gpd.GeoDataFrame([flood], geometry="geometry", crs=flood_polygon.crs)
 
     for index, n in networks.iterrows():
-        fname = os.path.join(data_path, n['path'])
-        id_col = n['asset_id_column']
-        layer_type = n['asset_layer']
+        fname = os.path.join(data_path, n["path"])
+        id_col = n["asset_id_column"]
+        layer_type = n["asset_layer"]
         # ref = n['asset_description']
         # ref = ref.replace(" ", "_")
-        gpkg = n['asset_gpkg']
-        layer = n['asset_layer']
+        gpkg = n["asset_gpkg"]
+        layer = n["asset_layer"]
         ref = f"{gpkg}_{layer}"
 
         if network_filter and ref not in network_filter:
@@ -100,7 +99,9 @@ def filter_affected_assets(networks, union_flood_area_gdf, data_path, network_fi
 
         # Save to Parquet
 
-        parquet_path = os.path.join(f"{output}/coastal_protection_assets/network_protection_mappings", f"{ref}_coastal_filtered.parquet")
+        parquet_path = os.path.join(
+            f"{output}/coastal_protection_assets/network_protection_mappings", f"{ref}_coastal_filtered.parquet"
+        )
         os.makedirs(os.path.dirname(parquet_path), exist_ok=True)
         filtered_ids.to_parquet(parquet_path, index=False)
 
@@ -109,26 +110,26 @@ def filter_affected_assets(networks, union_flood_area_gdf, data_path, network_fi
 
 def map_network_assets_to_protection(RCP, RP, output, networks, data_path, network_filter, flood_areas, flood_layer):
     for index, n in networks.iterrows():
-        fname = os.path.join(data_path, n['path'])
-        id_col = n['asset_id_column']
-        layer_type = n['asset_layer']
+        fname = os.path.join(data_path, n["path"])
+        id_col = n["asset_id_column"]
+        layer_type = n["asset_layer"]
         # ref = n['asset_description']
         # ref = ref.replace(" ", "_")
         # cost_col = n['asset_mean_cost_column']
 
         def is_empty(val):
-            return val is None or val == '' or str(val).lower() == 'none' or pd.isna(val)
+            return val is None or val == "" or str(val).lower() == "none" or pd.isna(val)
 
-        cost_col = n.get('asset_mean_cost_column')
+        cost_col = n.get("asset_mean_cost_column")
         if is_empty(cost_col):
-            cost_col = n.get('asset_max_cost_column')
+            cost_col = n.get("asset_max_cost_column")
         if is_empty(cost_col):
-            cost_col = n.get('asset_min_cost_column')
+            cost_col = n.get("asset_min_cost_column")
 
-        gpkg = n['asset_gpkg']
-        layer = n['asset_layer']
+        gpkg = n["asset_gpkg"]
+        layer = n["asset_layer"]
         ref = f"{gpkg}_{layer}"
-        path = f'{output}/coastal_protection_assets/network_protection_mappings/{ref}_coastal_filtered.parquet'
+        path = f"{output}/coastal_protection_assets/network_protection_mappings/{ref}_coastal_filtered.parquet"
 
         if network_filter and ref not in network_filter:
             continue
@@ -224,7 +225,7 @@ def main(
     rcp,
     epoch,
     rp,
-    output_dir
+    output_dir,
 ):
     network_filter = [f"{asset_gpkg}_{asset_layer}"]
     RP = [f"{rp}"]
@@ -248,7 +249,9 @@ def main(
     filter_affected_assets(networks, union_flood_area_gdf, data_path, network_filter, output_path)
 
     logging.info("Map assets to protection areas")
-    map_network_assets_to_protection(RCP, RP, output_path, networks, data_path, network_filter, flood_areas, flood_area_layer)
+    map_network_assets_to_protection(
+        RCP, RP, output_path, networks, data_path, network_filter, flood_areas, flood_area_layer
+    )
 
 
 if __name__ == "__main__":

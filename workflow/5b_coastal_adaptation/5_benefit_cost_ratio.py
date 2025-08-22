@@ -379,7 +379,7 @@ def benefit_cost_ratio(
 ):
     if not os.path.isfile(cost_file):
         raise FileNotFoundError(f"Cost file {cost_file} does not exist.")
-    
+
     hazard_label = "coastal"
     hazard = {"hazard": f"{hazard_label}", "hazard_type": [f"{hazard_label}"]}
     rcps = [2.6, 4.5, 8.5]
