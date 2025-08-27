@@ -71,7 +71,7 @@ rule union_coastal_protection_flood_areas:
             --rcp {params.rcp} \\
             --rp {params.rp} \\
             --epoch {params.epoch} \\
-            --output-dir {OUTPUT} \\
+            --output-path {output.combined_cpa}
         """
 
 
