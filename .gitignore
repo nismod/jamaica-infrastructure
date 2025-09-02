@@ -3,6 +3,7 @@ processed_data/
 results/
 drought/
 incoming_data/
+scripts/nbs_methods/river-catchment/nbs_project*
 
 # local module build files
 *.egg-info
