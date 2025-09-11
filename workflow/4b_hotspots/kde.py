@@ -3,8 +3,9 @@ import logging
 import click
 import numpy as np
 import rasterio
-from rasterio.transform import from_origin
+import scipy
 import tqdm
+from rasterio.transform import from_origin
 
 
 def gaussian_kernel(shape: tuple[int, int], center: tuple[int, int], bandwidth: float, target_integral: float):
@@ -36,7 +37,7 @@ def gaussian_kernel(shape: tuple[int, int], center: tuple[int, int], bandwidth: 
     type=click.Path(exists=False, dir_okay=False, file_okay=True, readable=True),
 )
 @click.option(
-    "--output-resolution", "-r", required=True, type=float,
+    "--output-resolution", "-r", required=False, type=float,
     help="Grid resolution of output raster."
 )
 @click.option(
@@ -46,7 +47,7 @@ def gaussian_kernel(shape: tuple[int, int], center: tuple[int, int], bandwidth: 
 def main(
     input_raster_path: str,
     output_raster_path: str,
-    output_resolution: float,
+    output_resolution: float | None,
     bandwidth: float,
 ):
     logging.info("Loading input raster")
@@ -65,33 +66,54 @@ def main(
         right = left + input_shape[1] * input_res
         top = bottom + input_shape[0] * input_res
 
-    logging.info("Define output grid")
-    width = int(np.ceil((right - left) / output_resolution))
-    height = int(np.ceil((top - bottom) / output_resolution))
-    output_transform = from_origin(left, top, output_resolution, output_resolution)
-    output_data = np.zeros((height, width), dtype=np.float32)
+    if output_resolution is None or np.isclose(input_res, output_resolution, rtol=1e-3):
+        logging.info("Smoothing on grid with unchanged resolution")
+        output_transform = input_transform
+        # Run relatively fast convolution without changing resolution
+        bw_pixels: int = int(bandwidth / input_res)
+        assert bw_pixels > 0, f"Bandwidth must be >= pixel resolution"
+        logging.info(f"Define kernel {bandwidth=}, {bw_pixels=}")
+        kernel = np.outer(
+            scipy.signal.windows.gaussian(bw_pixels * 8, bw_pixels),
+            scipy.signal.windows.gaussian(bw_pixels * 8, bw_pixels),
+        )
+        input_data = np.nan_to_num(input_data)
+        output_data = scipy.signal.fftconvolve(input_data, kernel, mode="same")
 
-    logging.info("Adding Gaussian kernels")
-    for input_row in tqdm.tqdm(range(input_shape[0])):
-        for input_col in range(input_shape[1]):
+        # Normalise back to preserve total
+        sum_in = np.nansum(input_data)
+        sum_out = np.nansum(output_data)
+        output_data *= sum_in / sum_out
+        logging.debug(f"{sum_in=}, {sum_out=}, {output_data=}")
 
-            loss = input_data[input_row, input_col]
-            if not np.isfinite(loss) or loss <= 0:
-                continue
+    else:
+        logging.info("Smoothing on grid with {output_resolution=}")
+        width = int(np.ceil((right - left) / output_resolution))
+        height = int(np.ceil((top - bottom) / output_resolution))
+        output_transform = from_origin(left, top, output_resolution, output_resolution)
+        output_data = np.zeros((height, width), dtype=np.float32)
 
-            # World coordinates of the center of the input cell
-            x_world, y_world = rasterio.transform.xy(
-                input_transform, input_row, input_col, offset='center'
-            )
-            # Output grid indices of that point
-            output_col_c, output_row_c = ~output_transform * (x_world, y_world)
-            center = (output_row_c, output_col_c)
+        logging.info("Adding Gaussian kernels")
+        for input_row in tqdm.tqdm(range(input_shape[0])):
+            for input_col in range(input_shape[1]):
 
-            # Convert bandwidth to output grid pixels
-            bw_pixels: float = bandwidth / output_resolution
+                loss = input_data[input_row, input_col]
+                if not np.isfinite(loss) or loss <= 0:
+                    continue
 
-            # Add full-image kernel
-            output_data += gaussian_kernel((height, width), center, bw_pixels, loss)
+                # World coordinates of the center of the input cell
+                x_world, y_world = rasterio.transform.xy(
+                    input_transform, input_row, input_col, offset='center'
+                )
+                # Output grid indices of that point
+                output_col_c, output_row_c = ~output_transform * (x_world, y_world)
+                center = (output_row_c, output_col_c)
+
+                # Convert bandwidth to output grid pixels
+                bw_pixels: float = bandwidth / output_resolution
+
+                # Add full-image kernel
+                output_data += gaussian_kernel((height, width), center, bw_pixels, loss)
 
     logging.info("Asserting input and output raster sums are equal")
     assert np.isclose(np.nansum(input_data), np.nansum(output_data), rtol=1E-3, atol=1)
@@ -99,8 +121,8 @@ def main(
     logging.info(f"Write out to {output_raster_path}")
     write_kwargs = {
         'driver': 'GTiff',
-        'height': height,
-        'width': width,
+        'height': output_data.shape[0],
+        'width': output_data.shape[1],
         'count': 1,
         'dtype': 'float32',
         'crs': input_crs,
