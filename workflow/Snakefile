@@ -4,8 +4,6 @@ import pandas as pd
 import geopandas as gpd
 import os
 
-HAZARD_TYPES = ("TC", "flooding")
-
 # assign globals to these paths, they're used frequently
 RAW = config["paths"]["incoming_data"]
 DATA = config["paths"]["data"]
@@ -28,7 +26,8 @@ include: "2a_transport/_transport.smk"
 include: "3_criticality/_criticality.smk"
 include: "4a_losses/_losses.smk"
 include: "4b_hotspots/_hotspots.smk"
-include: "5_adaptation/_adaptation.smk"
+include: "5a_self-adaptation/_self-adaptation.smk"
+include: "5b_coastal_adaptation/_coastal_adaptation.smk"
 include: "6_etl/_etl.smk"
 
 from check_targets import EXPOSURE, DAMAGES, LOSSES, EAD_EAEL, ADAPTATIONS, TARGETS

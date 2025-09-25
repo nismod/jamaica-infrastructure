@@ -3,6 +3,7 @@ processed_data/
 results/
 drought/
 incoming_data/
+jobs/
 
 # local module build files
 *.egg-info

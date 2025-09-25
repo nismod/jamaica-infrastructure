@@ -11,13 +11,17 @@ rule adaptation_options_costs:
     snakemake -c1 results/adaptation_costs/flooding_costs/waste_water_facilities_NWC_nodes_adaptation_timeseries_and_npvs.csv
     """
     input:
-        script = "workflow/5_adaptation/adaptation_options_costs.py",
-        cost_file = f"{DATA}/adaptation/adaptation_options_and_costs_jamaica.xlsx",
+        script = "workflow/5a_self-adaptation/adaptation_options_costs.py",
+        cost_file = f"{DATA}/adaptation/adaptation_options_and_costs.xlsx",
         network_csv = config["paths"]["network_layers"],
+        protection_asset_dict = f"{OUTPUT}/coastal_protection_assets/network_protection_mappings/{{gpkg}}_{{layer}}_coastal_filtered.parquet",
+        protection_feature_breakdown = f"{OUTPUT}/coastal_protection_assets/coastal_protection_assets_breakdown.csv",
         asset_file = lambda wildcards: f"{DATA}/{get_asset_metadata(wildcards).path}",  # gpkg
     params:
         baseline_year = config["adaptation_options"]["baseline_year"],
         projection_end_year = config["adaptation_options"]["projection_end_year"],
+        rcp = config["coastal_adaptation"]["max_rcp"],
+        rp = config["coastal_adaptation"]["max_rp"],
         discounting_rate = config["adaptation_options"]["discounting_rate"],
         epsg = config["adaptation_options"]["epsg_jamaica"]
     output:
@@ -29,12 +33,16 @@ rule adaptation_options_costs:
             --network-csv {input.network_csv} \
             --asset-file {input.asset_file} \
             --cost-file {input.cost_file} \
+            --protection-asset-dict {input.protection_asset_dict} \
+            --protection-feature-breakdown {input.protection_feature_breakdown} \
             --hazard-label {wildcards.hazard} \
             --asset-gpkg {wildcards.gpkg} \
             --asset-layer {wildcards.layer} \
             --output-dir {OUTPUT} \
             --baseline-year {params.baseline_year} \
             --projection-end-year {params.projection_end_year} \
+            --rcp {params.rcp} \
+            --rp {params.rp} \
             --discounting-rate {params.discounting_rate} \
             --epsg {params.epsg}
         """
@@ -48,7 +56,7 @@ rule damage_loss_timeseries_and_NPV:
     snakemake -c1 results/flood_threshold_1p0/loss_damage_npvs/waste_water_facilities_NWC_nodes_EAD_EAEL_npvs.csv
     """
     input:
-        script = "workflow/5_adaptation/damage_loss_timeseries_and_npv.py",
+        script = "workflow/5a_self-adaptation/damage_loss_timeseries_and_npv.py",
         network_csv = config["paths"]["network_layers"],
         growth_rates = f"{DATA}/macroeconomic_data/gdp_growth_rates.xlsx",
         summarised_damages = f"{{output_path}}/direct_damages_summary/{{gpkg}}_{{layer}}_EAD_EAEL.csv",
@@ -105,14 +113,17 @@ rule benefit_cost_ratio:
     snakemake -c1 results/adaptation_benefits_costs_bcr/flooding_waste_water_facilities_NWC_nodes_adaptation_costs_avoided_EAD_EAEL.csv
     """
     input:
-        script = "workflow/5_adaptation/benefit_cost_ratio_estimations.py",
+        script = "workflow/5a_self-adaptation/benefit_cost_ratio.py",
         network_csv = config["paths"]["network_layers"],
         cost_file = f"{OUTPUT}/adaptation_costs/{{hazard}}_costs/{{gpkg}}_{{layer}}_adaptation_timeseries_and_npvs.csv",
         risk_files = get_risk_files
     params:
+        projection_end_year = config["adaptation_options"]["projection_end_year"],
         disruption_duration = config["adaptation_options"]["disruption_duration_days"],
         flood_thresholds = config["adaptation_options"]["flood_thresholds_meters"],
         TC_factors = config["adaptation_options"]["TC_winds_damage_curve_squash"],
+    wildcard_constraints:
+        hazard=r"(flooding|TC)"
     output:
         bcr = f"{OUTPUT}/adaptation_benefits_costs_bcr/{{hazard}}_{{gpkg}}_{{layer}}_adaptation_benefits_costs_bcr.csv",
         EAD = f"{OUTPUT}/adaptation_benefits_costs_bcr/{{hazard}}_{{gpkg}}_{{layer}}_adaptation_costs_avoided_EAD_EAEL.csv",
@@ -128,14 +139,14 @@ rule benefit_cost_ratio:
             TC_FACTORS="$TC_FACTORS --tc-damage-curve-factor $VALUE"
         done
 
-        python {input.script} \
-            --network-csv {input.network_csv} \
-            --cost-file {input.cost_file} \
-            --hazard-label {wildcards.hazard} \
-            --asset-gpkg {wildcards.gpkg} \
-            --asset-layer {wildcards.layer} \
-            --disruption-duration-days {params.disruption_duration} \
-            $FLOOD_THRESHOLDS \
-            $TC_FACTORS \
+        python {input.script} \\
+            --network-csv {input.network_csv} \\
+            --cost-file {input.cost_file} \\
+            --hazard-label {wildcards.hazard} \\
+            --asset-gpkg {wildcards.gpkg} \\
+            --asset-layer {wildcards.layer} \\
+            --disruption-duration-days {params.disruption_duration} \\
+            $FLOOD_THRESHOLDS \\
+            $TC_FACTORS \\
             --output-dir {OUTPUT}
         """

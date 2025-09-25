@@ -147,36 +147,31 @@ def damage_and_loss(
     hazard_columns = list(set(df.columns) - non_hazard_columns)
     df = df.groupby([asset_id, "damage_cost_unit"])[hazard_columns].sum().reset_index()
 
-    loss_column = []
-    if asset_info.single_failure_scenarios != "none":
-        logging.info("Read single failure scenario data")
-        loss_column = ["economic_loss"]
-        if asset_info.sector != "buildings":
-            loss_df = pd.read_csv(single_failure_scenarios)
-            if asset_info.asset_gpkg == "potable_facilities_NWC":
-                loss_df[asset_id] = loss_df.progress_apply(
-                    lambda x: str(x[asset_id])
-                    .lower()
-                    .replace(" ", "_")
-                    .replace(".0", ""),
-                    axis=1,
-                )
-        else:
-            loss_df = gpd.read_file(single_failure_scenarios, layer="areas")
-            loss_df.rename(
-                columns={"total_GDP": "economic_loss"}, inplace=True
+    logging.info("Read single failure scenario data")
+    loss_column = ["economic_loss"]
+    if asset_info.sector != "buildings":
+        loss_df = pd.read_csv(single_failure_scenarios)
+        if asset_info.asset_gpkg == "potable_facilities_NWC":
+            loss_df[asset_id] = loss_df.progress_apply(
+                lambda x: str(x[asset_id])
+                .lower()
+                .replace(" ", "_")
+                .replace(".0", ""),
+                axis=1,
             )
-            # loss_df["loss_unit"] = "JD/day"
-        df = pd.merge(
-            df,
-            loss_df[[asset_info.asset_id_column, "economic_loss"]],
-            how="left",
-            on=[asset_info.asset_id_column],
-        ).fillna(0)
-        df["economic_loss_unit"] = "J$/day"
     else:
-        df["economic_loss_unit"] = "None"
-    # haz_rcp_epoch_confidence = list(set(df.set_index(["hazard","rcp","epoch","confidence"]).index.values.tolist()))
+        loss_df = gpd.read_file(single_failure_scenarios, layer="areas")
+        loss_df.rename(
+            columns={"total_GDP": "economic_loss"}, inplace=True
+        )
+
+    df = pd.merge(
+        df,
+        loss_df[[asset_info.asset_id_column, "economic_loss"]],
+        how="left",
+        on=[asset_info.asset_id_column],
+    ).fillna(0)
+    df["economic_loss_unit"] = "J$/day"
 
     logging.info("Read hazard data")
     hazard_data_details = pd.read_csv(hazard_csv, encoding="latin1").fillna(0)

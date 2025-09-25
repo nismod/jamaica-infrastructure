@@ -146,28 +146,29 @@ rule direct_damage:
         damage_curves_dir = f"{DATA}/damage_curves",
         damage_curves = lambda wildcards: expand(
             f"{DATA}/damage_curves/damage_curves_{get_asset_metadata(wildcards).sector}_{{hazard_type}}.xlsx",
-            hazard_type = HAZARD_TYPES
+            hazard_type = ("TC", "flooding", "coastal")
         ),
         hazard_intersection_file = f"{OUTPUT}/hazard_asset_intersection/{{gpkg}}_splits__hazard_layers__{{layer}}.geoparquet",
     params:
         USD_per_JMD = config["economics"]["USD_per_JMD"],
         sensitivity_id = sensitivity_id_from_slug,
+        epoch = config["adaptation_options"]["projection_end_year"],
     output:
         damages = "{output_path}/direct_damages/{gpkg}_{layer}/{gpkg}_{layer}_direct_damages_{parameter_set}.parquet",
     shell:
         """
-        python {input.script} \
-            --network-csv {input.network_csv} \
-            --hazard-csv {input.hazard_csv} \
-            --sensitivity-csv {input.sensitivity_parameters} \
-            --sensitivity-id {params.sensitivity_id} \
-            --asset-gpkg-file {input.asset_gpkg} \
-            --asset-gpkg-label {wildcards.gpkg} \
-            --asset-layer {wildcards.layer} \
-            --damage-curve-mapping-csv {input.damage_curve_mapping} \
-            --damage-threshold-uplift-csv {input.threshold_and_uplift} \
-            --damage-curves-dir {input.damage_curves_dir} \
-            --intersection {input.hazard_intersection_file} \
-            --USD-per-JMD {params.USD_per_JMD} \
+        python {input.script} \\
+            --network-csv {input.network_csv} \\
+            --hazard-csv {input.hazard_csv} \\
+            --sensitivity-csv {input.sensitivity_parameters} \\
+            --sensitivity-id {params.sensitivity_id} \\
+            --asset-gpkg-file {input.asset_gpkg} \\
+            --asset-gpkg-label {wildcards.gpkg} \\
+            --asset-layer {wildcards.layer} \\
+            --damage-curve-mapping-csv {input.damage_curve_mapping} \\
+            --damage-threshold-uplift-csv {input.threshold_and_uplift} \\
+            --damage-curves-dir {input.damage_curves_dir} \\
+            --intersection {input.hazard_intersection_file} \\
+            --USD-per-JMD {params.USD_per_JMD} \\
             --output-path {output.damages}
         """

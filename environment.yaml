@@ -3,7 +3,6 @@
 name: jsrat
 channels:
   - conda-forge  # majority of dependencies
-  - bioconda  # snakemake
   - nodefaults  # avoid anaconda license issues
 dependencies:
   - python~=3.11
@@ -11,4 +10,5 @@ dependencies:
     - --editable .
     - -r requirements.txt
   - bioconda::snakemake~=8.30.0
+  - gdal~=3.11.0
   - graphviz
