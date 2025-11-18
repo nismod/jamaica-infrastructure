@@ -60,6 +60,9 @@ def EAD_EAEL_ensemble_files(wildcards):
 rule collapse_sensitivity:
     """
     Aggregate over sensitivity ensemble members.
+
+    This rule can require a lot of memory. For the buildings asset class (~1M
+    assets), you'll need ~200GB RAM.
     
     Test with:
     snakemake -c1 results/direct_damages_summary/roads_edges_losses.parquet

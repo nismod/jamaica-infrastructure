@@ -165,3 +165,35 @@ adaptation_options:
   # by an assumed disruption duration.
   disruption_duration_days: 15
 
+### COASTAL ADAPTATION ###
+# This section defines parameters used in generating the coastal flood protection 
+# areas and coastal revetment segments used in evaluating coastal adaptation options 
+# to mitigate the coastal flooding hazard along the coastline.
+coastal_adaptation: 
+  # The "worst case" rcp used to set which flood map to use to inform the flood protection 
+  # areas & coastline features
+  max_rcp: 8.5
+  # The "worst case" return period used to set which flood map to use to inform the flood protection 
+  # areas & coastline features
+  max_rp: 100
+  # Inland buffer distance (in kilometers) used to define the initial inland extent
+  # of the flood impact areas from the coastline. 
+  inland_buffer: 2
+  # Flood depth threshold (in meters) above which areas are considered to be
+  # affected by coastal flooding. Used to delineate flood hazard zones.
+  flood_threshold: 0.1
+  # DBSCAN clustering epsilon parameter. Defines the maximum distance
+  # between points in a cluster. Used to group flooding into flood areas.
+  eps: 3
+  # Minimum number of points required to form a DBSCAN cluster.
+  minpts: 5
+  # Maximum length (in meters) of each individual coastline segment for which an
+  # adaptation (e.g. revetments) can be planned.
+  coast_length: 5000
+  # Fractional overlap between adjacent coastal flood areas to ensure coverage
+  # and continuity of protection, and to prevent duplicated efforts in 
+  # protecting assets within the flood protection areas.
+  overlap: 0.50
+
+  coastal_layer: "workflow/coastal_protection_layers.csv"
+    
