@@ -1,8 +1,9 @@
-#
+# Working data/results directories
 processed_data/
 results/
 drought/
 incoming_data/
+scripts/nbs_methods/river-catchment/nbs_project*
 jobs/
 
 # local module build files
@@ -29,16 +30,17 @@ __pycache__
 *.pyc
 .ipynb_checkpoints
 
-# Data
+# Data files
+*.cpg
+*.dbf
+*.gpkg*
 *.osm.pbf
+*.prj
+*.qgz
 *.shp
 *.shx
-*.dbf
-*.cpg
-*.prj
+*.tif
 *.xml
-*.gpkg*
 *.zip
-*.qgz
 
 .tmp/
