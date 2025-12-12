@@ -7,7 +7,7 @@ from analysis_utils import *
 import subprocess
 
 
-def main(config, network_csv, hazard_csv, n_cpu):
+def main(config, network_csv, hazard_csv, n_cpu, sensitivity_analysis):
     processed_data_path = config["paths"]["data"]
     results_path = config["paths"]["output"]
 
@@ -77,5 +77,5 @@ def main(config, network_csv, hazard_csv, n_cpu):
 
 if __name__ == "__main__":
     CONFIG = load_config()
-    network_csv, hazard_csv, n_cpu = sys.argv[1:]
-    main(CONFIG, network_csv, hazard_csv, int(n_cpu))
+    network_csv, hazard_csv, n_cpu, sensitivity_analysis = sys.argv[1:]
+    main(CONFIG, network_csv, hazard_csv, int(n_cpu), bool(int(sensitivity_analysis)))
