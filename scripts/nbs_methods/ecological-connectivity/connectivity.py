@@ -8,19 +8,25 @@ Edited on Sun Feb 18 by sarahgall
 ... and nudged along by Fred -- 2024-03-11
 """
 
-import itertools
 import math
-import multiprocessing
 import os
 import time
 
 import numpy as np
 import matplotlib.pyplot as plt
 from mpl_toolkits.axes_grid1 import make_axes_locatable
-from numba import njit
+from numba import njit, prange
 
 
 HALF_ROOT_TWO = np.sqrt(2) / 2.0
+
+
+def _gen_mode_flag(gen_mode: str, number_of_species_gens: int) -> int:
+    if gen_mode == "one_generation":
+        return 0
+    if gen_mode == "multi-generation":
+        return 1 if number_of_species_gens < 10 else 2
+    raise ValueError(f"Unsupported generation mode: {gen_mode}")
 
 
 @njit(cache=True)
@@ -293,7 +299,7 @@ def connectivity_of_cell_core(
     f_rad_width: np.ndarray,
     f_perm_scale: float,
     f_min_perm: float,
-) -> "tuple[int, int, float]":
+) -> float:
     f_H, f_zone_cells = zone_condition_sum_and_cell_count(
         n_sectors,
         n_rings,
@@ -378,7 +384,7 @@ def connectivity_of_cell_core(
     if n_lambda > 0:
         d_Conn /= n_lambda
 
-    return row, col, d_Conn
+    return d_Conn
 
 
 def connectivity_of_cell(
@@ -397,7 +403,7 @@ def connectivity_of_cell(
     f_rad_width: np.ndarray,
     f_perm_scale: float,
     f_min_perm: float,
-) -> "tuple[int, int, float]":
+) -> float:
     """
     Thin wrapper around the numba-accelerated per-cell solver that extracts the
     dartboard slice to pass into the compiled core implementation.
@@ -423,12 +429,7 @@ def connectivity_of_cell(
     ]
     condition_slice = h[row_min:row_max, col_min:col_max]
 
-    if gen_mode == "one_generation":
-        mode_flag = 0
-    elif gen_mode == "multi-generation":
-        mode_flag = 1 if number_of_species_gens < 10 else 2
-    else:
-        raise ValueError(f"Unsupported generation mode: {gen_mode}")
+    mode_flag = _gen_mode_flag(gen_mode, number_of_species_gens)
 
     return connectivity_of_cell_core(
         row,
@@ -445,6 +446,84 @@ def connectivity_of_cell(
         f_perm_scale,
         f_min_perm,
     )
+
+
+@njit(parallel=True)
+def connectivity_grid_kernel(
+    condition: np.ndarray,
+    land_cells: np.ndarray,
+    sector_index_by_cell: np.ndarray,
+    ring_index_by_cell: np.ndarray,
+    n_sectors: int,
+    n_rings: int,
+    dartboard_radius: int,
+    dartboard_d: int,
+    f_lambda: np.ndarray,
+    gen_mode_flag: int,
+    number_of_species_gens: int,
+    f_rad_width: np.ndarray,
+    f_perm_scale: float,
+    f_min_perm: float,
+) -> np.ndarray:
+    n_points = land_cells.shape[0]
+    results = np.zeros(n_points)
+    n_rows, n_cols = condition.shape
+
+    for idx in prange(n_points):
+        row = land_cells[idx, 0]
+        col = land_cells[idx, 1]
+
+        row_min = row - dartboard_radius
+        row_min_diff = 0
+        if row_min < 0:
+            row_min_diff = row_min
+            row_min = 0
+
+        row_max = row + dartboard_radius + 1
+        row_max_diff = 0
+        if row_max > n_rows:
+            row_max_diff = row_max - n_rows
+            row_max = n_rows
+
+        col_min = col - dartboard_radius
+        col_min_diff = 0
+        if col_min < 0:
+            col_min_diff = col_min
+            col_min = 0
+
+        col_max = col + dartboard_radius + 1
+        col_max_diff = 0
+        if col_max > n_cols:
+            col_max_diff = col_max - n_cols
+            col_max = n_cols
+
+        sector_slice = sector_index_by_cell[
+            -row_min_diff : dartboard_d - row_max_diff,
+            -col_min_diff : dartboard_d - col_max_diff,
+        ]
+        ring_slice = ring_index_by_cell[
+            -row_min_diff : dartboard_d - row_max_diff,
+            -col_min_diff : dartboard_d - col_max_diff,
+        ]
+        condition_slice = condition[row_min:row_max, col_min:col_max]
+
+        results[idx] = connectivity_of_cell_core(
+            row,
+            col,
+            sector_slice,
+            ring_slice,
+            n_sectors,
+            n_rings,
+            condition_slice,
+            f_lambda,
+            gen_mode_flag,
+            number_of_species_gens,
+            f_rad_width,
+            f_perm_scale,
+            f_min_perm,
+        )
+
+    return results
 
 
 def connectivity_of_grid(condition: np.ndarray, n_processes: int, land_array: np.ndarray, lambda_parameter: float, gen_mode: str, number_of_gens: int ) -> np.ndarray:
@@ -532,61 +611,38 @@ def connectivity_of_grid(condition: np.ndarray, n_processes: int, land_array: np
     # f_lambda = np.array([0.02, 0.2, 2, 20])    # this corresponds to 1/alpha in the overleaf doc
     f_lambda = np.array([lambda_parameter])  # value we use for now instead
 
-    # build argument list
     land_cells = np.argwhere(land_array)
 
     if land_cells.size == 0:
         return connectivity
 
-    #print(f"Using {n_processes} CPU(s) to process ({n_rows} x {n_cols}) cells")
-    if n_processes > 1:
-        args = [
-            (
-                row,
-                col,
-                sector_index_by_cell,
-                ring_index_by_cell,
-                n_sectors,
-                n_rings,
-                condition,
-                f_lambda,
-                gen_mode,
-                number_of_gens,
-                dartboard_radius,
-                dartboard_d,
-                rad_width,
-                f_perm_scale,
-                f_min_perm,
-            )
-            for row, col in land_cells
-        ]
-        with multiprocessing.Pool(n_processes) as pool:
-            results = pool.starmap(connectivity_of_cell, args)
-    else:
-        for row, col in land_cells:
-            _, _, value = connectivity_of_cell(
-                row,
-                col,
-                sector_index_by_cell,
-                ring_index_by_cell,
-                n_sectors,
-                n_rings,
-                condition,
-                f_lambda,
-                gen_mode,
-                number_of_gens,
-                dartboard_radius,
-                dartboard_d,
-                rad_width,
-                f_perm_scale,
-                f_min_perm,
-            )
-            connectivity[row, col] = value
-        return connectivity
+    land_cells = np.ascontiguousarray(land_cells, dtype=np.int64)
+    condition = np.ascontiguousarray(condition)
+    sector_index_by_cell = np.ascontiguousarray(sector_index_by_cell)
+    ring_index_by_cell = np.ascontiguousarray(ring_index_by_cell)
+    rad_width = np.ascontiguousarray(rad_width)
+    f_lambda = np.ascontiguousarray(f_lambda)
 
-    # unpack results
-    rows, cols, values = zip(*results)
-    connectivity[rows, cols] = values
+    mode_flag = _gen_mode_flag(gen_mode, number_of_gens)
+
+    values = connectivity_grid_kernel(
+        condition,
+        land_cells,
+        sector_index_by_cell,
+        ring_index_by_cell,
+        n_sectors,
+        n_rings,
+        dartboard_radius,
+        dartboard_d,
+        f_lambda,
+        mode_flag,
+        number_of_gens,
+        rad_width,
+        f_perm_scale,
+        f_min_perm,
+    )
+
+    connectivity[land_cells[:, 0], land_cells[:, 1]] = values
 
     return connectivity
 
