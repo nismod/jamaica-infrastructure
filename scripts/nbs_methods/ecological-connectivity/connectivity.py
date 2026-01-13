@@ -6,47 +6,21 @@ Edited on Sun Feb 18 by sarahgall
 
 @author: matthiaswildemeersch
 ... and nudged along by Fred -- 2024-03-11
-... tomalrussell 2026-01-12
 """
 
+import itertools
 import math
+import multiprocessing
 import os
 import time
 
 import numpy as np
 import matplotlib.pyplot as plt
 from mpl_toolkits.axes_grid1 import make_axes_locatable
-from numba import njit, prange
+from scipy.special import gammainc, erf
 
 
 HALF_ROOT_TWO = np.sqrt(2) / 2.0
-
-
-def _gen_mode_flag(gen_mode: str, number_of_species_gens: int) -> int:
-    if gen_mode == "one_generation":
-        return 0
-    if gen_mode == "multi-generation":
-        return 1 if number_of_species_gens < 10 else 2
-    raise ValueError(f"Unsupported generation mode: {gen_mode}")
-
-
-@njit(cache=True)
-def _regularized_gamma_upper_integer(k: int, x: float) -> float:
-    """
-    Regularized upper incomplete gamma Q(k, x) for integer k.
-
-    Notes:
-        Q(k, x) = e^{-x} * sum_{n=0}^{k-1} x^n / n!
-    """
-    if k <= 0:
-        return 0.0
-    total = 0.0
-    term = 1.0
-    for n in range(k):
-        if n > 0:
-            term *= x / n
-        total += term
-    return math.exp(-x) * total
 
 
 def identify_sector(row: int, col: int) -> int:
@@ -68,9 +42,9 @@ def identify_sector(row: int, col: int) -> int:
     # +row-col 1PI-1.5 PI  S W
     # -row-col 1.5PI-2PI  N W
 
-    # TODO: fix behaviour whereby rows in the southern half of the column containing bullseye are labelled as north not south
+    # TODO: fix behaviour whereby rows in the southern half of the column containing bullseye are labelled as north not south
     # for visual explanation see seg_bad.png
-    # need a new conditional clause for col == 0, or a better way of computing the bearing
+    # need a new conditional clause for col == 0, or a better way of computing the bearing
     bearing_rad: float = 0
 
     if row < 0:
@@ -92,7 +66,7 @@ def identify_sector(row: int, col: int) -> int:
             bearing_rad = math.pi - math.atan(col / row)
         elif col == 0:
             # SOUTH
-            bearing_rad = math.pi
+            bearing_rad = math. pi
     elif row == 0:
         if col < 0:
             bearing_rad = 1.5 * math.pi  # WEST
@@ -125,10 +99,10 @@ def identify_sector(row: int, col: int) -> int:
     else:
         return 0  # N
 
+    return sector
 
-def find_ring_and_sector(
-    row: int, col: int, ring_radii: np.ndarray, dartboard_radius: int
-) -> "tuple[int, int]":
+
+def find_ring_and_sector(row: int, col: int, ring_radii: np.ndarray, dartboard_radius:int) -> "tuple[int, int]":
     """
     Determine which part of the dartboard we're in.
 
@@ -140,27 +114,25 @@ def find_ring_and_sector(
     Returns:
         Index of sector, index of ring
     """
-    relative_row = (
-        row - dartboard_radius
-    )  # i_r_row is the horizintal distance to the dart center cell, center is in row index 30
+    relative_row = row - dartboard_radius  # i_r_row is the horizintal distance to the dart center cell, center is in row index 30
     relative_col = col - dartboard_radius
-    # relative_row = row - 30  # i_r_row is the horizintal distance to the dart center cell, center is in row index 30
-    # relative_col = col - 30
+    #relative_row = row - 30  # i_r_row is the horizintal distance to the dart center cell, center is in row index 30
+    #relative_col = col - 30
 
     # geometrical distance from the regarded cell to the dart center
-    distance: float = np.sqrt(relative_row**2 + relative_col**2)
+    distance: float = np.sqrt(relative_row ** 2 + relative_col ** 2)
 
     if distance > np.max(ring_radii):
         # outside the biggest circle
         # relative area of circle inside (touching) square is pi/4 or 78%, would expect ~22% of iterations to end here
         return (-1, -1)
 
-    # sector index
+    # sector index
     sector: int = identify_sector(relative_row, relative_col)
 
     # ring index
     ring: int = 0
-    while distance > ring_radii[ring]:
+    while (distance > ring_radii[ring]):
         ring += 1
         if ring == len(ring_radii):
             break
@@ -168,7 +140,6 @@ def find_ring_and_sector(
     return sector, ring
 
 
-@njit(cache=True)
 def path_length(
     f_PCurrSum: np.ndarray,
     f_PLastSum: np.ndarray,
@@ -177,7 +148,7 @@ def path_length(
     f_min_perm: float,
     f_C: np.ndarray,
     sector: int,
-    ring: int,
+    ring: int
 ) -> np.ndarray:
     """
     Find the shortest path length from the centre of the dartboard to the edge,
@@ -199,27 +170,23 @@ def path_length(
         Updated version of input matrix, f_PCurrSum, with new value at `sector`.
     """
     # index of direction sector to the left of regarded sector
-    i_left_seg = sector - 1 if sector > 0 else 7
+    i_left_seg = (sector - 1 if sector > 0 else 7)
 
     # index of direction sector to the right of regarded sector
     i_right_seg = (sector + 1) % 8
 
     # A and B represent two paths to reach a zone
     # following lines match with path at the left of the source cell #goes left
-    f_PtestA = f_PLastSum[i_left_seg] + f_rad_width[
-        ring
-    ] / (  # effective distance of straight path
+    f_PtestA = f_PLastSum[i_left_seg] + f_rad_width[ring] / (  # effective distance of straight path
         (f_perm_scale * f_C[i_left_seg][ring]) + f_min_perm
     )
 
-    f_PtestB = f_PLastSum[sector] + HALF_ROOT_TWO * (  # diagonal path
+    f_PtestB = f_PLastSum[sector] + HALF_ROOT_TWO * (  #diagonal path
         f_rad_width[ring] + f_rad_width[ring]
     ) / ((f_perm_scale * f_C[i_left_seg][ring]) + f_min_perm)
 
     if f_PtestA < f_PtestB:
-        f_PCurrSum[i_left_seg] = (
-            f_PtestA  # PCurrSum is the length of the shorter of the two paths
-        )
+        f_PCurrSum[i_left_seg] = f_PtestA  #PCurrSum is the length of the shorter of the two paths
     else:
         f_PCurrSum[i_left_seg] = f_PtestB
 
@@ -264,135 +231,40 @@ def path_length(
     return f_PCurrSum
 
 
-@njit(cache=True)
 def zone_condition_sum_and_cell_count(
     n_sectors: int,
     n_rings: int,
     sector_indicies: np.ndarray,
     ring_indicies: np.ndarray,
-    condition: np.ndarray,
+    condition: np.ndarray
 ) -> "tuple[np.ndarray, np.ndarray]":
-    condition_by_zone = np.zeros((n_sectors, n_rings))
-    cell_count_by_zone = np.zeros((n_sectors, n_rings))
+    """
+    Find the sum of cell condition values and the number of cells in each zone.
 
-    n_rows, n_cols = sector_indicies.shape
-    for r in range(n_rows):
-        for c in range(n_cols):
-            sector = sector_indicies[r, c]
-            ring = ring_indicies[r, c]
-            if sector < 0 or ring < 0:
-                continue
-            condition_by_zone[sector, ring] += condition[r, c]
-            cell_count_by_zone[sector, ring] += 1.0
+    Args:
+        n_sectors: Number of sectors
+        n_rings: Number of rings
+        sector_indicies: Segment index for each cell
+        ring_indicies: Ring index for each cell
+        condition: Condition value for each cell
+
+    Returns:
+        Matrix containing condition sum for each zone (sectors, rings)
+        Matrix containing number of cells for each zone (sectors, rings)
+    """
+
+    condition_by_zone = np.zeros((n_sectors, n_rings))  # sum of habitat condition values in zone
+    cell_count_by_zone = np.zeros((n_sectors, n_rings))  # number of raster cells within zone
+
+    for sector in np.arange(n_sectors):
+        for ring in np.arange(n_rings):
+            # boolean mask of zone membership
+            zone_mask: np.ndarray = (sector_indicies == sector) & (ring_indicies == ring)
+
+            condition_by_zone[sector][ring] = np.sum(condition * zone_mask)
+            cell_count_by_zone[sector][ring] = np.count_nonzero(zone_mask)
 
     return condition_by_zone, cell_count_by_zone
-
-
-@njit(cache=True)
-def connectivity_of_cell_core(
-    sector_index_subset: np.ndarray,
-    ring_index_subset: np.ndarray,
-    n_sectors: int,
-    n_rings: int,
-    condition_subset: np.ndarray,
-    f_lambda: np.ndarray,
-    gen_mode_flag: int,
-    number_of_species_gens: int,
-    f_rad_width: np.ndarray,
-    f_perm_scale: float,
-    f_min_perm: float,
-) -> float:
-    f_H, f_zone_cells = zone_condition_sum_and_cell_count(
-        n_sectors,
-        n_rings,
-        sector_index_subset,
-        ring_index_subset,
-        condition_subset,
-    )
-
-    f_Hlmax = f_zone_cells.copy()
-    f_C = np.zeros((n_sectors, n_rings))
-    f_Clmax = np.ones((n_sectors, n_rings))
-
-    for sector in range(n_sectors):
-        for ring in range(n_rings):
-            cells = f_zone_cells[sector, ring]
-            if cells > 0:
-                f_C[sector, ring] = f_H[sector, ring] / cells
-            else:
-                f_C[sector, ring] = 0.0
-
-    n_lambda = f_lambda.shape[0]
-    d_Wlmaxsum = np.zeros(n_lambda)
-    d_Wsum = np.zeros(n_lambda)
-    f_PLastSum = np.zeros(n_sectors)
-    f_PCurrSum = np.zeros(n_sectors)
-
-    for sector in range(n_sectors):
-        for i in range(n_sectors):
-            f_PLastSum[i] = 0.0
-            f_PCurrSum[i] = 0.0
-        f_Psum = 0.0
-        f_Plmaxsum = 0.0
-
-        for ring in range(n_rings):
-            if f_Clmax[sector, ring] <= 0:
-                break
-
-            for i in range(n_sectors):
-                f_PCurrSum[i] = 0.0
-
-            f_PCurrSum = path_length(
-                f_PCurrSum,
-                f_PLastSum,
-                f_rad_width,
-                f_perm_scale,
-                f_min_perm,
-                f_C,
-                sector,
-                ring,
-            )
-            f_Psum = f_PCurrSum[sector]
-            f_PLastSum, f_PCurrSum = f_PCurrSum, f_PLastSum
-
-            f_Plmaxsum += f_rad_width[ring] / (
-                (f_perm_scale * f_Clmax[sector, ring]) + f_min_perm
-            )
-
-            for i_dist in range(n_lambda):
-                lambda_val = f_lambda[i_dist]
-                d_dist = f_Psum / lambda_val
-                d_dist2 = f_Plmaxsum / lambda_val
-
-                if gen_mode_flag == 0:
-                    kernel_function1 = math.exp(-d_dist)
-                    kernel_function2 = math.exp(-d_dist2)
-                elif gen_mode_flag == 1:
-                    kernel_function1 = _regularized_gamma_upper_integer(
-                        number_of_species_gens, d_dist
-                    )
-                    kernel_function2 = _regularized_gamma_upper_integer(
-                        number_of_species_gens, d_dist2
-                    )
-                else:
-                    denom = math.sqrt(2.0 * number_of_species_gens) * lambda_val
-                    arg1 = (f_Psum - number_of_species_gens * lambda_val) / denom
-                    arg2 = (f_Plmaxsum - number_of_species_gens * lambda_val) / denom
-                    kernel_function1 = 0.5 * (1.0 - math.erf(arg1))
-                    kernel_function2 = 0.5 * (1.0 - math.erf(arg2))
-
-                d_Wsum[i_dist] += kernel_function1 * f_H[sector, ring]
-                d_Wlmaxsum[i_dist] += kernel_function2 * f_Hlmax[sector, ring]
-
-    d_Conn = 0.0
-    for i_dist in range(n_lambda):
-        if d_Wlmaxsum[i_dist] > 0:
-            d_Conn += d_Wsum[i_dist]
-
-    if n_lambda > 0:
-        d_Conn /= n_lambda
-
-    return d_Conn
 
 
 def connectivity_of_cell(
@@ -411,15 +283,62 @@ def connectivity_of_cell(
     f_rad_width: np.ndarray,
     f_perm_scale: float,
     f_min_perm: float,
-) -> float:
+) -> "tuple[int, int, float]":
     """
-    Thin wrapper around the numba-accelerated per-cell solver that extracts the
-    dartboard slice to pass into the compiled core implementation.
+    Find the connectivity of a cell.
+
+    First, overlay a 'dartboard' on a given cell. The dartboard consists of
+    'sectors' and concentric 'rings'. The area occupied by the intersection of
+    a ring and a sector is a 'zone'. Then, aggregate local cells condition to
+    find zonal condition. Now, working radially outwards, find the shortest
+    distance from the current zone to the zone immediately away from the
+    centre, or either zone immediately adjacent of the same radius. Weight
+    these distances by the those zones' aggregate condition. Take which ever
+    path has the minimum weighted distance. Repeat until radial rings of
+    dartboard are exhausted and we have a path to the edge.
+
+    Args:
+        row: Row index
+        col: Column index
+        sector_index_by_cell: Segment index by cell
+        ring_index_by_cell: Ring index by cell
+        n_sectors: Number of sectors
+        n_rings: Number of rings
+        h: Ecological condition matrix
+        f_lambda: 1/alpha (the average movement ability)
+        gen_mode: 'one-generation' or 'multi-generation'
+        number_of_gens: Number of generations (str)
+        dartboard_radius: Radius of dartboard excluding the central cell (used to be 30)
+        dartboard_d: Diameter of dartboard including the central cell (used to be 61)
+        f_rad_width: Ring radii
+        f_perm_scale: ?
+        f_min_perm: ?
+
+    Returns:
+        Row index
+        Column index
+        Connectivity value of cell
     """
 
     n_rows, n_cols = h.shape
+
+    # for every cell in the overall raster:
+    f_C = np.zeros((n_sectors, n_rings))  # mean zone condition according to the slides, has one cell per zone
+    f_Clmax = np.zeros((n_sectors, n_rings))  # ...length max ?
+    f_PLastSum = np.zeros(n_sectors)
+    f_PCurrSum = np.zeros(n_sectors)  # effective distance of shortest path - current sum
+
+    #row_min = max(0, row - 30)
+    #row_min_diff = min(0, row - 30)  # how much the row_min was changed by our bounding operation
+    #row_max = min(n_rows, row + 30 + 1)
+    #row_max_diff = max(n_rows, row + 30 + 1) - n_rows
+    #col_min = max(0, col - 30)
+    #col_min_diff = min(0, col - 30)
+    #col_max = min(n_cols, col + 30 + 1)
+    #col_max_diff = max(n_cols, col + 30 + 1) - n_cols
+
     row_min = max(0, row - dartboard_radius)
-    row_min_diff = min(0, row - dartboard_radius)
+    row_min_diff = min(0, row - dartboard_radius)  # how much the row_min was changed by our bounding operation
     row_max = min(n_rows, row + dartboard_radius + 1)
     row_max_diff = max(n_rows, row + dartboard_radius + 1) - n_rows
     col_min = max(0, col - dartboard_radius)
@@ -427,117 +346,94 @@ def connectivity_of_cell(
     col_max = min(n_cols, col + dartboard_radius + 1)
     col_max_diff = max(n_cols, col + dartboard_radius + 1) - n_cols
 
-    sector_slice = sector_index_by_cell[
-        -row_min_diff : dartboard_d - row_max_diff,
-        -col_min_diff : dartboard_d - col_max_diff,
-    ]
-    ring_slice = ring_index_by_cell[
-        -row_min_diff : dartboard_d - row_max_diff,
-        -col_min_diff : dartboard_d - col_max_diff,
-    ]
-    condition_slice = h[row_min:row_max, col_min:col_max]
-
-    mode_flag = _gen_mode_flag(gen_mode, number_of_species_gens)
-
-    return connectivity_of_cell_core(
-        sector_slice,
-        ring_slice,
+    f_H, f_zone_cells = zone_condition_sum_and_cell_count(
         n_sectors,
         n_rings,
-        condition_slice,
-        f_lambda,
-        mode_flag,
-        number_of_species_gens,
-        f_rad_width,
-        f_perm_scale,
-        f_min_perm,
+        # subset the big matricies to the target area before passing them in
+        sector_index_by_cell[-row_min_diff : dartboard_d - row_max_diff, -col_min_diff : dartboard_d - col_max_diff],
+        ring_index_by_cell[-row_min_diff : dartboard_d - row_max_diff, -col_min_diff : dartboard_d - col_max_diff],
+        #sector_index_by_cell[-row_min_diff : 61 - row_max_diff, -col_min_diff : 61 - col_max_diff],
+        #ring_index_by_cell[-row_min_diff : 61 - row_max_diff, -col_min_diff : 61 - col_max_diff],
+        h[row_min:row_max, col_min:col_max],
     )
 
+    # N.B. in the code provided by Sarah, this matrix is essentially a
+    # duplicate of f_zone_cells, so I have made that explicit
+    # I think it is perhaps redundant?
+    f_Hlmax = f_zone_cells.copy()
 
-@njit(parallel=True)
-def connectivity_grid_kernel(
-    condition: np.ndarray,
-    land_cells: np.ndarray,
-    sector_index_by_cell: np.ndarray,
-    ring_index_by_cell: np.ndarray,
-    n_sectors: int,
-    n_rings: int,
-    dartboard_radius: int,
-    dartboard_d: int,
-    f_lambda: np.ndarray,
-    gen_mode_flag: int,
-    number_of_species_gens: int,
-    f_rad_width: np.ndarray,
-    f_perm_scale: float,
-    f_min_perm: float,
-) -> np.ndarray:
-    n_points = land_cells.shape[0]
-    results = np.zeros(n_points)
-    n_rows, n_cols = condition.shape
+    with np.errstate(divide="ignore", invalid="ignore"):
+        f_C = f_H / f_zone_cells
 
-    for idx in prange(n_points):
-        row = land_cells[idx, 0]
-        col = land_cells[idx, 1]
+    f_C[np.where(f_zone_cells == 0)] = 0
+    f_Clmax += 1  # ? maximum possible condition?!
 
-        row_min = row - dartboard_radius
-        row_min_diff = 0
-        if row_min < 0:
-            row_min_diff = row_min
-            row_min = 0
+    d_Wlmaxsum = np.zeros(4)
+    d_Wsum = np.zeros(4)
 
-        row_max = row + dartboard_radius + 1
-        row_max_diff = 0
-        if row_max > n_rows:
-            row_max_diff = row_max - n_rows
-            row_max = n_rows
+    # calculate least cost path for the regarded raster cell
+    for sector in range(n_sectors):  # going through the direction sectors, starting with "north"
 
-        col_min = col - dartboard_radius
-        col_min_diff = 0
-        if col_min < 0:
-            col_min_diff = col_min
-            col_min = 0
+        f_Psum = 0
+        f_Plmaxsum = 0
+        f_PLastSum[:] = 0
 
-        col_max = col + dartboard_radius + 1
-        col_max_diff = 0
-        if col_max > n_cols:
-            col_max_diff = col_max - n_cols
-            col_max = n_cols
+        for ring in range(n_rings):
+            if f_Clmax[sector][ring] <= 0:  # why would it be <= 0; it has been set to 1 in code above
+                break
 
-        sector_slice = sector_index_by_cell[
-            -row_min_diff : dartboard_d - row_max_diff,
-            -col_min_diff : dartboard_d - col_max_diff,
-        ]
-        ring_slice = ring_index_by_cell[
-            -row_min_diff : dartboard_d - row_max_diff,
-            -col_min_diff : dartboard_d - col_max_diff,
-        ]
-        condition_slice = condition[row_min:row_max, col_min:col_max]
+            f_PCurrSum = path_length(f_PCurrSum, f_PLastSum, f_rad_width, f_perm_scale, f_min_perm, f_C, sector, ring)
+            f_Psum = f_PCurrSum[sector]
+            f_PLastSum = f_PCurrSum.copy()
 
-        results[idx] = connectivity_of_cell_core(
-            sector_slice,
-            ring_slice,
-            n_sectors,
-            n_rings,
-            condition_slice,
-            f_lambda,
-            gen_mode_flag,
-            number_of_species_gens,
-            f_rad_width,
-            f_perm_scale,
-            f_min_perm,
-        )
+            # calculates the minimum possible effective distance (maximum possible permeability)
+            f_Plmaxsum += f_rad_width[ring] / ((f_perm_scale * f_Clmax[sector][ring]) + f_min_perm)
 
-    return results
+        
+            for i_dist in range(len(f_lambda)):  # the four different lambda (alpha values)
+                d_dist = f_Psum / f_lambda[i_dist]  # partly equation 2
+                d_dist2 = f_Plmaxsum / f_lambda[i_dist]
+                #print(number_of_species_gens, gen_mode)
+                if (gen_mode == 'one_generation') & (number_of_species_gens==1):
+                    kernel_function1 = math.exp(-d_dist)
+                    kernel_function2 = math.exp(-d_dist2)
+
+                elif (gen_mode == 'multi-generation') & (number_of_species_gens<10):
+                    #GammaDist
+                    kernel_function1 = 1 - gammainc(number_of_species_gens, d_dist) 
+                    kernel_function2 = 1 - gammainc(number_of_species_gens, d_dist2)
+
+                elif (gen_mode == 'multi-generation') & (number_of_species_gens>=10):
+                    #NormDist
+                    kernel_function1 = 1 - 0.5 * (1 + erf((f_Psum - number_of_species_gens * f_lambda) / (np.sqrt(2 * number_of_species_gens) * f_lambda))) 
+                    kernel_function2 = 1 - 0.5 * (1 + erf((f_Plmaxsum - number_of_species_gens * f_lambda) / (np.sqrt(2 * number_of_species_gens) * f_lambda)))
+
+                
+                d_Wsum[i_dist] += (kernel_function1 * f_H[sector][ring]) # overleaf equ 2 and 5
+
+                d_Wlmaxsum[i_dist] += (kernel_function2 * f_Hlmax[sector][ring])
+
+                #d_dist = f_Psum / f_lambda[i_dist]  # partly equation 2
+                #d_Wsum[i_dist] += (math.exp(-d_dist) * f_H[sector][ring]) # overleaf equ 2 and 5
+
+                #d_dist2 = f_Plmaxsum / f_lambda[i_dist]
+                #d_Wlmaxsum[i_dist] += (math.exp(-d_dist2) * f_Hlmax[sector][ring])
+
+    # back to raster cell level
+    d_Conn = 0
+    # for the 4 different lambda (alpha) values - start with a value of 5 or 10
+    for i_dist in range(len(f_lambda)):
+        if d_Wlmaxsum[i_dist] > 0:
+            # d_Conn += (d_Wsum[i_dist] / d_Wlmaxsum[i_dist]) # divide cause w_ij values are allbetween 0 and 1 in paper.. no
+            d_Conn += d_Wsum[i_dist]
+
+    # connectivity of that cell is the average of the permeability with different alpha values
+    d_Conn /= len(f_lambda)
+
+    return row, col, d_Conn
 
 
-def connectivity_of_grid(
-    condition: np.ndarray,
-    n_processes: int,
-    land_array: np.ndarray,
-    lambda_parameter: float,
-    gen_mode: str,
-    number_of_gens: int,
-) -> np.ndarray:
+def connectivity_of_grid(condition: np.ndarray, n_processes: int, land_array: np.ndarray, lambda_parameter: float, gen_mode: str, number_of_gens: int ) -> np.ndarray:
     """
     Find connectivity for every cell of `condition`.
 
@@ -554,42 +450,24 @@ def connectivity_of_grid(
     """
 
     connectivity = np.zeros(condition.shape)
+    n_rows, n_cols = condition.shape
 
     n_sectors: int = 8
-
+    
     # set the different radii for the next bins according to a dart pattern
-    # avail_ring_radii = np.array([1.5, 3.5, 5.5, 8.5, 12.5, 18, 25.7])
-    avail_ring_radii = np.array(
-        [
-            1.5,
-            3.5,
-            5.5,
-            8.5,
-            12.5,
-            18,
-            25.7,
-            36.7,
-            52.1,
-            73.8,
-            104.4,
-            147.6,
-            200,
-            300,
-            500,
-        ]
-    )  # ; // number of cells
+    #avail_ring_radii = np.array([1.5, 3.5, 5.5, 8.5, 12.5, 18, 25.7])
+    avail_ring_radii = np.array([1.5, 3.5, 5.5, 8.5, 12.5, 18, 25.7, 36.7, 52.1, 73.8, 104.4, 147.6, 200, 300, 500]) #; // number of cells
+               
 
     ring_radii = np.array([])
-    # TODO: could this be calculated from ring_radii, it's (mostly) just a diff
+    #TODO: could this be calculated from ring_radii, it's (mostly) just a diff
     # although... why isn't the first value 1.5?
-    # avail_rad_width = np.array([1, 2, 2, 3, 4, 5.5, 7.7])
-    # avail_rad_width = np.array([1, 2, 2, 2.5, 4, 5.5, 7.7, 11, 15.4, 21.7, 30.6, 43.2, 52.4, 100, 200]) #; // number of cells #!!!!!!!!!!!!!!!!!!!
-    avail_rad_width = np.array(
-        [1, 2, 2, 3, 4, 5.5, 7.7, 11, 15.4, 21.7, 30.6, 43.2, 52.4, 100, 200]
-    )  # ; // number of cells #I changed entry 3 from 2.5 to 3 so that it matches the ring radii
+    #avail_rad_width = np.array([1, 2, 2, 3, 4, 5.5, 7.7])
+    #avail_rad_width = np.array([1, 2, 2, 2.5, 4, 5.5, 7.7, 11, 15.4, 21.7, 30.6, 43.2, 52.4, 100, 200]) #; // number of cells #!!!!!!!!!!!!!!!!!!!
+    avail_rad_width = np.array([1, 2, 2, 3, 4, 5.5, 7.7, 11, 15.4, 21.7, 30.6, 43.2, 52.4, 100, 200]) #; // number of cells #I changed entry 3 from 2.5 to 3 so that it matches the ring radii
     rad_width = np.array([])
     try:
-        dartboard_r_min = -1 * lambda_parameter * np.log(0.01)
+        dartboard_r_min = (-1 * lambda_parameter * np.log(0.01)) 
     except TypeError:
         breakpoint()
     for r in range(len(avail_ring_radii)):
@@ -606,20 +484,23 @@ def connectivity_of_grid(
             dartboard_out_ring_r = avail_ring_radii[-1]
             dartboard_radius = math.ceil(dartboard_out_ring_r)
 
-    # TODO: 7 is still hardcoded in many places, should use this variable instead
+    # TODO: 7 is still hardcoded in many places, should use this variable instead
     n_rings: int = len(ring_radii)
 
-    dartboard_d = (
-        2 * dartboard_radius
-    ) + 1  # diameter of the dartboard is the dartboard radius +1 cell in the centre
-
+    dartboard_d = (2 * dartboard_radius)+1  # diameter of the dartboard used to be 61; is the dartboard radius +1 cell in the centre
+    
     sector_index_by_cell = -np.ones((dartboard_d, dartboard_d), dtype=int)
     ring_index_by_cell = -np.ones((dartboard_d, dartboard_d), dtype=int)
+    #sector_index_by_cell = -np.ones((61, 61), dtype=int)
+    #ring_index_by_cell = -np.ones((61, 61), dtype=int)
 
+    # row is the row index of the considered cell
+    #for row in range(61):
+    #    for col in range(61):
     for row in range(dartboard_d):
         for col in range(dartboard_d):
 
-            # sector and ring indicies
+            # sector and ring indicies
             sector, ring = find_ring_and_sector(row, col, ring_radii, dartboard_radius)
 
             if ring == len(ring_radii) + 1:
@@ -628,54 +509,58 @@ def connectivity_of_grid(
             sector_index_by_cell[row, col] = sector
             ring_index_by_cell[row, col] = ring
 
-    # minimum permeability
+    draw_matrix(sector_index_by_cell, "sectors", 'sectors_test.png', 'viridis')
+
+    # minimum permeability
     f_min_perm = 0.5  # this corresponds to 1-m in the overleaf doc
-    f_perm_scale: float = (
-        0.5  # this corresponds to m in the overleaf doc, # should be 1 - f_min_perm
-    )
+    f_perm_scale: float = 0.5  # this corresponds to m in the overleaf doc, # should be 1 - f_min_perm
 
     # f_lambda = np.array([0.02, 0.2, 2, 20])    # this corresponds to 1/alpha in the overleaf doc
     f_lambda = np.array([lambda_parameter])  # value we use for now instead
 
-    land_cells = np.argwhere(land_array)
+    # build argument list
+    args = []
+    for row in range(n_rows):  # n_rows is size of the regarded raster area
+        for col in range(n_cols): #! CHANGE LAND HERE if land_array[row, col] == True: ??
+            if land_array[row, col] == True:
+                args.append(
+                    (
+                        row,
+                        col,
+                        sector_index_by_cell,
+                        ring_index_by_cell,
+                        n_sectors,
+                        n_rings,
+                        condition,
+                        f_lambda,
+                        gen_mode,
+                        number_of_gens,
+                        dartboard_radius,
+                        dartboard_d,
+                        rad_width,
+                        f_perm_scale,
+                        f_min_perm
+                    )
+                )
 
-    if land_cells.size == 0:
-        return connectivity
+    #print(f"Using {n_processes} CPU(s) to process ({n_rows} x {n_cols}) cells")
+    if n_processes > 1:
+        with multiprocessing.Pool(n_processes) as pool:
+            results = pool.starmap(connectivity_of_cell, args)
+    else:
+        results = itertools.starmap(connectivity_of_cell, args)
 
-    land_cells = np.ascontiguousarray(land_cells, dtype=np.int64)
-    condition = np.ascontiguousarray(condition)
-    sector_index_by_cell = np.ascontiguousarray(sector_index_by_cell)
-    ring_index_by_cell = np.ascontiguousarray(ring_index_by_cell)
-    rad_width = np.ascontiguousarray(rad_width)
-    f_lambda = np.ascontiguousarray(f_lambda)
-
-    mode_flag = _gen_mode_flag(gen_mode, number_of_gens)
-
-    values = connectivity_grid_kernel(
-        condition,
-        land_cells,
-        sector_index_by_cell,
-        ring_index_by_cell,
-        n_sectors,
-        n_rings,
-        dartboard_radius,
-        dartboard_d,
-        f_lambda,
-        mode_flag,
-        number_of_gens,
-        rad_width,
-        f_perm_scale,
-        f_min_perm,
-    )
-
-    connectivity[land_cells[:, 0], land_cells[:, 1]] = values
+    # unpack results
+    try:
+        rows, cols, values = zip(*results)
+        connectivity[rows, cols] = values
+    except ValueError:
+        print("Failed to unpack results of len", len(list(results)))
 
     return connectivity
 
 
-def draw_matrix(
-    arr: np.ndarray, title: str, filepath: str, cmap: str = "viridis"
-) -> None:
+def draw_matrix(arr: np.ndarray, title: str, filepath: str, cmap: str = "viridis") -> None:
     """
     Use imshow to draw matrix (2D array), coloured by value. Save to disk.
 
@@ -689,37 +574,29 @@ def draw_matrix(
     f, ax = plt.subplots()
     divider = make_axes_locatable(ax)
     img = ax.imshow(arr, cmap=cmap)
-    cax = divider.append_axes("right", size="5%", pad=0.05)
-    f.colorbar(img, cax=cax, orientation="vertical")
+    cax = divider.append_axes('right', size='5%', pad=0.05)
+    f.colorbar(img, cax=cax, orientation='vertical')
     ax.set_title(title)
     plt.savefig(filepath)
     plt.close(f)
     return
 
+def landscape_connectivity(condition, n_processes, land_array, lambda_parameter, gen_mode, number_of_gens):
+    """_summary_
 
-def landscape_connectivity(
-    condition,
-    n_processes,
-    land_array,
-    lambda_parameter,
-    gen_mode,
-    number_of_gens,
-    draw_plots: bool = True,
-):
-    connectivity: np.ndarray = connectivity_of_grid(
-        condition, n_processes, land_array, lambda_parameter, gen_mode, number_of_gens
-    )
+    Args:
+        condition (_type_): _description_
+        n_processes (_type_): _description_
+
+    Raises:
+        error: _description_
+    """
+    connectivity: np.ndarray = connectivity_of_grid(condition, n_processes, land_array, lambda_parameter, gen_mode, number_of_gens)
     result: np.ndarray = condition * connectivity
     landscape_connectivity = math.sqrt(np.sum(result))
-
-    if draw_plots:
-        draw_matrix(connectivity, "Connectivity", "connectivity.png", "plasma")
-        draw_matrix(
-            result,
-            "Condition * Connectivity",
-            "condition_x_connectivity.png",
-            "cividis",
-        )
+    
+    draw_matrix(connectivity, "Connectivity", "connectivity.png", "plasma")
+    draw_matrix(result, "Condition * Connectivity", "condition_x_connectivity.png", "cividis")
 
     return landscape_connectivity
 
@@ -741,16 +618,9 @@ if __name__ == "__main__":
 
     start = time.time()
 
-    connectivity: np.ndarray = connectivity_of_grid(
-        condition,
-        n_processes,
-        land_array=np.ones_like(condition),
-        lambda_parameter=5.0,
-        gen_mode="one_generation",
-        number_of_gens=1,
-    )
+    connectivity: np.ndarray = connectivity_of_grid(condition, n_processes)
 
-    # final result is connectivity multiplied by condition
+    # final result is connectivity multiplied by condition
     # (so each cell's final value takes into account its own condition too)
     result: np.ndarray = condition * connectivity
 
@@ -758,12 +628,10 @@ if __name__ == "__main__":
 
     print(f"Time elapsed: {duration:.1f} seconds")
 
-    draw_matrix(connectivity, "Connectivity", "connectivity.png", "plasma")
-    draw_matrix(
-        result, "Condition * Connectivity", "condition_x_connectivity.png", "cividis"
-    )
+    #draw_matrix(connectivity, "Connectivity", "connectivity.png", "plasma")
+    #draw_matrix(result, "Condition * Connectivity", "condition_x_connectivity.png", "cividis")
 
-    landscape_connectivity: float = math.sqrt(np.sum(result))
+    landscape_connectivity:float = math.sqrt(np.sum(result))
     print(landscape_connectivity)
     """
     try:
