@@ -14,13 +14,13 @@ process are described in the following sections.
 2.  From the STATIN data we can see the GVA + TAX = GDP, and hence we
     can estimate the percentage of TAX added to GVA to get GDP.
 
-TAX = 23% of GVA (D.1)
+$TAX = 23\% of GVA$ (D.1)
 
 3.  We assume that the TAX contribution to each sector to the economic
     is in the same percentage, which implies that for a given sector
     _s_:
 
-(1 + 0.23)×GVA~s~ = GDP~s~ (D.2)
+$(1 + 0.23)×GVA~s~ = GDP~s~$ (D.2)
 
 ## D.2 Disaggregation of GDP to buildings
 
@@ -49,16 +49,14 @@ TAX = 23% of GVA (D.1)
     to the employed population within the radius defined by the travel
     distance $d_{ij}$.
 
-$T_{ij} = \ p_{i}\frac{e_{j}/(e_{i} + e_{ij})}{\sum_{k}^{}{e_{k}/(e_{i} + e_{ik})}}$
-(D.3)
+$T_{ij} = \ p_{i}\frac{e_{j}/(e_{i} + e_{ij})}{\sum_{k}^{}{e_{k}/(e_{i} + e_{ik})}}$ (D.3)
 
 The total attractiveness of an ED is then estimated by Equation D.4,
 which is then normalised as per Equation D.5.
 
 $T_{j} = \ \sum_{i}^{}T_{ij}$ (D.4)
 
-${\overline{T}}_{j} = \frac{{\overline{T}}_{j}}{\sum_{j}^{}{\overline{T}}_{j}}$
-(D.5)
+${\overline{T}}_{j} = \frac{{\overline{T}}_{j}}{\sum_{j}^{}{\overline{T}}_{j}}$ (D.5)
 
 The implementation of the above formulations is done as following:
 
@@ -112,7 +110,7 @@ ${GDP}_{sib} = \frac{a_{sib}}{\sum_{b}^{}a_{sib}}{GDP}_{si}$ (D.7)
     globally at a 5km gridded resolution[^78]. Using this data, we map
     the crops to the agriculture subsectors for Jamaica and then
     estimate the total subsector production values per areas from 2010
-    in US\$/m^2^ disaggregated at 5km gridded resolutions.
+    in US\$/m^2 disaggregated at 5km gridded resolutions.
 
 4.  We intersect the land-use datasets (step 2 above) with the 5km
     gridded MapSPAM data layers (step 3 above) and assign the production
@@ -120,7 +118,7 @@ ${GDP}_{sib} = \frac{a_{sib}}{\sum_{b}^{}a_{sib}}{GDP}_{si}$ (D.7)
 
 5.  We assume that the overall subsector GDP value (step 1 above) will
     be disaggregated to areas in proportion to the estimated production
-    values in US\$/m^2^ estimated for these areas. Hence, we are using
+    values in US\$/m^2 estimated for these areas. Hence, we are using
     the 2010 estimate as weights to spatially disaggregate 2019 GDP
     estimates. We note that there is an assumption here that agriculture
     production patterns and intensity in 2019 will be similar to those

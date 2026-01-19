@@ -4,13 +4,13 @@
 
 All infrastructures are modelled as networks. The network topology is
 represented as a graph $G = (N,E)$ with nodes $N = \{ 1,2,\ldots,n\}$
-and edges $E = \ \left\{ e_{ij} = (i,j)\ \forall i,j \in N \right\}$,
+and edges $E = \{ e_{ij} = (i,j), \  i,j \in N \}$,
 where the relationship $e_{ij} = (i,j)$ shows that edge $e_{ij}$
 connects from node $i$ towards $j$. All network edges are assumed to be
 directed, that is $e_{ij} \neq e_{ji}$, to distinguish between the
 direction and volumes of flows imposed on certain edges. Since all nodes
 and edges in the graph $G$ represent physical assets, we denote this
-collection of assets as $G = \left\{ g_{1},\ldots,g_{n} \right\}$.
+collection of assets as $G = \{ g_{1},\ldots,g_{n} \}$.
 
 The infrastructures have evolved into large spatially distributed
 networks that generally exhibit multi-scale hierarchical
@@ -27,7 +27,7 @@ representation conceptualised for this study.
 
 **Figure C-1: Hierarchical network representation showing nodes and some
 edge notations of a generalised infrastructure network as conceptualised
-in this study (source: Pant et al. 2016**[^64]**).**
+in this study (source: Pant et al. 2016 [^64]).**
 
 ## C.2 Energy system model
 
@@ -150,7 +150,7 @@ electricity. The following method is applied:
     electricity sector GDP at the demand node level.
 
 2.  We map all the commercial buildings within the electricity demand
-    service areas (see Figure **_3‑9_**) to find all the GDP associated
+    service areas to find all the GDP associated
     with non-residential buildings (see Section 3.3.2 and 3.3.3) that
     would be indirectly disrupted when electricity is disrupted.
 
