@@ -93,11 +93,11 @@ period such that:
 
 $\underset{x}{min.}{C = \sum_{t = 1}^{T}{x_{t}c_{t}}}$ (C.1)
 
-where _x~t~_ is the flow of electricity across a given edge at time _t_
-and *c~t\ ~*is the unit cost of electricity along the edge. The cost of
+where $`{x}_{t}`$ is the flow of electricity across a given edge at time $t$
+and $`{c}_{t}`$ is the unit cost of electricity along the edge. The cost of
 flow along each edge is a function of the distance of the power line.
-The supply constraint denotes that the flow from a supply node _i_ to
-node _j_ cannot exceed the generation _S~i~_ at a given time step such
+The supply constraint denotes that the flow from a supply node $i$ to
+node $j$ cannot exceed the generation $`{S}_{i}`$ at a given time step such
 that:
 
 $\sum_{j:ij \in A}^{}{x_{ij,t} \leq S_{i,t}\ \forall\ (i,j)\ and\ t}$
@@ -125,7 +125,7 @@ minimum and upper bound constraints (_h_ and _u_, respectively). That
 is, the total transmission along a given edge cannot exceed its capacity
 and must be above the minimum transmission (if applicable), such that:
 
-${h_{ij,t}\  \leq x}_{ij,t} \leq u_{ij,t}\ \forall\ (i,j)\ and\ t$ (C.5)
+$`{h_{ij,t}\  \leq x}_{ij,t} \leq u_{ij,t}\ \forall\ (i,j)\ and\ t`$ (C.5)
 
 The output from electricity generation sites is subject to the ramping
 constraint _µ_ of the given technology. For example, natural gas plants
@@ -434,11 +434,11 @@ trade flows in following steps:
     to the port (from Step 4 above) to the routes. This is done in
     proportion to GDP assigned to the locations connecting to the
     ports. For example, if we know all the mines connected to the
-    ports, the export trade share of each port ($e_{i}$) and the GDP
-    associated with each mine (${GDP}_{j}$) (see Section D.4), then
+    ports, the export trade share of each port ($`e_{i}`$) and the GDP
+    associated with each mine ($`{GDP}_{j}`$) (see Section D.4), then
     we assume that the value of trade assigned to a mine ($j$) and
     its route to the port ($i$) will be equal to
-    $e_{i}\frac{{GDP}_{j}}{\sum_{j}^{}{GDP}_{j}}$ where the
+    $`e_{i}\frac{{GDP}_{j}}{\sum_{j}^{}{GDP}_{j}}`$ where the
     summation is over the GDP of each mine connected to the port.
     The same principle is applied to all other sector trade routes
     value allocations.
@@ -489,18 +489,18 @@ implement the following steps:
     $i$ to location $j$ to seek employment is estimated as shown in
     Equation C.1.
 
-$w_{ij} = \ e_{i}\frac{{GDP}_{j}/({GDP}_{i} + {GDP}_{ij})}{\sum_{k}^{}{{GDP}_{k}/({GDP}_{i} + {GDP}_{ik})}}$
+$`w_{ij} = \ e_{i}\frac{{GDP}_{j}/({GDP}_{i} + {GDP}_{ij})}{\sum_{k}^{}{{GDP}_{k}/({GDP}_{i} + {GDP}_{ik})}}`$
 (C.1)
 
 $w_{ij}$ also indicate how much of the working population 'flow' will
 happen along the road network between the locations $i,j$, which we
-assign to the least-cost route connecting the two locations^75,76^.
+assign to the least-cost route connecting the two locations[^75], [^76].
 
 5.  The implementation of Equation C.1 is done as following:
 
     a. We assume that the working population would look for employment
     opportunities which are within 1 hour of travel time from them,
-    i.e., $d_{ij} = 1\ hour$.
+    i.e., $`d_{ij} = 1\ hour`$.
 
     b. We implement a least-cost route assignment algorithm developed in
     Python.
@@ -508,7 +508,7 @@ assign to the least-cost route connecting the two locations^75,76^.
 6.  We also estimate how much of the GDP is associated with each route,
     as per Equation C.2.
 
-${GDP}_{ij} = \ {GDP}_{j}\frac{w_{ij}}{\sum_{i}^{}w_{ij}}$ (C.2)
+$`{GDP}_{ij} = \ {GDP}_{j}\frac{w_{ij}}{\sum_{i}^{}w_{ij}}`$ (C.2)
 
 ### C.4.2 Transport flow disruption analysis
 
