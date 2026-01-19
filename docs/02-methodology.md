@@ -171,12 +171,11 @@ and climate scenario. For a given asset and hazard, EAD at the
 asset level is estimated by first constructing the
 damage-probability curve, which is done by estimating the direct
 damages $d_{1},\ldots,d_{m}$ associated with increasing annual
-exceedance probabilities$\ p_{1},\ldots,p_{m}$. The EAD is
+exceedance probabilities $\ p_{1},\ldots,p_{m}$. The EAD is
 estimated as the area under the damage-probability curve, which
 is described in Equation (1).
 
-> ${EAD}_{\ } = \ \frac{1}{2}\sum_{k = 1}^{m}{\left( p_{k + 1} - p_{k} \right)\left( d_{k} + d_{k + 1} \right)}$
-> (1)
+${EAD}_{\ } = \ \frac{1}{2}\sum_{k = 1}^{m}{\left( p_{k + 1} - p_{k} \right)\left( d_{k} + d_{k + 1} \right)}$ (1)
 
 b. **Expected Annual Economic losses (EAEL)** -- This is the measure of
 the average economic losses (in J\$ or US\$) incurred for an asset
@@ -190,8 +189,7 @@ area under the loss-probability curve multiplied by an assumed
 duration of disruption $\tau$ for the asset, which is described in
 Equation (2).
 
-> ${EAEL}_{\ } = \ \frac{1}{2}\tau\sum_{k = 1}^{m}{\left( p_{k + 1} - p_{k} \right)\left( l_{k} + l_{k + 1} \right)}$
-> (2)
+${EAEL}_{\ } = \ \frac{1}{2}\tau\sum_{k = 1}^{m}{\left( p_{k + 1} - p_{k} \right)\left( l_{k} + l_{k + 1} \right)}$ (2)
 
 From the estimate of EAD and EAEL we get the asset level _total risk_ =
 EAD + EAEL. There are different ways in which the risk estimates can be
@@ -237,8 +235,7 @@ in terms of the:
     of the investment cost of the adaptation options over the asset
     timeline is therefore given by Equation (3).
 
-> $NPV\ Cost = \ {CI}_{t_{0}} + \ \sum_{j = 0}^{j = T}\frac{{CR}_{t_{j}} + {CP}_{t_{j}}}{\left( 1 + \frac{r}{100} \right)^{j}}$
-> (3)
+$NPV\ Cost = \ {CI}_{t_{0}} + \ \sum_{j = 0}^{j = T}\frac{{CR}_{t_{j}} + {CP}_{t_{j}}}{\left( 1 + \frac{r}{100} \right)^{j}}$ (3)
 
 2.  _Benefits_ -- which include the avoided losses, in terms of the
     expected reduction in direct damage risks
@@ -252,12 +249,11 @@ in terms of the:
     value of the benefits over the implementation of the adaptation
     option timeline is therefore given by Equation (4).
 
-> $NPV\ Benefit = \ \sum_{j = 0}^{j = T}\left( \frac{{\mathrm{\Delta}EAD}_{t_{j}} + \left( 1 + \frac{{\mathrm{\Delta}GDP}_{j}}{100} \right)^{j}\mathrm{\Delta}{EAEL}_{t_{j}}}{\left( 1 + \frac{r}{100} \right)^{j}} \right)$
-> (4)
+$NPV\ Benefit = \ \sum_{j = 0}^{j = T}\left( \frac{{\mathrm{\Delta}EAD}_{t_{j}} + \left( 1 + \frac{{\mathrm{\Delta}GDP}_{j}}{100} \right)^{j}\mathrm{\Delta}{EAEL}_{t_{j}}}{\left( 1 + \frac{r}{100} \right)^{j}} \right)$ (4)
 
 3.  The _benefit-cost ratio_ ($BCR$) of adaptation given as:
 
-> $BCR = \frac{NPV\ Benefit}{NPV\ Cost}\ $ (5)
+$BCR = \frac{NPV\ Benefit}{NPV\ Cost}\ $ (5)
 
 The above CBA analysis helps identify the effectiveness of adaptation
 options at the asset level, which can also be used to prioritise assets
@@ -309,8 +305,6 @@ As noted previously, the J-SRAT analysis is implemented in a Python
 programming environment. Here, we summarise the overall sequence of
 steps in implementation of the J-SRAT risk and adaptation assessment
 methodology.
-
-**Table 2‑2: Implementation steps of the J-SRAT methodology.**
 
 ### Step 1
 

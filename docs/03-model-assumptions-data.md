@@ -93,7 +93,7 @@ Jamaica (Y=Yes, N=No).**
     surges can be more corrosive due to saltwater. Previous flood damage
     assessment studies in Jamaica assumed damages due to saltwater
     flooding were 12% higher than freshwater for the same flood
-    depths^26^, which we adopt. Table 3‑2 shows how the 12% increase in
+    depths[^26], which we adopt. Table 3‑2 shows how the 12% increase in
     vulnerability for coastal flooding exposures is accounted for
     through an uplift factor, which is a parameter multiplied to the
     vulnerability curve to scale it up or down.
@@ -236,8 +236,7 @@ The process of economic activity assignment involved geotagging
 buildings as residential and belonging to specific macroeconomic sectors
 in Jamaica. Based on data from STATIN we followed the Jamaica Industry
 Classification (JIC) 2005 nomenclature[^35] to identify buildings
-belonging to macroeconomic sectors described in Table 3‑5 and Appendix D
-Table D-1. We note the following:
+belonging to macroeconomic sectors described in Table 3‑5. We note the following:
 
 1.  A more recent JIC 2016 system does exist[^36], but detailed
     macroeconomic statistics are still provided according to the JIC
@@ -256,7 +255,7 @@ Table D-1. We note the following:
 4.  A more detailed industry breakdown of the JIC 2005 sectors into
     further sub-sectors with Gross Value Added (GVA) and total GDP at
     current prices for the year 2019 was provided by STATIN[^37]. This
-    is reported in Appendix D Table D-1, from which we assigned sector
+    is the data from which we assigned sector
     and subsector specific GDP values to the building levels.
 
 **Table 3‑5: Jamaica Industry Classification (JIC) 2005 based codes and
@@ -319,8 +318,7 @@ following steps:
 | Resort        | Sector H           |
 
 Following the creation of the sector specific geotagged buildings, we
-disaggregated the national scale GDP estimates (given in Appendix D
-Table D-1) to the building stock mapped to each sector and subsector.
+disaggregated the national scale GDP estimates to the building stock mapped to each sector and subsector.
 For buildings assigned to sectors D -- O we applied the method described
 in Appendix D Section D.2, which gave us the GDP/day for each building.
 
@@ -353,8 +351,7 @@ the areas designated as agricultural land and different crop types, and
 then - using gridded datasets of crop level agricultural output
 estimates from IFPRI - we map the intensity of agricultural outputs (in
 US\$/m^2^) over the agriculture land areas for different crops. Finally,
-the overall agriculture sector and subsector GDP estimates (from Table
-D-1) are spatially disaggregated in proportion to the intensity of
+the overall agriculture sector and subsector GDP estimates are spatially disaggregated in proportion to the intensity of
 agriculture output estimates.
 
 For assigning Fishery sector GDP spatially across Jamaica we used a
@@ -498,8 +495,8 @@ network. This will result in following cases:
     network failures. This is explained in more detail in Appendix C
     Section C.2.
 
-The outputs of the JEM feed into the Step 7 of Table 2‑2, where the
-J-SRAT implementation steps are explained.
+The outputs of the JEM feed into the Step 7 of "Implementation steps of the
+J-SRAT methodology" in section 2.
 
 ### Water systems models
 
@@ -577,7 +574,7 @@ sources, as described in Table 3‑9 and shown in Figure 3‑10.
 | Hydrology                      | Daily streamflow                               | WRA         |
 | Hydrology                      | Sub-management catchments                      | WRA         |
 
-Table 3‑10 shows the assembled list of different assets types, and their
+We then assemble a list of different assets types, and their
 assumed rehabilitation costs for damage assessment. We note that where
 there are no cost estimates, those types of assets are assumed to be not
 damaged by the given climatic hazards considered in this study for
@@ -593,7 +590,7 @@ explained in more detail in Appendix C Section C.3.1. Once we know the
 population and GDP assigned to every node (and edge) we assume that the
 damage to the node (and/or edge) results in those population and GDP
 being disrupted. The outputs of this process then feed into Step 7 of
-Table 2‑2, where the J-SRAT implementation steps are explained.
+the J-SRAT implementation steps.
 
 For the irrigation system we map the GDP associated with agriculture
 areas that are supplied by the irrigation network. This is done by
@@ -603,7 +600,7 @@ the irrigation assets. This process is shown in Figure 3-7, and further
 explained in Appendix C Section C.3.2. Once we know the GDP assigned to
 every asset we assume that the damage to the asset results in that GDP
 being disrupted. The outputs of this process then feed into Step 7 of
-Table 2‑2.
+the J-SRAT implementation steps.
 
 ### Transport systems model
 
@@ -672,8 +669,7 @@ meticulous data cleaning. The following assumptions were made in
 assigning attributes to roads:
 
 _Road pavement types_ -- This information was useful in determining
-the fragility (vulnerability) curves of roads in a broader sense (see
-Table 3‑12 and Appendix A Figure A-4), as there was no other way to
+the fragility (vulnerability) curves of roads in a broader sense, as there was no other way to
 determine the quality of roads in terms of their ability to perform
 under different hazard loading conditions. It was assumed that most
 roads in Jamaica were surface dressed if there was no information on
@@ -744,15 +740,15 @@ and workforce travel patterns, for which we did not have any observable
 data in Jamaica. We have based our analysis on a thorough understanding
 of import-export data, port freight data, and spatial disaggregation of
 economic activity in Jamaica. The outputs of the transport disruption
-analysis feed into the Step 7 of Table 2‑2, where the J-SRAT
-implementation steps are explained.
+analysis feed into the Step 7 of the J-SRAT
+implementation steps.
 
 ## Adaptation options data
 
 The data on adaptation options and their cost estimates is shown in
 Table 3‑16, where the chosen options apply to enhance resilience of
 specific assets that are vulnerable to specific hazards. These values
-feed into Step 10 of Table 2‑2.
+feed into Step 10 of the J-SRAT implementation steps.
 
 We note that one of the key challenges in this study was obtaining
 adaptation options and costing information from within Jamaica. Hence,

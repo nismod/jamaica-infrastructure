@@ -9,12 +9,10 @@ process are described in the following sections.
 
 1.  We first obtained the national accounts of sector specific Gross
     Value Added (GVA) and total GDP for 2019 as reported by STATIN
-    (<https://statinja.gov.jm/NationalAccounting/Annual/NewAnnualGDP.aspx>,
-    see Table D-1).
+    (<https://statinja.gov.jm/NationalAccounting/Annual/NewAnnualGDP.aspx>).
 
 2.  From the STATIN data we can see the GVA + TAX = GDP, and hence we
-    can estimate the percentage of TAX added to GVA to get GDP. From
-    Table D-1
+    can estimate the percentage of TAX added to GVA to get GDP.
 
 TAX = 23% of GVA (D.1)
 
@@ -26,10 +24,9 @@ TAX = 23% of GVA (D.1)
 
 ## D.2 Disaggregation of GDP to buildings
 
-1.  For the sectors D -- O, listed in Table 3‑5 and Table D-1, we
-    created the geotagged buildings database described in Section 3.3.2.
-    We assume that the total sector GDP will be disaggregated to these
-    buildings.
+1.  For the sectors D -- O, listed in Table 3‑5, we created the geotagged
+    buildings database described in Section 3.3.2. We assume that the total
+    sector GDP will be disaggregated to these buildings.
 
 2.  The amount of GDP associated with a building is estimated to be a
     function of the location of the buildings in proximity with working
@@ -99,7 +96,7 @@ ${GDP}_{sib} = \frac{a_{sib}}{\sum_{b}^{}a_{sib}}{GDP}_{si}$ (D.7)
 
 1.  We estimate national scale GDP values from the steps outlined in
     Section D.1, for the agriculture sector and subsectors with codes A
-    011-1 -- 011-8, A 12, A 14, A 20 shown in Table D-1.
+    011-1 -- 011-8, A 12, A 14, A 20.
 
 2.  We use the FD and TNC land-use datasets to find all land-use types
     that can be mapped to the agriculture sector and subsector classes.
