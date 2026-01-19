@@ -479,13 +479,13 @@ implement the following steps:
     surrounding areas, which depends on the concentration of
     populations, workforce and GDP. We create a radiation model, which
     is a variation of the model proposed by Pivoni et al. (2018)[^71].
-    According to our radiation model, the working population $e_{i}$ at
+    According to our radiation model, the working population $`e_{i}`$ at
     an origin location $i$ on the road network is likely to travel of
     another destination location $j$ within a distance (or travel time)
-    of $d_{ij}$ based on the GDP opportunities ${GDP}_{i}$ and
-    ${GDP}_{j}$ at the locations $i,j$ and all other opportunities
-    ${GDP}_{ij}$ within the travel distance between the two locations.
-    The number of working people $w_{ij}$ who will move from location
+    of $d_{ij}$ based on the GDP opportunities $`{GDP}_{i}`$ and
+    $`{GDP}_{j}`$ at the locations $i,j$ and all other opportunities
+    $`{GDP}_{ij}`$ within the travel distance between the two locations.
+    The number of working people $`w_{ij}`$ who will move from location
     $i$ to location $j$ to seek employment is estimated as shown in
     Equation C.1.
 
