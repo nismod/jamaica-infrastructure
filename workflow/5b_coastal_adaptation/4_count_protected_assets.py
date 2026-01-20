@@ -1,14 +1,9 @@
+import logging
 import os
-import numpy as np
-import pandas as pd
-import logging
-
-import geopandas as gpd
-from shapely.ops import unary_union
-
-import logging
 
 import click
+import geopandas as gpd
+import pandas as pd
 
 
 def process_network_assets(network_info, flood_polygons, data_path):
@@ -46,9 +41,13 @@ def process_network_assets(network_info, flood_polygons, data_path):
         logging.info(f"Found {len(assets)} assets in network '{ref}'")
 
         # Fix invalid geometries
-        assets["geometry"] = assets["geometry"].apply(lambda geom: geom if geom.is_valid else geom.buffer(0))
+        assets["geometry"] = assets["geometry"].apply(
+            lambda geom: geom if geom.is_valid else geom.buffer(0)
+        )
         flood_copy = flood_polygons.copy()
-        flood_copy["geometry"] = flood_copy["geometry"].apply(lambda geom: geom if geom.is_valid else geom.buffer(0))
+        flood_copy["geometry"] = flood_copy["geometry"].apply(
+            lambda geom: geom if geom.is_valid else geom.buffer(0)
+        )
 
         # Process each polygon
         for _, poly in flood_copy.iterrows():
@@ -68,7 +67,9 @@ def process_network_assets(network_info, flood_polygons, data_path):
             cost_results[polygon_id] = cost
 
             if count > 0:
-                logging.debug(f"Polygon {polygon_id}: {count} assets, total cost = {cost}")
+                logging.debug(
+                    f"Polygon {polygon_id}: {count} assets, total cost = {cost}"
+                )
 
     except Exception as e:
         logging.error(f"Error processing network {ref}: {str(e)}")
@@ -76,7 +77,9 @@ def process_network_assets(network_info, flood_polygons, data_path):
 
     total_count = sum(count_results.values())
     total_cost = sum(cost_results.values())
-    logging.info(f"Network '{ref}': {total_count} total assets, {total_cost} total cost")
+    logging.info(
+        f"Network '{ref}': {total_count} total assets, {total_cost} total cost"
+    )
 
     return count_results, cost_results
 
@@ -99,7 +102,9 @@ def count_assets(RCP, RP, output, networks, data_path, flood_areas, flood_layer)
                 flood_polygons = gpd.read_file(flood_areas, layer=flood_layer)
 
                 if flood_polygons.empty or "id" not in flood_polygons.columns:
-                    logging.warning(f"No valid polygons or missing 'id' column in {flood_layer}")
+                    logging.warning(
+                        f"No valid polygons or missing 'id' column in {flood_layer}"
+                    )
                     continue
 
                 # Initialize results dictionary for this scenario
@@ -112,11 +117,15 @@ def count_assets(RCP, RP, output, networks, data_path, flood_areas, flood_layer)
                     ref = f"{network['asset_gpkg']}_{network['asset_layer']}"
                     cost_col = f"{ref}_cost"
 
-                    network_results, cost_results = process_network_assets(network, flood_polygons, data_path)
+                    network_results, cost_results = process_network_assets(
+                        network, flood_polygons, data_path
+                    )
 
                     for pid in all_results:
                         all_results[pid][ref] = network_results.get(pid, 0)
-                        all_results[pid][cost_col] = round(cost_results.get(pid, 0.0), 2)
+                        all_results[pid][cost_col] = round(
+                            cost_results.get(pid, 0.0), 2
+                        )
 
                 # Convert results to DataFrame
                 result_df = pd.DataFrame.from_dict(all_results, orient="index")
@@ -124,7 +133,10 @@ def count_assets(RCP, RP, output, networks, data_path, flood_areas, flood_layer)
                 result_df.reset_index(inplace=True)
 
                 # Ensure all expected asset columns exist
-                unique_refs = [f"{net['asset_gpkg']}_{net['asset_layer']}" for _, net in networks.iterrows()]
+                unique_refs = [
+                    f"{net['asset_gpkg']}_{net['asset_layer']}"
+                    for _, net in networks.iterrows()
+                ]
                 for ref in unique_refs:
                     if ref not in result_df.columns:
                         result_df[ref] = 0
@@ -150,7 +162,9 @@ def count_assets(RCP, RP, output, networks, data_path, flood_areas, flood_layer)
                 combined_results.append(result_df)
 
                 total_count = result_df[unique_refs].sum().sum()
-                logging.info(f"Processed layer {flood_layer} with {total_count} total intersections")
+                logging.info(
+                    f"Processed layer {flood_layer} with {total_count} total intersections"
+                )
 
             except Exception as e:
                 logging.error(f"Error processing layer {flood_layer}: {str(e)}")
@@ -183,7 +197,9 @@ def add_coastline_lengths(RCP, RP, flood_asset_df, flood_areas, flood_layer):
         updated_flood_asset_df["coastline_length"] = None
 
     # Convert merge columns to consistent types in the main dataframe
-    updated_flood_asset_df["polygon_id"] = updated_flood_asset_df["polygon_id"].astype(str)
+    updated_flood_asset_df["polygon_id"] = updated_flood_asset_df["polygon_id"].astype(
+        str
+    )
     updated_flood_asset_df["epoch"] = updated_flood_asset_df["epoch"].astype(str)
     updated_flood_asset_df["rcp"] = updated_flood_asset_df["rcp"].astype(str)
     updated_flood_asset_df["rp"] = updated_flood_asset_df["rp"].astype(str)
@@ -213,18 +229,24 @@ def add_coastline_lengths(RCP, RP, flood_asset_df, flood_areas, flood_layer):
             )
 
             # Convert all merge columns to string for consistent merging
-            flood_polygons_renamed["polygon_id"] = flood_polygons_renamed["polygon_id"].astype(str)
+            flood_polygons_renamed["polygon_id"] = flood_polygons_renamed[
+                "polygon_id"
+            ].astype(str)
 
             # Merge to find matches
             merged = updated_flood_asset_df.merge(
-                flood_polygons_renamed[["polygon_id", "coastline_length_temp", "epoch", "rcp", "rp"]],
+                flood_polygons_renamed[
+                    ["polygon_id", "coastline_length_temp", "epoch", "rcp", "rp"]
+                ],
                 on=["polygon_id", "epoch", "rcp", "rp"],
                 how="left",
             )
 
             # Update the coastline_length column where matches were found
             mask = merged["coastline_length_temp"].notna()
-            updated_flood_asset_df.loc[mask, "coastline_length"] = merged.loc[mask, "coastline_length_temp"].round()
+            updated_flood_asset_df.loc[mask, "coastline_length"] = merged.loc[
+                mask, "coastline_length_temp"
+            ].round()
 
             logging.info(f"Updated {mask.sum()} rows with coastline lengths")
 
@@ -282,14 +304,22 @@ def add_coastline_lengths(RCP, RP, flood_asset_df, flood_areas, flood_layer):
     type=click.Path(exists=False, dir_okay=True, file_okay=False, readable=True),
     help="Path to output gpkg",
 )
-def main(network_csv, processed_data_path, coastal_adaptation_assets, rcp, epoch, rp, output_dir):
+def main(
+    network_csv,
+    processed_data_path,
+    coastal_adaptation_assets,
+    rcp,
+    epoch,
+    rp,
+    output_dir,
+):
     # RP = ['100']
     # RCP = ['baseline2010', '262050', '262100', '452030', '452050', '452070', '452100', '852030', '852050', '852070', '852100']
     # RCP = ['baseline2010', '262050']
 
     RP = [f"{rp}"]
 
-    fl_map_rcp = f"{int(rcp*10)}{epoch}"
+    fl_map_rcp = f"{int(rcp * 10)}{epoch}"
     RCP = [fl_map_rcp]
 
     data_path = processed_data_path
@@ -304,17 +334,21 @@ def main(network_csv, processed_data_path, coastal_adaptation_assets, rcp, epoch
     flood_areas = coastal_adaptation_assets
     output_file = f"{output_dir}/coastal_protection_assets/coastal_protection_assets_breakdown.csv"
 
-    flood_asset_df = count_assets(RCP, RP, output_dir, networks, data_path, flood_areas, flood_area_layer)
-    flood_asset_df = add_coastline_lengths(RCP, RP, flood_asset_df, flood_areas, flood_coastline_layer)
+    flood_asset_df = count_assets(
+        RCP, RP, output_dir, networks, data_path, flood_areas, flood_area_layer
+    )
+    flood_asset_df = add_coastline_lengths(
+        RCP, RP, flood_asset_df, flood_areas, flood_coastline_layer
+    )
 
     # Save consolidated CSV
-
     flood_asset_df.to_csv(output_file, index=False)
-    logging.info(f"Saved consolidated CSV with {len( flood_asset_df)} rows to {output_file}")
+    logging.info(
+        f"Saved consolidated CSV with {len(flood_asset_df)} rows to {output_file}"
+    )
 
 
 if __name__ == "__main__":
-
     logging.basicConfig(
         format="%(asctime)s %(process)d %(filename)s %(message)s",
         level=logging.INFO,

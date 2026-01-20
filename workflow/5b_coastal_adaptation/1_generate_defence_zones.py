@@ -1,39 +1,33 @@
-import os
+import logging
 import math
-import random
-import numpy as np
-import pandas as pd
-import matplotlib.pyplot as plt
-
-import geopandas as gpd
-from shapely.geometry import Point, Polygon, MultiPoint, MultiPolygon, LineString, MultiLineString, GeometryCollection
-from shapely.ops import unary_union, voronoi_diagram, nearest_points, linemerge
-from shapely import affinity
-from scipy.ndimage import label
-from scipy.spatial import Voronoi
-from scipy.optimize import minimize
-from skimage import measure
 from pathlib import Path
 
+import click
+import geopandas as gpd
+import numpy as np
+import pandas as pd
 import rasterio
-from rasterio.transform import from_origin
-from rasterstats import zonal_stats
-from shapely.strtree import STRtree
-
 import sklearn.cluster
 
-import logging
-import os
-import warnings
+from shapely.geometry import (
+    Point,
+    Polygon,
+    MultiPoint,
+    MultiPolygon,
+    LineString,
+    MultiLineString,
+    GeometryCollection,
+)
+from shapely.ops import unary_union, voronoi_diagram, nearest_points, linemerge
+from shapely import affinity
+from skimage import measure
+from rasterio.transform import from_origin
+from rasterstats import zonal_stats
 
-import click
-
-""" Defining Some Helper Functions utilised through the functions
-    -------
-"""
+# region # Defining Some Helper Functions utilised through the functions
 
 
-def add_Layer_to_File(data, output_file, layer_name, driver):
+def add_layer_to_file(data, output_file, layer_name, driver):
     data.to_file(output_file, layer=layer_name, driver=driver)
 
 
@@ -57,7 +51,9 @@ def process_raster_to_clusters(threshold_m, eps, raster_file, minPts):
     i, j = np.indices(depth_m.shape)  # Create row (i) and column (j) indices
 
     # Extract the transformation and CRS from the raster
-    transform = from_origin(raster.bounds.left, raster.bounds.top, raster.res[0], raster.res[1])
+    transform = from_origin(
+        raster.bounds.left, raster.bounds.top, raster.res[0], raster.res[1]
+    )
     original_crs = raster.crs
 
     # Create a DataFrame and filter out pixels below the depth threshold
@@ -72,11 +68,15 @@ def process_raster_to_clusters(threshold_m, eps, raster_file, minPts):
 
         # Retrieve cluster labels and count the number of clusters
         labels = db.labels_
-        n_clusters = len(set(labels)) - (1 if -1 in labels else 0)  # Exclude noise points (-1)
+        n_clusters = len(set(labels)) - (
+            1 if -1 in labels else 0
+        )  # Exclude noise points (-1)
 
         if n_clusters >= 2:
             # Create polygons from clusters and convert to a GeoDataFrame
-            gdf = create_polygons_from_clusters(labels, depth_m.shape, transform, original_crs, df)
+            gdf = create_polygons_from_clusters(
+                labels, depth_m.shape, transform, original_crs, df
+            )
 
             # Reproject GeoDataFrame to EPSG:3448 coordinate reference system
             gdf = gdf.to_crs("EPSG:3448")
@@ -147,7 +147,9 @@ def create_min_enclosing_polygons(gdf):
         enclosing_polygons.append((cluster_label, enclosing_polygon))
 
     # Create a new GeoDataFrame with the enclosing polygons
-    gdf_enclosing = gpd.GeoDataFrame(enclosing_polygons, columns=["cluster_label", "geometry"], crs=gdf.crs)
+    gdf_enclosing = gpd.GeoDataFrame(
+        enclosing_polygons, columns=["cluster_label", "geometry"], crs=gdf.crs
+    )
     return gdf_enclosing
 
 
@@ -191,7 +193,9 @@ def add_max_zonal_stats(geopkg, raster_path, new_column_name):
     )
 
     # Extract the maximum raster values from the zonal statistics results and add to a new column
-    geopkg[new_column_name] = [max(stat["max"], 0) if stat["max"] is not None else None for stat in stats]
+    geopkg[new_column_name] = [
+        max(stat["max"], 0) if stat["max"] is not None else None for stat in stats
+    ]
 
     # Reproject the GeoDataFrame back to its original CRS
     if geopkg.crs != original_crs:
@@ -200,9 +204,9 @@ def add_max_zonal_stats(geopkg, raster_path, new_column_name):
     return geopkg  # Return the updated GeoDataFrame with the new column
 
 
-""" Generating Flood Zones Polygons via S-CAPE Method
-    -------
-"""
+# endregion
+
+# region # Generating Flood Zones Polygons via S-CAPE Method
 
 
 def generate_polygons_along_edge(edge_layer, node_layer, buffer):
@@ -239,7 +243,9 @@ def generate_polygons_along_edge(edge_layer, node_layer, buffer):
         to_node = node_layer[node_layer["node_id"] == to_node_id].geometry.iloc[0]
 
         # Skip edges where the start and end nodes are at the same location
-        if (round(from_node.x, 5) == round(to_node.x, 5)) and (round(from_node.y, 5) == round(to_node.y, 5)):
+        if (round(from_node.x, 5) == round(to_node.x, 5)) and (
+            round(from_node.y, 5) == round(to_node.y, 5)
+        ):
             continue
 
         # Calculate the straight-line distance (diagonal) between the two nodes
@@ -278,7 +284,9 @@ def generate_polygons_along_edge(edge_layer, node_layer, buffer):
         translated_bounding_box = translate_bounding_box(bounding_box, midpoint)
 
         # Rotate the bounding box to align with the edge's orientation
-        rotated_bounding_box = rotate_bounding_box(translated_bounding_box, midpoint, angle)
+        rotated_bounding_box = rotate_bounding_box(
+            translated_bounding_box, midpoint, angle
+        )
 
         # Append the final bounding box to the list
         bounding_boxes.append(rotated_bounding_box)
@@ -287,7 +295,9 @@ def generate_polygons_along_edge(edge_layer, node_layer, buffer):
     bounding_boxes_gdf = gpd.GeoDataFrame(geometry=bounding_boxes, crs=edge_layer.crs)
 
     # Add additional attributes (distance, angle) to the resulting GeoDataFrame
-    bounding_boxes_gdf["id"] = range(len(bounding_boxes_gdf))  # Unique ID for each polygon
+    bounding_boxes_gdf["id"] = range(
+        len(bounding_boxes_gdf)
+    )  # Unique ID for each polygon
     edge_layer["rectangle_id"] = range(len(bounding_boxes_gdf))
     bounding_boxes_gdf["distance"] = distances  # Distance between the nodes
     bounding_boxes_gdf["angle"] = angles  # Angle of the edge in degrees
@@ -361,7 +371,9 @@ def rotate_bounding_box(bounding_box, midpoint, angle):
     return affinity.rotate(bounding_box, angle, origin=(midpoint.x, midpoint.y))
 
 
-def join_polygons_by_flood_height(gdf, flood_height_threshold, length_limit, group_size, full_coastline_layer):
+def join_polygons_by_flood_height(
+    gdf, flood_height_threshold, length_limit, group_size, full_coastline_layer
+):
     """
     Groups polygons in a GeoDataFrame based on their maximum flood height, with additional grouping
     conditions based on total distance/width and maximum group size.
@@ -392,7 +404,9 @@ def join_polygons_by_flood_height(gdf, flood_height_threshold, length_limit, gro
     current_heights = []  # List of max flood heights for the current group
     current_ids = []  # List of original IDs for the current group
     current_distances = []  # List of distances for the current group
-    is_below_threshold = None  # Flag indicating whether the current polygon is below the threshold
+    is_below_threshold = (
+        None  # Flag indicating whether the current polygon is below the threshold
+    )
 
     def finalize_current_group():
         """Helper function to finalize the current group"""
@@ -422,7 +436,9 @@ def join_polygons_by_flood_height(gdf, flood_height_threshold, length_limit, gro
         polygon_above_threshold = row["max_flood_height"] > flood_height_threshold
 
         # Check if threshold state is changing - if so, finalize current group
-        if is_below_threshold is not None and is_below_threshold != (not polygon_above_threshold):
+        if is_below_threshold is not None and is_below_threshold != (
+            not polygon_above_threshold
+        ):
             finalize_current_group()
             # Reset the current group and associated data
             current_group = []
@@ -508,7 +524,9 @@ def order_edges_around_island(edge_layer):
 
         # Look up the next edge using the 'from_id' as the key in the dictionary
         current_edge = edges_by_from_id[next_from_id]
-        ordered_edges.append(current_edge["rectangle_id"])  # Add the next edge's ID to the ordered list
+        ordered_edges.append(
+            current_edge["rectangle_id"]
+        )  # Add the next edge's ID to the ordered list
 
     return ordered_edges  # Return the ordered list of edge IDs
 
@@ -534,14 +552,16 @@ def find_max_coast_length(coast_segment):
         # Handle GeometryCollection case (can be multiple different geometries)
         max_length = max(find_max_coast_length(geom) for geom in coast_segment)
     else:
-        raise TypeError("Input must be a LineString, MultiLineString, or GeometryCollection.")
+        raise TypeError(
+            "Input must be a LineString, MultiLineString, or GeometryCollection."
+        )
 
     return max_length
 
 
-""" Refining Flood Zones
-    -------
-"""
+# endregion
+
+# region # Refining Flood Zones
 
 
 def merge_overlapping_polygons(gdf, overlap_threshold):
@@ -558,7 +578,9 @@ def merge_overlapping_polygons(gdf, overlap_threshold):
 
     # Ensure that the CRS (Coordinate Reference System) is defined for the input data
     if gdf.crs is None:
-        gdf.set_crs("EPSG:3097", inplace=True)  # Set CRS to Jamaica Metric Grid, adjust if necessary
+        gdf.set_crs(
+            "EPSG:3097", inplace=True
+        )  # Set CRS to Jamaica Metric Grid, adjust if necessary
 
     # Helper function to perform one pass of merging overlapping polygons
     def merge_once(gdf, overlap_threshold):
@@ -600,10 +622,15 @@ def merge_overlapping_polygons(gdf, overlap_threshold):
                     if (intersection_area / min(area1, area2)) > overlap_threshold:
                         # Merge the two polygons by creating a convex hull around the union
                         new_geom = unary_union([geom1, geom2]).convex_hull
-                        new_height = max(gdf.loc[i, "max_flood_height"], gdf.loc[j, "max_flood_height"])
+                        new_height = max(
+                            gdf.loc[i, "max_flood_height"],
+                            gdf.loc[j, "max_flood_height"],
+                        )
 
                         # Store the merged geometry and its max flood height
-                        merged.append({"geometry": new_geom, "max_flood_height": new_height})
+                        merged.append(
+                            {"geometry": new_geom, "max_flood_height": new_height}
+                        )
                         indices_to_merge.update([i, j])  # Mark the merged polygons
 
                         break  # Stop checking other polygons for the current geometry once merged
@@ -623,7 +650,9 @@ def merge_overlapping_polygons(gdf, overlap_threshold):
         merged_gdf.set_crs(gdf.crs, inplace=True)
 
         # Concatenate the non-overlapping geometries with the merged ones
-        final_gdf = gpd.GeoDataFrame(pd.concat([non_merged, merged_gdf], ignore_index=True))
+        final_gdf = gpd.GeoDataFrame(
+            pd.concat([non_merged, merged_gdf], ignore_index=True)
+        )
 
         # Set CRS again after concatenation to ensure consistency
         final_gdf.set_crs(gdf.crs, inplace=True)
@@ -645,7 +674,9 @@ def merge_overlapping_polygons(gdf, overlap_threshold):
     prev_gdf = prev_gdf.reset_index(drop=True)  # Reset the index
     prev_gdf["id"] = prev_gdf.index + 1  # Assign new unique IDs based on the index
 
-    prev_gdf["length"] = prev_gdf.geometry.apply(lambda geom: longest_bounding_box_side(geom, prev_gdf.crs))
+    prev_gdf["length"] = prev_gdf.geometry.apply(
+        lambda geom: longest_bounding_box_side(geom, prev_gdf.crs)
+    )
 
     return prev_gdf
 
@@ -756,7 +787,9 @@ def extract_polygons(geometry):
     elif geometry.is_empty:
         return None  # Return None for empty geometries
     elif hasattr(geometry, "geoms"):  # Handle GeometryCollection
-        polygons = [geom for geom in geometry.geoms if isinstance(geom, (Polygon, MultiPolygon))]
+        polygons = [
+            geom for geom in geometry.geoms if isinstance(geom, (Polygon, MultiPolygon))
+        ]
         if len(polygons) == 1:
             return polygons[0]  # Return as a single Polygon
         elif len(polygons) > 1:
@@ -791,7 +824,12 @@ def longest_bounding_box_side(polygon, crs):
 
     # Compute side lengths
     side_lengths = [
-        ((coords[i][0] - coords[i + 1][0]) ** 2 + (coords[i][1] - coords[i + 1][1]) ** 2) ** 0.5 for i in range(4)
+        (
+            (coords[i][0] - coords[i + 1][0]) ** 2
+            + (coords[i][1] - coords[i + 1][1]) ** 2
+        )
+        ** 0.5
+        for i in range(4)
     ]  # Only 4 sides in a rectangle
 
     return max(side_lengths)
@@ -825,16 +863,14 @@ def combine_floods_within_scape(
 
     # Create a GeoDataFrame for the combined polygons
     result_gdf = gpd.GeoDataFrame(
-        {"id": voronoi_ids, "geometry": combined_polygons},  # Include the Voronoi IDs  # Include the geometries
+        {
+            "id": voronoi_ids,
+            "geometry": combined_polygons,
+        },  # Include the Voronoi IDs  # Include the geometries
         crs=voronoi_polygons.crs,
     )  # Set CRS to match Voronoi polygons
 
     return result_gdf  # Return the combined flood polygons GeoDataFrame
-
-
-""" 
-    -------
-"""
 
 
 def find_midpoints(geometry, num_splits):
@@ -847,7 +883,10 @@ def find_midpoints(geometry, num_splits):
         return []
 
     segment_length = total_length / num_splits
-    return [geometry.interpolate((i + 0.5) * segment_length, normalized=False) for i in range(num_splits)]
+    return [
+        geometry.interpolate((i + 0.5) * segment_length, normalized=False)
+        for i in range(num_splits)
+    ]
 
 
 def generate_extra_points(polygon, coastline, num_pts, scale_factor):
@@ -869,7 +908,10 @@ def generate_extra_points(polygon, coastline, num_pts, scale_factor):
     else:
         coast_segment = coast_intersection
 
-    if not isinstance(coast_segment, (LineString, MultiLineString)) or coast_segment.length == 0:
+    if (
+        not isinstance(coast_segment, (LineString, MultiLineString))
+        or coast_segment.length == 0
+    ):
         return []
 
     # t_scale = 10_000_000
@@ -882,7 +924,9 @@ def generate_extra_points(polygon, coastline, num_pts, scale_factor):
         total_length = coast_segment.length
 
         # Filter out LineStrings with less than 10% of the total length
-        large_lines = [line for line in coast_segment.geoms if line.length >= total_length * 0.1]
+        large_lines = [
+            line for line in coast_segment.geoms if line.length >= total_length * 0.1
+        ]
 
         # Create a new MultiLineString with the remaining lines
         coast_segment = MultiLineString(large_lines)
@@ -900,7 +944,7 @@ def generate_extra_points(polygon, coastline, num_pts, scale_factor):
     # for name, geometries in layers.items():
     #     try:
     #         gdf = gpd.GeoDataFrame(geometry=geometries, crs=jamaica_polygon_revised.crs)
-    #         add_Layer_to_File(gdf, processing_file, name, "GPKG")
+    #         add_layer_to_file(gdf, processing_file, name, "GPKG")
     #     except:
     #         pass
 
@@ -932,12 +976,18 @@ def create_centroid_gdf(centroids, smaller_polygons):
     else:
         centroid_ids = range(len(centroids))
 
-    return gpd.GeoDataFrame({"c_id": centroid_ids, "s_id": centroid_ids}, geometry=centroids, crs=smaller_polygons.crs)
+    return gpd.GeoDataFrame(
+        {"c_id": centroid_ids, "s_id": centroid_ids},
+        geometry=centroids,
+        crs=smaller_polygons.crs,
+    )
 
 
 def adjust_centroids_to_polygon(centroids, larger_polygon):
     """Adjust centroids to be within or touching the larger polygon's boundary."""
-    adjusted_centroids = [adjust_point_to_polygon(pt, larger_polygon) for pt in centroids]
+    adjusted_centroids = [
+        adjust_point_to_polygon(pt, larger_polygon) for pt in centroids
+    ]
     return adjusted_centroids
 
 
@@ -948,7 +998,8 @@ def adjust_point_to_polygon(point, polygon):
     else:
         nearest_boundary_point = nearest_points(point, polygon.boundary)[1]
         adjusted_point = Point(
-            point.x + (nearest_boundary_point.x - point.x), point.y + (nearest_boundary_point.y - point.y)
+            point.x + (nearest_boundary_point.x - point.x),
+            point.y + (nearest_boundary_point.y - point.y),
         )
         if polygon.contains(adjusted_point) or polygon.touches(adjusted_point):
             return adjusted_point
@@ -978,7 +1029,9 @@ def associate_centroids_to_regions(valid_regions, centroids, centroid_gdf):
     return associated_centroid_ids, associated_polygon_ids
 
 
-def create_clipped_voronoi_gdf(valid_regions, associated_centroid_ids, associated_polygon_ids, crs):
+def create_clipped_voronoi_gdf(
+    valid_regions, associated_centroid_ids, associated_polygon_ids, crs
+):
     """Create a GeoDataFrame for the clipped Voronoi regions with associated centroid IDs."""
     return gpd.GeoDataFrame(
         {
@@ -1010,19 +1063,29 @@ def compute_bbox_length(coasline_polygon, voronoi_polygon, crs):
 
     # Compute distances between consecutive points
     distances = [
-        np.sqrt((coords[i][0] - coords[i + 1][0]) ** 2 + (coords[i][1] - coords[i + 1][1]) ** 2)
+        np.sqrt(
+            (coords[i][0] - coords[i + 1][0]) ** 2
+            + (coords[i][1] - coords[i + 1][1]) ** 2
+        )
         for i in range(len(coords) - 1)
     ]
 
     longest_side = max(distances)  # Longest side of the bounding box
 
     # Save to file for debugging
-    # add_Layer_to_File(gpd.GeoDataFrame({'geometry': [bounding_box]}, crs=crs), processing_file, "bbox", "GPKG")
+    # add_layer_to_file(gpd.GeoDataFrame({'geometry': [bounding_box]}, crs=crs), processing_file, "bbox", "GPKG")
 
     return longest_side
 
 
-def create_voronoi(jamaica_polygon, jam_contour, coastline_polygons, intersections, length_limit, coastline):
+def create_voronoi(
+    jamaica_polygon,
+    jam_contour,
+    coastline_polygons,
+    intersections,
+    length_limit,
+    coastline,
+):
     """
     Create Voronoi tessellation based on the centroids of smaller polygons (coastline),
     clipped to the boundary of a larger polygon (Jamaica's convex hull).
@@ -1063,7 +1126,9 @@ def create_voronoi(jamaica_polygon, jam_contour, coastline_polygons, intersectio
     def process_voronoi(centroids, centroid_gdf, larger_polygon, smaller_polygons):
         """Process Voronoi tessellation with the given centroids"""
         # Adjust centroids to be within the larger polygon
-        adjusted_centroids = adjust_centroids_to_polygon(centroids, jam_contour.iloc[0].geometry)
+        adjusted_centroids = adjust_centroids_to_polygon(
+            centroids, jam_contour.iloc[0].geometry
+        )
 
         # Convert the adjusted centroids back to a GeoSeries
         adjusted_centroids_gs = gpd.GeoSeries(adjusted_centroids, crs=centroid_gdf.crs)
@@ -1078,16 +1143,23 @@ def create_voronoi(jamaica_polygon, jam_contour, coastline_polygons, intersectio
         clipped_regions = clip_voronoi_to_polygon(voronoi, larger_polygon)
 
         # Filter out invalid or empty regions, keeping only valid polygons
-        valid_regions = [region for region in clipped_regions if not region.is_empty and isinstance(region, Polygon)]
+        valid_regions = [
+            region
+            for region in clipped_regions
+            if not region.is_empty and isinstance(region, Polygon)
+        ]
 
         # Match centroids to Voronoi regions based on proximity
-        associated_centroid_ids, associated_polygon_ids = associate_centroids_to_regions(
-            valid_regions, centroids, centroid_gdf
+        associated_centroid_ids, associated_polygon_ids = (
+            associate_centroids_to_regions(valid_regions, centroids, centroid_gdf)
         )
 
         # Create GeoDataFrame for clipped Voronoi regions with associated centroid IDs
         clipped_gdf = create_clipped_voronoi_gdf(
-            valid_regions, associated_centroid_ids, associated_polygon_ids, smaller_polygons.crs
+            valid_regions,
+            associated_centroid_ids,
+            associated_polygon_ids,
+            smaller_polygons.crs,
         )
 
         return clipped_gdf, centroid_gdf
@@ -1104,9 +1176,14 @@ def create_voronoi(jamaica_polygon, jam_contour, coastline_polygons, intersectio
             # Get coastline intersection with this polygon
             try:
                 coast_intersection = coastline.intersection(polygon)
-                if hasattr(coast_intersection, "length") and coast_intersection.length > 0:
+                if (
+                    hasattr(coast_intersection, "length")
+                    and coast_intersection.length > 0
+                ):
                     # Calculate required number of segments to meet length limit
-                    required_segments = max(2, int(np.ceil(coast_intersection.length / length_limit)))
+                    required_segments = max(
+                        2, int(np.ceil(coast_intersection.length / length_limit))
+                    )
                     required_points[polygon_id] = required_segments
                 else:
                     required_points[polygon_id] = 2
@@ -1115,9 +1192,13 @@ def create_voronoi(jamaica_polygon, jam_contour, coastline_polygons, intersectio
 
         return required_points
 
-    def generate_all_points_upfront(coastline_polygons, coastline, length_limit, scale_factor):
+    def generate_all_points_upfront(
+        coastline_polygons, coastline, length_limit, scale_factor
+    ):
         """Generate all required seed points upfront based on pre-calculated requirements"""
-        required_points = calculate_required_points_strategy(coastline_polygons, coastline, length_limit)
+        required_points = calculate_required_points_strategy(
+            coastline_polygons, coastline, length_limit
+        )
 
         all_centroids = []
         centroid_data = []
@@ -1131,17 +1212,27 @@ def create_voronoi(jamaica_polygon, jam_contour, coastline_polygons, intersectio
             polygon = polygon_row.iloc[0].geometry
 
             # Generate the required number of points
-            new_points = generate_extra_points(polygon, coastline, num_points, scale_factor)
+            new_points = generate_extra_points(
+                polygon, coastline, num_points, scale_factor
+            )
 
             if new_points:
                 for point in new_points:
-                    centroid_data.append({"c_id": c_id_counter, "s_id": polygon_id, "geometry": point})
+                    centroid_data.append(
+                        {"c_id": c_id_counter, "s_id": polygon_id, "geometry": point}
+                    )
                     c_id_counter += 1
                 all_centroids.extend(new_points)
             else:
                 # Fallback to centroid if no points generated
                 centroid_point = polygon.centroid
-                centroid_data.append({"c_id": c_id_counter, "s_id": polygon_id, "geometry": centroid_point})
+                centroid_data.append(
+                    {
+                        "c_id": c_id_counter,
+                        "s_id": polygon_id,
+                        "geometry": centroid_point,
+                    }
+                )
                 c_id_counter += 1
                 all_centroids.append(centroid_point)
 
@@ -1179,13 +1270,19 @@ def create_voronoi(jamaica_polygon, jam_contour, coastline_polygons, intersectio
             )
 
             # Find ALL regions that exceed the limit
-            problematic_regions = clipped_gdf[clipped_gdf["coastal_length"] > length_limit]
+            problematic_regions = clipped_gdf[
+                clipped_gdf["coastal_length"] > length_limit
+            ]
 
             if problematic_regions.empty:
-                logging.info(f"   Hierarchical subdivision complete at depth {current_depth}")
+                logging.info(
+                    f"   Hierarchical subdivision complete at depth {current_depth}"
+                )
                 break
 
-            logging.info(f"   Depth {current_depth}: Subdividing {len(problematic_regions)} regions")
+            logging.info(
+                f"   Depth {current_depth}: Subdividing {len(problematic_regions)} regions"
+            )
 
             # Group by flood_zone_id to process each coastline polygon
             problematic_by_zone = problematic_regions.groupby("flood_zone_id")
@@ -1208,29 +1305,45 @@ def create_voronoi(jamaica_polygon, jam_contour, coastline_polygons, intersectio
                 current_points_in_zone = len(zone_regions)
 
                 # Calculate multiplication factor needed
-                subdivision_factor = max(2, int(np.ceil(max_length_in_zone / length_limit)))
+                subdivision_factor = max(
+                    2, int(np.ceil(max_length_in_zone / length_limit))
+                )
                 new_total_points = max(current_points_in_zone * 2, subdivision_factor)
 
                 # Generate new points for this zone
-                new_points = generate_extra_points(polygon, coastline, new_total_points, scale_factor)
+                new_points = generate_extra_points(
+                    polygon, coastline, new_total_points, scale_factor
+                )
 
                 if new_points:
                     for point in new_points:
                         new_points_batch.append(
-                            {"c_id": len(centroid_gdf) + len(new_points_batch), "s_id": zone_id, "geometry": point}
+                            {
+                                "c_id": len(centroid_gdf) + len(new_points_batch),
+                                "s_id": zone_id,
+                                "geometry": point,
+                            }
                         )
 
             # Remove old centroids for problematic zones
-            centroid_gdf = centroid_gdf[~centroid_gdf["s_id"].isin(zones_to_remove)].reset_index(drop=True)
+            centroid_gdf = centroid_gdf[
+                ~centroid_gdf["s_id"].isin(zones_to_remove)
+            ].reset_index(drop=True)
 
             # Add all new points at once
             if new_points_batch:
-                new_centroid_gdf = gpd.GeoDataFrame(new_points_batch, crs=centroid_gdf.crs)
-                centroid_gdf = pd.concat([centroid_gdf, new_centroid_gdf], ignore_index=True)
+                new_centroid_gdf = gpd.GeoDataFrame(
+                    new_points_batch, crs=centroid_gdf.crs
+                )
+                centroid_gdf = pd.concat(
+                    [centroid_gdf, new_centroid_gdf], ignore_index=True
+                )
 
             # Regenerate Voronoi with all new points
             centroids = centroid_gdf.geometry
-            clipped_gdf, centroid_gdf = process_voronoi(centroids, centroid_gdf, larger_polygon, smaller_polygons)
+            clipped_gdf, centroid_gdf = process_voronoi(
+                centroids, centroid_gdf, larger_polygon, smaller_polygons
+            )
 
             current_depth += 1
 
@@ -1262,18 +1375,24 @@ def create_voronoi(jamaica_polygon, jam_contour, coastline_polygons, intersectio
             )
 
             current_max_length = clipped_gdf["coastal_length"].max()
-            regions_exceeding = len(clipped_gdf[clipped_gdf["coastal_length"] > length_limit])
+            regions_exceeding = len(
+                clipped_gdf[clipped_gdf["coastal_length"] > length_limit]
+            )
 
             # Check if we're done
             if regions_exceeding == 0:
-                logging.info(f"   Constraint satisfaction achieved after {iteration_count} iterations")
+                logging.info(
+                    f"   Constraint satisfaction achieved after {iteration_count} iterations"
+                )
                 break
 
             # Check for progress
             if current_max_length >= previous_max_length:
                 stagnation_count += 1
                 if stagnation_count >= max_stagnation:
-                    logging.info("   Stagnation detected, applying aggressive subdivision")
+                    logging.info(
+                        "   Stagnation detected, applying aggressive subdivision"
+                    )
                     clipped_gdf, centroid_gdf = apply_aggressive_subdivision(
                         clipped_gdf,
                         centroid_gdf,
@@ -1340,32 +1459,48 @@ def create_voronoi(jamaica_polygon, jam_contour, coastline_polygons, intersectio
         problematic_regions = clipped_gdf[clipped_gdf["coastal_length"] > length_limit]
 
         for zone_id in problematic_regions["flood_zone_id"].unique():
-            zone_regions = problematic_regions[problematic_regions["flood_zone_id"] == zone_id]
+            zone_regions = problematic_regions[
+                problematic_regions["flood_zone_id"] == zone_id
+            ]
             max_length = zone_regions["coastal_length"].max()
 
             # Calculate aggressive subdivision factor
             subdivision_factor = max(5, int(np.ceil(max_length / (length_limit * 0.3))))
 
             # Remove old points
-            centroid_gdf = centroid_gdf[centroid_gdf["s_id"] != zone_id].reset_index(drop=True)
+            centroid_gdf = centroid_gdf[centroid_gdf["s_id"] != zone_id].reset_index(
+                drop=True
+            )
 
             # Add many new points
             polygon_row = coastline_polygons[coastline_polygons["id"] == zone_id]
             if not polygon_row.empty:
                 polygon = polygon_row.iloc[0].geometry
-                new_points = generate_extra_points(polygon, coastline, subdivision_factor, scale_factor)
+                new_points = generate_extra_points(
+                    polygon, coastline, subdivision_factor, scale_factor
+                )
 
                 if new_points:
                     new_data = []
                     for point in new_points:
-                        new_data.append({"c_id": len(centroid_gdf) + len(new_data), "s_id": zone_id, "geometry": point})
+                        new_data.append(
+                            {
+                                "c_id": len(centroid_gdf) + len(new_data),
+                                "s_id": zone_id,
+                                "geometry": point,
+                            }
+                        )
 
                     new_centroid_gdf = gpd.GeoDataFrame(new_data, crs=centroid_gdf.crs)
-                    centroid_gdf = pd.concat([centroid_gdf, new_centroid_gdf], ignore_index=True)
+                    centroid_gdf = pd.concat(
+                        [centroid_gdf, new_centroid_gdf], ignore_index=True
+                    )
 
         # Regenerate Voronoi
         centroids = centroid_gdf.geometry
-        clipped_gdf, centroid_gdf = process_voronoi(centroids, centroid_gdf, larger_polygon, smaller_polygons)
+        clipped_gdf, centroid_gdf = process_voronoi(
+            centroids, centroid_gdf, larger_polygon, smaller_polygons
+        )
 
         return clipped_gdf, centroid_gdf
 
@@ -1397,7 +1532,9 @@ def create_voronoi(jamaica_polygon, jam_contour, coastline_polygons, intersectio
         polygon = polygon_row.iloc[0].geometry
 
         # Remove existing points for this zone
-        centroid_gdf = centroid_gdf[centroid_gdf["s_id"] != scape_id].reset_index(drop=True)
+        centroid_gdf = centroid_gdf[centroid_gdf["s_id"] != scape_id].reset_index(
+            drop=True
+        )
 
         # Calculate new points needed
         current_regions = clipped_gdf[clipped_gdf["flood_zone_id"] == scape_id]
@@ -1409,14 +1546,24 @@ def create_voronoi(jamaica_polygon, jam_contour, coastline_polygons, intersectio
         if new_points:
             new_data = []
             for point in new_points:
-                new_data.append({"c_id": len(centroid_gdf) + len(new_data), "s_id": scape_id, "geometry": point})
+                new_data.append(
+                    {
+                        "c_id": len(centroid_gdf) + len(new_data),
+                        "s_id": scape_id,
+                        "geometry": point,
+                    }
+                )
 
             new_centroid_gdf = gpd.GeoDataFrame(new_data, crs=centroid_gdf.crs)
-            centroid_gdf = pd.concat([centroid_gdf, new_centroid_gdf], ignore_index=True)
+            centroid_gdf = pd.concat(
+                [centroid_gdf, new_centroid_gdf], ignore_index=True
+            )
 
             # Regenerate Voronoi
             centroids = centroid_gdf.geometry
-            clipped_gdf, centroid_gdf = process_voronoi(centroids, centroid_gdf, larger_polygon, smaller_polygons)
+            clipped_gdf, centroid_gdf = process_voronoi(
+                centroids, centroid_gdf, larger_polygon, smaller_polygons
+            )
 
         return clipped_gdf, centroid_gdf
 
@@ -1432,43 +1579,67 @@ def create_voronoi(jamaica_polygon, jam_contour, coastline_polygons, intersectio
     ):
         """Final aggressive subdivision to guarantee constraint satisfaction"""
 
-        logging.info("   Applying final aggressive subdivision to guarantee constraints")
+        logging.info(
+            "   Applying final aggressive subdivision to guarantee constraints"
+        )
 
         # Find all violating regions
-        clipped_gdf["coastal_length"] = clipped_gdf.geometry.apply(lambda poly: find_coastline_length(coastline, poly))
+        clipped_gdf["coastal_length"] = clipped_gdf.geometry.apply(
+            lambda poly: find_coastline_length(coastline, poly)
+        )
 
         problematic_regions = clipped_gdf[clipped_gdf["coastal_length"] > length_limit]
 
         for zone_id in problematic_regions["flood_zone_id"].unique():
-            zone_regions = problematic_regions[problematic_regions["flood_zone_id"] == zone_id]
+            zone_regions = problematic_regions[
+                problematic_regions["flood_zone_id"] == zone_id
+            ]
             max_length = zone_regions["coastal_length"].max()
 
             # Very aggressive subdivision - guarantee we have enough points
-            subdivision_factor = max(10, int(np.ceil(max_length / (length_limit * 0.2))))
+            subdivision_factor = max(
+                10, int(np.ceil(max_length / (length_limit * 0.2)))
+            )
 
             # Remove old points
-            centroid_gdf = centroid_gdf[centroid_gdf["s_id"] != zone_id].reset_index(drop=True)
+            centroid_gdf = centroid_gdf[centroid_gdf["s_id"] != zone_id].reset_index(
+                drop=True
+            )
 
             # Get polygon and generate many points
             polygon_row = coastline_polygons[coastline_polygons["id"] == zone_id]
             if not polygon_row.empty:
                 polygon = polygon_row.iloc[0].geometry
-                new_points = generate_extra_points(polygon, coastline, subdivision_factor, scale_factor)
+                new_points = generate_extra_points(
+                    polygon, coastline, subdivision_factor, scale_factor
+                )
 
                 if new_points:
                     new_data = []
                     for point in new_points:
-                        new_data.append({"c_id": len(centroid_gdf) + len(new_data), "s_id": zone_id, "geometry": point})
+                        new_data.append(
+                            {
+                                "c_id": len(centroid_gdf) + len(new_data),
+                                "s_id": zone_id,
+                                "geometry": point,
+                            }
+                        )
 
                     new_centroid_gdf = gpd.GeoDataFrame(new_data, crs=centroid_gdf.crs)
-                    centroid_gdf = pd.concat([centroid_gdf, new_centroid_gdf], ignore_index=True)
+                    centroid_gdf = pd.concat(
+                        [centroid_gdf, new_centroid_gdf], ignore_index=True
+                    )
 
         # Final Voronoi generation
         centroids = centroid_gdf.geometry
-        clipped_gdf, centroid_gdf = process_voronoi(centroids, centroid_gdf, larger_polygon, smaller_polygons)
+        clipped_gdf, centroid_gdf = process_voronoi(
+            centroids, centroid_gdf, larger_polygon, smaller_polygons
+        )
 
         # Final check
-        clipped_gdf["coastal_length"] = clipped_gdf.geometry.apply(lambda poly: find_coastline_length(coastline, poly))
+        clipped_gdf["coastal_length"] = clipped_gdf.geometry.apply(
+            lambda poly: find_coastline_length(coastline, poly)
+        )
 
         return clipped_gdf, centroid_gdf
 
@@ -1486,7 +1657,9 @@ def create_voronoi(jamaica_polygon, jam_contour, coastline_polygons, intersectio
         )
 
         # Check if this solved the problem
-        clipped_gdf["coastal_length"] = clipped_gdf.geometry.apply(lambda poly: find_coastline_length(coastline, poly))
+        clipped_gdf["coastal_length"] = clipped_gdf.geometry.apply(
+            lambda poly: find_coastline_length(coastline, poly)
+        )
 
         violations = len(clipped_gdf[clipped_gdf["coastal_length"] > length_limit])
 
@@ -1494,15 +1667,23 @@ def create_voronoi(jamaica_polygon, jam_contour, coastline_polygons, intersectio
             logging.info("   [4.1] Pre-calculation strategy successful!")
             return clipped_gdf, centroid_gdf
         else:
-            logging.info(f"   [4.1] Pre-calculation left {violations} violations, trying hierarchical")
+            logging.info(
+                f"   [4.1] Pre-calculation left {violations} violations, trying hierarchical"
+            )
 
     except Exception as e:
-        logging.info(f"   [4.1] Pre-calculation failed: {e}, falling back to original method")
+        logging.info(
+            f"   [4.1] Pre-calculation failed: {e}, falling back to original method"
+        )
         # Fallback to original centroid computation
         centroids = compute_centroids(intersections, smaller_polygons)
         centroid_gdf = create_centroid_gdf(centroids, smaller_polygons)
-        clipped_gdf, centroid_gdf = process_voronoi(centroids, centroid_gdf, larger_polygon, smaller_polygons)
-        clipped_gdf["coastal_length"] = clipped_gdf.geometry.apply(lambda poly: find_coastline_length(coastline, poly))
+        clipped_gdf, centroid_gdf = process_voronoi(
+            centroids, centroid_gdf, larger_polygon, smaller_polygons
+        )
+        clipped_gdf["coastal_length"] = clipped_gdf.geometry.apply(
+            lambda poly: find_coastline_length(coastline, poly)
+        )
 
     # Step 2: Try hierarchical subdivision
     try:
@@ -1518,14 +1699,18 @@ def create_voronoi(jamaica_polygon, jam_contour, coastline_polygons, intersectio
         )
 
         # Check if hierarchical solved it
-        clipped_gdf["coastal_length"] = clipped_gdf.geometry.apply(lambda poly: find_coastline_length(coastline, poly))
+        clipped_gdf["coastal_length"] = clipped_gdf.geometry.apply(
+            lambda poly: find_coastline_length(coastline, poly)
+        )
         violations = len(clipped_gdf[clipped_gdf["coastal_length"] > length_limit])
 
         if violations == 0:
             logging.info("   [4.2] Hierarchical subdivision successful!")
             return clipped_gdf, centroid_gdf
         else:
-            logging.info(f"   [4.2] Hierarchical left {violations} violations, using constraint-based")
+            logging.info(
+                f"   [4.2] Hierarchical left {violations} violations, using constraint-based"
+            )
 
     except Exception as e:
         logging.info(f"   [4.2] Hierarchical subdivision failed: {e}")
@@ -1544,7 +1729,9 @@ def create_voronoi(jamaica_polygon, jam_contour, coastline_polygons, intersectio
     )
 
     # Final validation and reporting
-    clipped_gdf["coastal_length"] = clipped_gdf.geometry.apply(lambda poly: find_coastline_length(coastline, poly))
+    clipped_gdf["coastal_length"] = clipped_gdf.geometry.apply(
+        lambda poly: find_coastline_length(coastline, poly)
+    )
 
     final_violations = len(clipped_gdf[clipped_gdf["coastal_length"] > length_limit])
     max_length = clipped_gdf["coastal_length"].max()
@@ -1558,9 +1745,13 @@ def create_voronoi(jamaica_polygon, jam_contour, coastline_polygons, intersectio
     logging.info(f"   Length limit: {length_limit}")
 
     if final_violations > 0:
-        logging.info(f"   WARNING: {final_violations} regions still exceed the length limit!")
+        logging.info(
+            f"   WARNING: {final_violations} regions still exceed the length limit!"
+        )
         violating_regions = clipped_gdf[clipped_gdf["coastal_length"] > length_limit]
-        logging.info(f"   Violating lengths: {violating_regions['coastal_length'].tolist()}")
+        logging.info(
+            f"   Violating lengths: {violating_regions['coastal_length'].tolist()}"
+        )
     else:
         logging.info("   SUCCESS: All regions comply with length limit!")
 
@@ -1616,7 +1807,9 @@ def combine_floods_within_voronoi(
             if isinstance(combined_geom, MultiPolygon):
                 # If the combined geometry is a MultiPolygon, check each part
                 filtered_parts = [
-                    part for part in combined_geom.geoms if part.centroid.distance(voronoi_point_geom) <= max_distance
+                    part
+                    for part in combined_geom.geoms
+                    if part.centroid.distance(voronoi_point_geom) <= max_distance
                 ]
                 combined_geom = MultiPolygon(filtered_parts) if filtered_parts else None
             elif combined_geom.centroid.distance(voronoi_point_geom) > max_distance:
@@ -1630,7 +1823,10 @@ def combine_floods_within_voronoi(
 
     # Create a GeoDataFrame for the combined polygons
     result_gdf = gpd.GeoDataFrame(
-        {"id": voronoi_ids, "geometry": combined_polygons},  # Include the Voronoi IDs  # Include the geometries
+        {
+            "id": voronoi_ids,
+            "geometry": combined_polygons,
+        },  # Include the Voronoi IDs  # Include the geometries
         crs=voronoi_polygons.crs,
     )  # Set CRS to match Voronoi polygons
 
@@ -1642,7 +1838,7 @@ def linestring_intersect_polygons(
     coast: gpd.GeoDataFrame,
     polygons: gpd.GeoDataFrame,
     flood_polygons: gpd.GeoDataFrame,
-) -> (gpd.GeoDataFrame, gpd.GeoDataFrame):
+) -> tuple[gpd.GeoDataFrame, gpd.GeoDataFrame]:
     """
     Sections the coastline based on intersections with each Voronoi polygon and individually
     buffers the new linestring segments until they completely enclose the flood polygon
@@ -1690,7 +1886,9 @@ def linestring_intersect_polygons(
                 flood_geometry = flood_polygon.geometry.iloc[0]
 
                 # Start iteratively buffering the intersection from 0.5 km and increase by 0.1 km
-                current_buffer_radius = default_inland_distance * 1_000  # Start with a buffer radius of 0.5 km
+                current_buffer_radius = (
+                    default_inland_distance * 1_000
+                )  # Start with a buffer radius of 0.5 km
                 while not buffered_intersection.contains(flood_geometry):
                     # Increase buffer by 0.1 km at each iteration until it contains the flood geometry
                     current_buffer_radius += 0.1 * 1_000
@@ -1700,10 +1898,14 @@ def linestring_intersect_polygons(
             final_intersection = buffered_intersection.intersection(poly.geometry)
 
             # Append the final intersection with its associated Voronoi ID to the list
-            final_intersections.append({"geometry": final_intersection, "id": poly["id"]})
+            final_intersections.append(
+                {"geometry": final_intersection, "id": poly["id"]}
+            )
 
     # Create GeoDataFrames for initial and final intersections
-    initial_intersections_gdf = gpd.GeoDataFrame(initial_intersections, crs=polygons.crs)
+    initial_intersections_gdf = gpd.GeoDataFrame(
+        initial_intersections, crs=polygons.crs
+    )
     final_intersections_gdf = gpd.GeoDataFrame(final_intersections, crs=polygons.crs)
 
     return initial_intersections_gdf, final_intersections_gdf
@@ -1730,19 +1932,25 @@ def split_multipart_polygons(gdf):
         else:
             new_features.append(row)
 
-    new_gdf = gpd.GeoDataFrame(new_features + separated_parts, columns=gdf.columns, crs=gdf.crs)
+    new_gdf = gpd.GeoDataFrame(
+        new_features + separated_parts, columns=gdf.columns, crs=gdf.crs
+    )
     new_gdf["id"] = range(1, len(new_gdf) + 1)  # Reassign IDs sequentially
 
     # Use a more robust method to identify small sections
     small_sections = new_gdf[
-        new_gdf.geometry.apply(lambda geom: any(geom.equals(part.geometry) for part in small_sections))
+        new_gdf.geometry.apply(
+            lambda geom: any(geom.equals(part.geometry) for part in small_sections)
+        )
     ]
     touching_pairs = set()
 
     # Identify touching polygons and store as ordered pairs
     for _, poly in small_sections.iterrows():
         for _, other_poly in new_gdf.iterrows():
-            if poly["id"] != other_poly["id"] and poly.geometry.buffer(0.5).intersects(other_poly.geometry.buffer(0.5)):
+            if poly["id"] != other_poly["id"] and poly.geometry.buffer(0.5).intersects(
+                other_poly.geometry.buffer(0.5)
+            ):
                 pair = (
                     (poly["id"], other_poly["id"])
                     if poly.geometry.area < other_poly.geometry.area
@@ -1765,14 +1973,18 @@ def split_multipart_polygons(gdf):
         first_polygon = new_gdf.loc[new_gdf["id"] == first_id, "geometry"].values[0]
         second_polygon = new_gdf.loc[new_gdf["id"] == second_id, "geometry"].values[0]
 
-        shared_border_length = first_polygon.buffer(buffer_distance).intersection(second_polygon).length
+        shared_border_length = (
+            first_polygon.buffer(buffer_distance).intersection(second_polygon).length
+        )
 
         # If first_id is not in best_pairs OR this pair has a longer shared border, update it
         if first_id not in best_pairs or shared_border_length > best_pairs[first_id][1]:
             best_pairs[first_id] = (second_id, shared_border_length)
 
     # Convert dictionary back to a list of tuples
-    sorted_pairs = [(first_id, second_id) for first_id, (second_id, _) in best_pairs.items()]
+    sorted_pairs = [
+        (first_id, second_id) for first_id, (second_id, _) in best_pairs.items()
+    ]
     # print (sorted_pairs)
 
     merged_gdf = new_gdf.copy()
@@ -1792,10 +2004,15 @@ def split_multipart_polygons(gdf):
         merged_gdf.loc[merged_gdf["id"] == first_id, "geometry"] = new_polygon
         merged_polygons.append(second_id)
 
-        srtdp = [(new_id if x == second_id else x, new_id if y == second_id else y) for x, y in srtdp]
+        srtdp = [
+            (new_id if x == second_id else x, new_id if y == second_id else y)
+            for x, y in srtdp
+        ]
         i += 1
 
-    merged_gdf = merged_gdf[~merged_gdf["id"].isin(merged_polygons)].reset_index(drop=True)
+    merged_gdf = merged_gdf[~merged_gdf["id"].isin(merged_polygons)].reset_index(
+        drop=True
+    )
 
     return merged_gdf
 
@@ -1820,8 +2037,14 @@ def merge_adjacent_polygons_by_coastline(gdf, coastline, length_limit):
         possible_matches_index = list(sindex.intersection(row["buffered"].bounds))
         for other_idx in possible_matches_index:
             other_row = gdf.iloc[other_idx]
-            if row["id"] != other_row["id"] and row["buffered"].intersects(other_row["buffered"]):
-                pair = (row["id"], other_row["id"]) if row["area"] < other_row["area"] else (other_row["id"], row["id"])
+            if row["id"] != other_row["id"] and row["buffered"].intersects(
+                other_row["buffered"]
+            ):
+                pair = (
+                    (row["id"], other_row["id"])
+                    if row["area"] < other_row["area"]
+                    else (other_row["id"], row["id"])
+                )
                 touching_pairs.add(pair)
 
     touching_pairs = list(touching_pairs)
@@ -1840,7 +2063,9 @@ def merge_adjacent_polygons_by_coastline(gdf, coastline, length_limit):
         buf2 = buffered_dict[second_id]
 
         shared_border_length = buf1.intersection(poly2).length
-        total_coastline_length = buf1.intersection(coastline).length + buf2.intersection(coastline).length
+        total_coastline_length = (
+            buf1.intersection(coastline).length + buf2.intersection(coastline).length
+        )
 
         if total_coastline_length <= length_limit:
             sorted_pairs.append((first_id, second_id, shared_border_length))
@@ -1873,7 +2098,10 @@ def merge_adjacent_polygons_by_coastline(gdf, coastline, length_limit):
             area_dict[first_id] = new_geom.area
             merged_ids.add(second_id)
 
-            srtdp = [(first_id if x == second_id else x, first_id if y == second_id else y) for x, y in srtdp]
+            srtdp = [
+                (first_id if x == second_id else x, first_id if y == second_id else y)
+                for x, y in srtdp
+            ]
 
         i += 1
 
@@ -1883,12 +2111,12 @@ def merge_adjacent_polygons_by_coastline(gdf, coastline, length_limit):
     return merged_gdf
 
 
-""" Main Function that calls the processes
-    -------
-"""
+# endregion
+
+# region # Main Function that calls the processes
 
 
-def Generate_Coastal_Flood_Protection_Areas(
+def generate_coastal_flood_protection_areas(
     RCP,
     RP,
     input_file,
@@ -1900,13 +2128,16 @@ def Generate_Coastal_Flood_Protection_Areas(
     flood_depth_threshold,
     eps_threshold,
     minPts,
-    max_coast_segement_length,
+    max_coast_segment_length,
     minGrpSize,
     overlap_threshold,
 ):
-
-    coastline_edge_layer = gpd.read_file(input_file, layer="edges")  # Load edges as GeoDataFrame
-    coastline_node_layer = gpd.read_file(input_file, layer="nodes")  # Load nodes as GeoDataFrame
+    coastline_edge_layer = gpd.read_file(
+        input_file, layer="edges"
+    )  # Load edges as GeoDataFrame
+    coastline_node_layer = gpd.read_file(
+        input_file, layer="nodes"
+    )  # Load nodes as GeoDataFrame
 
     jamaica_polygon_revised = gpd.read_file(input_file, layer="jam")
     jamaica_polygon_revised = jamaica_polygon_revised.to_crs(3448)
@@ -1916,7 +2147,6 @@ def Generate_Coastal_Flood_Protection_Areas(
 
     full_coastline_layer = gpd.read_file(input_file, layer="Jamaica_Coastline_Layer")
 
-    # ------------------------------------------------------------------------------------------------#
     logging.info("[1] Creating DBSCAN Cluster")
     # Calling the function with appropriate parameters
     dbscan_flood_areas = process_raster_to_clusters(
@@ -1927,11 +2157,12 @@ def Generate_Coastal_Flood_Protection_Areas(
     )
 
     # Saving the output to a GeoPackage file
-    layer_name = f"dbscan_flood_areas_RP_{RP}_eps_{eps_threshold}_thresh_{flood_depth_threshold}"
-    add_Layer_to_File(dbscan_flood_areas, processing_file, layer_name, "GPKG")
-    # ------------------------------------------------------------------------------------------------#
+    layer_name = (
+        f"dbscan_flood_areas_RP_{RP}_eps_{eps_threshold}_thresh_{flood_depth_threshold}"
+    )
+    add_layer_to_file(dbscan_flood_areas, processing_file, layer_name, "GPKG")
 
-    # -----------------------------------------SCAPE METHOD-------------------------------------------#
+    # SCAPE METHOD
     logging.info("[2] Generating SCAPE cluster polygons")
     edge_polygons, coastline_edge_layer = generate_polygons_along_edge(
         edge_layer=coastline_edge_layer,
@@ -1941,32 +2172,36 @@ def Generate_Coastal_Flood_Protection_Areas(
 
     # Save the output to a file
     layer_name = f"edge_polygons_depth_{initial_inland_buffer_distance}"
-    add_Layer_to_File(edge_polygons, processing_file, layer_name, "GPKG")
+    add_layer_to_file(edge_polygons, processing_file, layer_name, "GPKG")
 
     layer_name = "edges"
-    add_Layer_to_File(coastline_edge_layer, input_file, layer_name, "GPKG")
+    add_layer_to_file(coastline_edge_layer, input_file, layer_name, "GPKG")
 
     # Call the function to calculate and add the maximum flood height from the raster
     edge_polygons = add_max_zonal_stats(
-        geopkg=edge_polygons, raster_path=raster_file, new_column_name="max_flood_height"
+        geopkg=edge_polygons,
+        raster_path=raster_file,
+        new_column_name="max_flood_height",
     )
 
     # Save the updated GeoDataFrame back to the file, ensuring CRS consistency
     layer_name = f"edge_polygons_depth_{initial_inland_buffer_distance}"
-    add_Layer_to_File(edge_polygons, processing_file, layer_name, "GPKG")
+    add_layer_to_file(edge_polygons, processing_file, layer_name, "GPKG")
 
     # Call the function to get the ordered list of edge IDs
     ordered_edge_ids = order_edges_around_island(edge_layer=coastline_edge_layer)
 
     # Filter the original polygon layer to include only the ordered edge IDs
-    ordered_edge_ids = [eid for eid in ordered_edge_ids if eid in edge_polygons["id"].values]
+    ordered_edge_ids = [
+        eid for eid in ordered_edge_ids if eid in edge_polygons["id"].values
+    ]
     input_polygons = edge_polygons.set_index("id").loc[ordered_edge_ids].reset_index()
 
     # Call the function to join polygons based on flood height and area conditions
     joined_polygons = join_polygons_by_flood_height(
         gdf=input_polygons,
         flood_height_threshold=flood_depth_threshold,
-        length_limit=max_coast_segement_length,
+        length_limit=max_coast_segment_length,
         group_size=minGrpSize,
         full_coastline_layer=full_coastline_layer,
     )
@@ -1975,17 +2210,14 @@ def Generate_Coastal_Flood_Protection_Areas(
     # joined_polygons = gpd.clip(joined_polygons, jamaica_polygon_revised)
 
     # Define layer name for the final output
-    layer_name = (
-        f"joined_edge_polygons_flood_{flood_depth_threshold}_area_{max_coast_segement_length}_group_{minGrpSize}"
-    )
+    layer_name = f"joined_edge_polygons_flood_{flood_depth_threshold}_area_{max_coast_segment_length}_group_{minGrpSize}"
 
     # Save the result back to a file, ensuring CRS consistency
-    add_Layer_to_File(joined_polygons, processing_file, layer_name, "GPKG")
+    add_layer_to_file(joined_polygons, processing_file, layer_name, "GPKG")
 
     s_cape_flood_areas = merge_overlapping_polygons(
         gdf=joined_polygons,
         overlap_threshold=overlap_threshold,
-        # max_coast_segement_length = max_coast_segement_length
     )
 
     s_cape_flood_areas = clip_larger_polygons(s_cape_flood_areas, "id")
@@ -1994,30 +2226,27 @@ def Generate_Coastal_Flood_Protection_Areas(
     # s_cape_flood_areas["geometry"] = s_cape_flood_areas["geometry"].apply(keep_largest_polygon)
 
     # Create a layer name dynamically for the merged flood areas
-    layer_name = f"scape_flood_areas_flood_{flood_depth_threshold}_area_{max_coast_segement_length}_group_{minGrpSize}_overlap_{overlap_threshold}"
+    layer_name = f"scape_flood_areas_flood_{flood_depth_threshold}_area_{max_coast_segment_length}_group_{minGrpSize}_overlap_{overlap_threshold}"
 
     # Add the merged polygons layer to the file
-    add_Layer_to_File(s_cape_flood_areas, processing_file, layer_name, "GPKG")
-    # ------------------------------------------------------------------------------------------------#
+    add_layer_to_file(s_cape_flood_areas, processing_file, layer_name, "GPKG")
 
-    # ------------------------------------------------------------------------------------------------#
     logging.info("[3] Generating Island Boundary")
     # Generate the convex hull for the flood polygons
     jamaica_convex_hull = gpd.GeoDataFrame(
         {
             "id": [1],  # Assign an ID to the new hull
-            "geometry": jamaica_polygon_revised.buffer(10000),  # The geometry of the convex hull
+            "geometry": jamaica_polygon_revised.buffer(
+                10000
+            ),  # The geometry of the convex hull
         },
         crs=coastline_edge_layer.crs,
     )
 
     # Define the layer name for the convex hull and save it to the GeoPackage
     layer_name = "jamaica_convex"
-    add_Layer_to_File(jamaica_convex_hull, processing_file, layer_name, "GPKG")
-    # ------------------------------------------------------------------------------------------------#
+    add_layer_to_file(jamaica_convex_hull, processing_file, layer_name, "GPKG")
 
-    # ------------------------------------------------------------------------------------------------#
-    # logging.info ("    -  Generating Voronoi Polygons")
     # Load contour and coastline polygons from the input files
     jam_contour = gpd.read_file(input_file, layer="jam")
 
@@ -2036,10 +2265,8 @@ def Generate_Coastal_Flood_Protection_Areas(
 
     # Add the resulting dbscan_voronoi_intersection layer to a processing file (GeoPackage format)
     layer_name = "scape_voronoi_intersection"
-    add_Layer_to_File(scape_intersection, processing_file, layer_name, "GPKG")
-    # ------------------------------------------------------------------------------------------------#
+    add_layer_to_file(scape_intersection, processing_file, layer_name, "GPKG")
 
-    # ------------------------------------------------------------------------------------------------#
     logging.info("[4] Generating Voronoi Polygons")
     # Create the Voronoi polygons clipped to Jamaica's convex hull
     voronoi_polygons, voronoi_centroid_points = create_voronoi(
@@ -2047,20 +2274,17 @@ def Generate_Coastal_Flood_Protection_Areas(
         jam_contour=jam_contour,
         coastline_polygons=s_cape_flood_areas,
         intersections=scape_intersection,
-        length_limit=max_coast_segement_length,
+        length_limit=max_coast_segment_length,
         coastline=full_coastline_layer,
     )
 
     # Save the Voronoi polygons and centroid points to a GeoPackage
     layer_name = "voronoi_polygons"
-    add_Layer_to_File(voronoi_polygons, processing_file, layer_name, "GPKG")
+    add_layer_to_file(voronoi_polygons, processing_file, layer_name, "GPKG")
 
     layer_name = "voronoi_centroid_points"
-    add_Layer_to_File(voronoi_centroid_points, processing_file, layer_name, "GPKG")
+    add_layer_to_file(voronoi_centroid_points, processing_file, layer_name, "GPKG")
 
-    # ------------------------------------------------------------------------------------------------#
-
-    # ------------------------------------------------------------------------------------------------#
     logging.info("[5] Extend Voronoi to enclose flooding")
     # Combine flood polygons for each Voronoi polygon using the function above
     dbscan_voronoi_intersection = combine_floods_within_voronoi(
@@ -2073,10 +2297,8 @@ def Generate_Coastal_Flood_Protection_Areas(
 
     # Add the resulting dbscan_voronoi_intersection layer to a processing file (GeoPackage format)
     layer_name = "dbscan_voronoi_intersection"
-    add_Layer_to_File(dbscan_voronoi_intersection, processing_file, layer_name, "GPKG")
-    # ------------------------------------------------------------------------------------------------#
+    add_layer_to_file(dbscan_voronoi_intersection, processing_file, layer_name, "GPKG")
 
-    # ------------------------------------------------------------------------------------------------#
     # Calculate initial and final intersections
     flood_protection_coastline, flood_protection_areas = linestring_intersect_polygons(
         default_inland_distance=0.4,  # Buffer radius in kilometers
@@ -2085,35 +2307,35 @@ def Generate_Coastal_Flood_Protection_Areas(
         flood_polygons=dbscan_voronoi_intersection,  # Flood polygons GeoDataFrame from previous step
     )
 
-    flood_protection_coastline["geometry"] = flood_protection_coastline["geometry"].apply(
+    flood_protection_coastline["geometry"] = flood_protection_coastline[
+        "geometry"
+    ].apply(
         lambda geom: linemerge(geom) if geom.geom_type == "MultiLineString" else geom
     )
     flood_protection_areas = gpd.clip(flood_protection_areas, jamaica_polygon_buffered)
 
     # Save the raw intersections to the processing file
-    # add_Layer_to_File(flood_protection_coastline, processing_file, "flood_protection_coast", "GPKG")
+    # add_layer_to_file(flood_protection_coastline, processing_file, "flood_protection_coast", "GPKG")
 
     # Save the final flood protection areas to the processing file
-    add_Layer_to_File(flood_protection_areas, processing_file, "flood_protection_areas", "GPKG")
-    # ------------------------------------------------------------------------------------------------#
+    add_layer_to_file(
+        flood_protection_areas, processing_file, "flood_protection_areas", "GPKG"
+    )
 
-    # ------------------------------------------------------------------------------------------------#
     logging.info("[6] Refining Flood Areas - stage 1")
     flood_protection_areas_v2 = split_multipart_polygons(flood_protection_areas)
-    add_Layer_to_File(flood_protection_areas_v2, processing_file, "flood_protection_areas_v2", "GPKG")
-    # ------------------------------------------------------------------------------------------------#
-
-    # ------------------------------------------------------------------------------------------------#
+    add_layer_to_file(
+        flood_protection_areas_v2, processing_file, "flood_protection_areas_v2", "GPKG"
+    )
 
     logging.info("[7] Refining Flood Areas - stage 2")
     flood_protection_areas_v3 = merge_adjacent_polygons_by_coastline(
-        flood_protection_areas_v2, full_coastline_layer, max_coast_segement_length
+        flood_protection_areas_v2, full_coastline_layer, max_coast_segment_length
     )
-    add_Layer_to_File(flood_protection_areas_v3, processing_file, "flood_protection_areas_v3", "GPKG")
+    add_layer_to_file(
+        flood_protection_areas_v3, processing_file, "flood_protection_areas_v3", "GPKG"
+    )
 
-    # ------------------------------------------------------------------------------------------------#
-
-    # ------------------------------------------------------------------------------------------------#
     # Process the cleaned GeoDataFrame by adding the maximum zonal statistics from the raster data
     logging.info("[8] Adding Flood Height Information")
     final_coastal_protection_area = add_max_zonal_stats(
@@ -2122,40 +2344,45 @@ def Generate_Coastal_Flood_Protection_Areas(
         new_column_name="max_flood_height",  # New column to store the maximum flood height value
     )
     final_coastal_protection_area["asset_type"] = "revetment_protection_zone"
-    # ------------------------------------------------------------------------------------------------#
 
-    # ------------------------------------------------------------------------------------------------#
     logging.info("[9] Find Coastline Segments")
 
     def find_coast_segment_for_polygon(coastline, polygon):
         # if coastline.geometry.iloc[0].intersects(polygon.geometry):
-        intersection = coastline.geometry.iloc[0].intersection(polygon.geometry.buffer(0.1))
+        intersection = coastline.geometry.iloc[0].intersection(
+            polygon.geometry.buffer(0.1)
+        )
         return intersection
 
     flood_protection_coastline = []
 
     for idx, poly in final_coastal_protection_area.iterrows():
         intersection = find_coast_segment_for_polygon(full_coastline_layer, poly)
-        # print (intersection.length)
-        flood_protection_coastline.append({"geometry": intersection, "id": poly["id"], "length": intersection.length})
+        flood_protection_coastline.append(
+            {"geometry": intersection, "id": poly["id"], "length": intersection.length}
+        )
 
-    flood_protection_coastline = gpd.GeoDataFrame(flood_protection_coastline, crs=flood_protection_areas_v2.crs)
+    flood_protection_coastline = gpd.GeoDataFrame(
+        flood_protection_coastline, crs=flood_protection_areas_v2.crs
+    )
     flood_protection_coastline = flood_protection_coastline.merge(
         final_coastal_protection_area[["id", "max_flood_height"]], on="id", how="left"
     )
 
-    add_Layer_to_File(flood_protection_coastline, processing_file, "flood_protection_coast", "GPKG")
-    # ------------------------------------------------------------------------------------------------#
+    add_layer_to_file(
+        flood_protection_coastline, processing_file, "flood_protection_coast", "GPKG"
+    )
 
-    # ------------------------------------------------------------------------------------------------#
     # Define the layer name to be used for storing the final protection area in a GeoPackage
     layer_name = "final_protection_area"
-    add_Layer_to_File(final_coastal_protection_area, processing_file, layer_name, "GPKG")
+    add_layer_to_file(
+        final_coastal_protection_area, processing_file, layer_name, "GPKG"
+    )
 
     # Also save the final protection area to the output file in GeoPackage format
     layer_name = f"areas"
-    add_Layer_to_File(final_coastal_protection_area, output_file, layer_name, "GPKG")
-    add_Layer_to_File(final_coastal_protection_area, output_file_2, layer_name, "GPKG")
+    add_layer_to_file(final_coastal_protection_area, output_file, layer_name, "GPKG")
+    add_layer_to_file(final_coastal_protection_area, output_file_2, layer_name, "GPKG")
 
     final_coastal_protection_coastline = flood_protection_coastline
 
@@ -2163,10 +2390,15 @@ def Generate_Coastal_Flood_Protection_Areas(
     final_coastal_protection_coastline["asset_type"] = "revetment"
 
     layer_name = f"edges"
-    add_Layer_to_File(final_coastal_protection_coastline, output_file, layer_name, "GPKG")
-    add_Layer_to_File(final_coastal_protection_coastline, output_file_2, layer_name, "GPKG")
+    add_layer_to_file(
+        final_coastal_protection_coastline, output_file, layer_name, "GPKG"
+    )
+    add_layer_to_file(
+        final_coastal_protection_coastline, output_file_2, layer_name, "GPKG"
+    )
 
-    # ------------------------------------------------------------------------------------------------#
+
+# endregion
 
 
 @click.command()
@@ -2275,8 +2507,7 @@ def main(
     coast_length,
     overlap,
 ):
-
-    # ------------------ FILE PATHS -----------------------
+    # FILE PATHS
     input_file = island_inputs  # GeoPackage file with coastline edges and nodes
 
     output_dir = Path(output_dir) / "coastal_protection_assets"
@@ -2290,31 +2521,20 @@ def main(
 
     output_file_2 = f"{output_dir_2}/Jamaica_coastal_protection_areas.gpkg"
 
-    # print (processing_file)
-    # ------------------------------------------------------
-
-    # ------------------ PARAMS -----------------------
-    initial_inland_buffer_distance = (
-        inland_buffer  # Buffer distance (in kilometers) to expand the inital bounding boxes & coastline buffeering
-    )
+    # PARAMS
+    initial_inland_buffer_distance = inland_buffer  # Buffer distance (in kilometers) to expand the inital bounding boxes & coastline buffeering
     flood_depth_threshold = flood_threshold  # Flood height threshold above which flood pixels will be considered
     eps_threshold = eps  # DBSCAN epsilon value
     minPts = minpts  # DBSCAN minPts value & Minimum number of polygons to make up a group (Used in SCAPE)
     minGrpSize = 2
-    max_coast_segement_length = coast_length
-    overlap_threshold = overlap  # Minimum % groups can overlap to trigger merging (Used in SCAPE)
-    # max_separation_distance = 8_000 #Max Distacne flooding can be from coastline to be included in flood area
-
-    # print (initial_inland_buffer_distance, flood_depth_threshold, eps_threshold, minPts, max_coast_segement_length, overlap_threshold)
+    max_coast_segment_length = coast_length
+    overlap_threshold = (
+        overlap  # Minimum % groups can overlap to trigger merging (Used in SCAPE)
+    )
 
     RP = [f"{rp}"]
-
-    fl_map_rcp = f"{int(rcp*10)}{epoch}"
+    fl_map_rcp = f"{int(rcp * 10)}{epoch}"
     RCP = [fl_map_rcp]
-    # RCP = ['262100']
-    # -------------------------------------------------
-
-    # -------------------------------------------------
     folder = f"{data_dir}/hazards/Coastal_flood_data"
     for rcp in RCP:
         if rcp == "baseline2010":
@@ -2326,8 +2546,10 @@ def main(
 
         for rp in RP:
             raster_file = f"{direc}/JamaicaJAM001RCP{rcp}_epsg_32618_RP_{rp}.tif"
-            logging.info(f"    <-      Processing For RCP - {rcp} for RP - {rp}      ->")
-            Generate_Coastal_Flood_Protection_Areas(
+            logging.info(
+                f"    <-      Processing For RCP - {rcp} for RP - {rp}      ->"
+            )
+            generate_coastal_flood_protection_areas(
                 RCP=rcp,
                 RP=rp,
                 input_file=input_file,
@@ -2339,19 +2561,15 @@ def main(
                 flood_depth_threshold=flood_depth_threshold,
                 eps_threshold=eps_threshold,
                 minPts=minPts,
-                max_coast_segement_length=max_coast_segement_length,
+                max_coast_segment_length=max_coast_segment_length,
                 minGrpSize=minGrpSize,
                 overlap_threshold=overlap_threshold,
-                # max_separation_distance = max_separation_distance
             )
-    # -------------------------------------------------
 
 
 if __name__ == "__main__":
-
     logging.basicConfig(
         format="%(asctime)s %(process)d %(filename)s %(message)s",
         level=logging.INFO,
     )
-
     main()

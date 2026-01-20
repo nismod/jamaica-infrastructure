@@ -15,7 +15,9 @@ from jamaica_infrastructure.utils import is_sole_value
 
 def read_lookup(path: str) -> pd.DataFrame:
     return (
-        pd.read_parquet(path).rename(columns={"flood_id_rcp_852100_rp_100": "defence_id"}).astype({"defence_id": int})
+        pd.read_parquet(path)
+        .rename(columns={"flood_id_rcp_852100_rp_100": "defence_id"})
+        .astype({"defence_id": int})
     )
 
 
@@ -25,7 +27,6 @@ def read_risk(
     kind: str,
     lookup_path: str,
 ) -> pd.DataFrame:
-
     per_layer_risk = pd.read_parquet(return_period_risk_path).set_index(asset_id_column)
 
     # We will drop and then rewrite the units later; ensure they're as expected
@@ -124,22 +125,31 @@ def coastal_protection_aggregate(
     output_damage_path: str,
     output_loss_path: str,
 ) -> None:
-
     network: pd.DataFrame = pd.read_csv(network_path)
 
     damages_by_layer = []
     losses_by_layer = []
     for row in network.itertuples():
-
         gpkg_layer: str = f"{row.asset_gpkg}_{row.asset_layer}"
         logging.info(f"{gpkg_layer}")
 
-        (damage_path,) = filter(lambda x: Path(x).name == f"{gpkg_layer}_damages.parquet", damage_paths)
-        (loss_path,) = filter(lambda x: Path(x).name == f"{gpkg_layer}_losses.parquet", loss_paths)
-        (lookup_path,) = filter(lambda x: Path(x).name == f"{gpkg_layer}_coastal_filtered.parquet", lookup_paths)
+        (damage_path,) = filter(
+            lambda x: Path(x).name == f"{gpkg_layer}_damages.parquet", damage_paths
+        )
+        (loss_path,) = filter(
+            lambda x: Path(x).name == f"{gpkg_layer}_losses.parquet", loss_paths
+        )
+        (lookup_path,) = filter(
+            lambda x: Path(x).name == f"{gpkg_layer}_coastal_filtered.parquet",
+            lookup_paths,
+        )
 
-        damages_by_layer.append(read_risk(row.asset_id_column, damage_path, "damage", lookup_path))
-        losses_by_layer.append(read_risk(row.asset_id_column, loss_path, "loss", lookup_path))
+        damages_by_layer.append(
+            read_risk(row.asset_id_column, damage_path, "damage", lookup_path)
+        )
+        losses_by_layer.append(
+            read_risk(row.asset_id_column, loss_path, "loss", lookup_path)
+        )
 
     damages = pd.concat(damages_by_layer).rename(columns={"defence_id": "id"})
     damages = damages.drop(columns=["asset_id"]).groupby("id").sum().reset_index()

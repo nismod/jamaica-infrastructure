@@ -68,13 +68,21 @@ def scale_coastal_adaptation_costs(
             k = protect_asset["mean_cost"].values[0] / tot_cost
             final_cost = scaled_cost * k
 
-        option_cost_df.loc[index, "adapt_cost_npv"] = final_cost * row[hazard_thresholds_column_name]
+        option_cost_df.loc[index, "adapt_cost_npv"] = (
+            final_cost * row[hazard_thresholds_column_name]
+        )
 
     return option_cost_df
 
 
 def assign_coastal_protection_ft(
-    option_cost_df, protection_asset_dict, hazard_thresholds_column_name, asset_id, rcp, rp, epoch
+    option_cost_df,
+    protection_asset_dict,
+    hazard_thresholds_column_name,
+    asset_id,
+    rcp,
+    rp,
+    epoch,
 ):
     df = pd.read_parquet(protection_asset_dict)
 
@@ -85,18 +93,29 @@ def assign_coastal_protection_ft(
 
     # Select and rename columns
     columns_to_keep = [asset_id, "mean_cost", flood_height_col, flood_id_col]
-    df = df[columns_to_keep].rename(columns={flood_height_col: hazard_thresholds_column_name, flood_id_col: "flood_id"})
+    df = df[columns_to_keep].rename(
+        columns={
+            flood_height_col: hazard_thresholds_column_name,
+            flood_id_col: "flood_id",
+        }
+    )
 
     # Fill and round flood heights
     df[hazard_thresholds_column_name] = df[hazard_thresholds_column_name].fillna(0)
-    df[hazard_thresholds_column_name] = df[hazard_thresholds_column_name].map(lambda x: math.ceil(x * 2) / 2)
+    df[hazard_thresholds_column_name] = df[hazard_thresholds_column_name].map(
+        lambda x: math.ceil(x * 2) / 2
+    )
 
     # Merge with option_cost_df
     merged_df = option_cost_df.merge(df, on=asset_id, how="left")
 
     # Fill missing flood height with 0 and convert flood_id to nullable integer
-    merged_df[hazard_thresholds_column_name] = merged_df[hazard_thresholds_column_name].fillna(0)
-    merged_df["flood_id"] = pd.to_numeric(merged_df["flood_id"], errors="coerce").astype("Int64")
+    merged_df[hazard_thresholds_column_name] = merged_df[
+        hazard_thresholds_column_name
+    ].fillna(0)
+    merged_df["flood_id"] = pd.to_numeric(
+        merged_df["flood_id"], errors="coerce"
+    ).astype("Int64")
 
     return merged_df
 
@@ -153,7 +172,13 @@ def get_bcr_values(
         epoch = flood_params[2]
 
         option_cost_df = assign_coastal_protection_ft(
-            option_cost_df, protection_asset_dict, hazard_thresholds_column_name, asset_id, rcp, rp, epoch
+            option_cost_df,
+            protection_asset_dict,
+            hazard_thresholds_column_name,
+            asset_id,
+            rcp,
+            rp,
+            epoch,
         )
         option_cost_df = scale_coastal_adaptation_costs(
             protection_asset_breakdown,
@@ -236,7 +261,13 @@ def get_ead_eael_costs(
         rcp, rp, epoch = flood_params
 
         option_cost_df = assign_coastal_protection_ft(
-            option_cost_df, protection_asset_dict, hazard_thresholds_column_name, asset_id, rcp, rp, epoch
+            option_cost_df,
+            protection_asset_dict,
+            hazard_thresholds_column_name,
+            asset_id,
+            rcp,
+            rp,
+            epoch,
         )
         option_cost_df = scale_coastal_adaptation_costs(
             protection_asset_breakdown,
@@ -394,7 +425,9 @@ def benefit_cost_ratio(
     risk_type = ["EAD", "EAEL"]
     val_type = ["amin", "mean", "amax"]
 
-    risk_filepath = os.path.join("loss_damage_npvs", f"{asset_gpkg}_{asset_layer}_EAD_EAEL_npvs.csv")
+    risk_filepath = os.path.join(
+        "loss_damage_npvs", f"{asset_gpkg}_{asset_layer}_EAD_EAEL_npvs.csv"
+    )
 
     if not os.path.isfile(no_adapt_risk_file):
         raise FileNotFoundError(f"Risk file {no_adapt_risk_file} does not exist.")
@@ -414,11 +447,18 @@ def benefit_cost_ratio(
     )
 
     asset_df = pd.read_csv(network_csv)
-    asset_data_details = asset_df[(asset_df["asset_gpkg"] == asset_gpkg) & (asset_df["asset_layer"] == asset_layer)]
+    asset_data_details = asset_df[
+        (asset_df["asset_gpkg"] == asset_gpkg)
+        & (asset_df["asset_layer"] == asset_layer)
+    ]
     if len(asset_data_details) > 1:
-        raise ValueError((f"Multiple assets found for gpkg={asset_gpkg} " f"and layer={asset_layer}"))
+        raise ValueError(
+            (f"Multiple assets found for gpkg={asset_gpkg} and layer={asset_layer}")
+        )
     elif len(asset_data_details) == 0:
-        raise ValueError(f"No asset found for gpkg={asset_gpkg} and layer={asset_layer}")
+        raise ValueError(
+            f"No asset found for gpkg={asset_gpkg} and layer={asset_layer}"
+        )
     asset_info = asset_data_details.squeeze()
 
     asset_id = asset_info.asset_id_column
@@ -504,7 +544,9 @@ def benefit_cost_ratio(
                 protection_asset_breakdown,
             )
         else:
-            logging.error("This script may have been called on the wrong data. Quitting.")
+            logging.error(
+                "This script may have been called on the wrong data. Quitting."
+            )
             sys.exit(1)
 
     if len(bcr_results) > 0:
