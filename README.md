@@ -39,6 +39,19 @@ followed by the file you want to produce.
 Some functionality is contained within a helper Python module, located in
 `src/jamaica_infrastructure`.
 
+### Workflow overview
+
+The analysis pipeline is implemented using Snakemake and organized into several main stages:
+
+1. **Damage Assessment** (`1_damage`) - Calculate direct damages to infrastructure assets from hazards
+2. **Transport Analysis** (`2a_transport`) - Create multi-modal transport networks and flow mapping
+3. **Criticality Analysis** (`3_criticality`) - Assess network performance under single-point failures
+4. **Losses** (`4a_losses`) - Calculate Expected Annual Damages (EAD) and Expected Annual Economic Losses (EAEL)
+5. **Hotspots** (`4b_hotspots`) - Identify spatial concentrations of risk
+6. **Self-Adaptation** (`5a_self-adaptation`) - Evaluate asset-level adaptation options and benefit-cost ratios
+7. **Coastal Adaptation** (`5b_coastal_adaptation`) - Generate coastal protection scenarios
+8. **ETL** (`6_etl`) - Prepare data for visualization
+
 ### Environment
 
 To make snakemake, the helper Python module and other software dependencies
@@ -52,7 +65,7 @@ micromamba activate jsrat
 Analysis options can be configured using the `config.yaml` file. See it for
 inline documentation.
 
-### Invoke rules
+### Invoking rules
 
 To invoke the rule (and all necessary predecessor rules) to compute commuter
 flows across the transport network:
@@ -69,22 +82,7 @@ the rules. If rules do not depend on one another and enough processors are
 available, they may execute simultaneously. Also, some rules invoke scripts that
 are parallelised and can make use more than one processor themselves.
 
-### Available rules
-
-See `.smk` files in `workflow/` for available rules and their required input and
-output files.
-
-While this workflow is in development, some of the rules are placeholders.
-
 ### Tests
-
-To check the validity of the rules and which target files have rules, try
-running:
-
-    python workflow/utilities/check_targets.py
-
-This will not run any calculations, but rather check if there are available
-rules to generate the desired output. It takes a few minutes.
 
 The helper Python libary contained in `src/jamaica_infrastructure` also has
 tests. These can be run with:
@@ -102,6 +100,8 @@ for access to this folder.
 Most(!) outputs are written to the `results/` folder.
 
 These paths can be configured by editing the `config.yaml` file.
+
+More information on the input and output data can be found in `DATA.md`.
 
 ### Development
 
