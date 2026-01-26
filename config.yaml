@@ -93,6 +93,10 @@ economics:
   # Multiplied by additional rerouting time and trade value to find a lost value of trade
   disrupted_trade_fraction: 0.02
 
+### CONTEXT FROM LAND-USE / BUILDINGS / POPULATION ###
+context:
+  osm_extract_date: "210622"
+
 ### CRITICALITY ###
 # The transport criticality analysis removes single links from the network and
 # quantifies how this affects trade and labour flows.

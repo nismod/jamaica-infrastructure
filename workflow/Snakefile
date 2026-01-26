@@ -21,6 +21,7 @@ wildcard_constraints:
     sector=r"(water|energy|transport)",
 
 include: "utilities/_utilities.smk"
+include: "1_context/_buildings.smk"
 include: "2_damage/_damage.smk"
 include: "3a_transport/_transport.smk"
 include: "4_criticality/_criticality.smk"
