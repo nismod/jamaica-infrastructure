@@ -95,7 +95,7 @@ economics:
 
 ### CONTEXT FROM LAND-USE / BUILDINGS / POPULATION ###
 context:
-  osm_extract_date: "210622"
+  osm_extract_date: "260101"
 
 ### CRITICALITY ###
 # The transport criticality analysis removes single links from the network and
