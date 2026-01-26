@@ -2,27 +2,6 @@
 What are the costs associated with rebuilding damaged assets?
 """
 
-rule write_hazard_transforms:
-    """
-    Write hazard transforms to disk alongside hazard metadata. I don't think
-    this is actually used?
-
-    Test with:
-    snakemake -c1 processed_data/hazards/hazard_layers__with_transforms.csv
-    """
-    input:
-        hazard_csv = lambda wildcards: wildcards.hazard_csv + ".csv",
-        data_dir = DATA,
-    output:
-        hazard_transforms_csv = "{hazard_csv}__with_transforms.csv"
-    run:
-        from jamaica_infrastructure.raster import read_transforms
-
-        hazards = pd.read_csv(input.hazard_csv)
-        hazard_transforms, transforms = read_transforms(hazards, input.data_dir)
-        hazard_transforms.to_csv(output.hazard_transforms_csv, index=False)
-
-
 rule rasterise_asset_layer:
     """
     Split networks into nodes, edges, and areas.
