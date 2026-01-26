@@ -14,7 +14,7 @@ rule coastal_flood_protection_assets:
     snakemake -c1 results/coastal_protection_assets/Jamaica_coastal_protection_areas.gpkg
     """
     input:
-        script = "workflow/5b_coastal_adaptation/1_generate_defence_zones.py",
+        script = "workflow/6b_coastal_adaptation/1_generate_defence_zones.py",
         island_inputs = f"{DATA}/adaptation/coastal_adaptation/Foundation_Data.gpkg"
     params:
         rcp = config["coastal_adaptation"]["max_rcp"],
@@ -56,7 +56,7 @@ rule union_coastal_protection_flood_areas:
     snakemake -c1 results/coastal_protection_assets/combined_coastal_protection_area.gpkg
     """
     input:
-        script = "workflow/5b_coastal_adaptation/2_union_flood_areas.py",
+        script = "workflow/6b_coastal_adaptation/2_union_flood_areas.py",
         coastal_adaptation_assets = f"{OUTPUT}/coastal_protection_assets/Jamaica_coastal_protection_areas.gpkg"
     params:
         rcp = config["coastal_adaptation"]["max_rcp"],
@@ -84,7 +84,7 @@ rule map_networks_to_coastal_protection:
     snakemake -c1 results/coastal_protection_assets/network_protection_mappings/electricity_network_v3.1_nodes_coastal_filtered.parquet
     """
     input:
-        script = "workflow/5b_coastal_adaptation/3_asset_to_zone_mapping.py",
+        script = "workflow/6b_coastal_adaptation/3_asset_to_zone_mapping.py",
         network_csv = config["paths"]["network_layers"],
         processed_data_path = config["paths"]["data"],
         coastal_adaptation_assets = f"{OUTPUT}/coastal_protection_assets/Jamaica_coastal_protection_areas.gpkg",
@@ -142,7 +142,7 @@ rule count_assets_per_coastal_protection:
     snakemake -c1 results/coastal_protection_assets/coastal_protection_assets_breakdown.csv
     """
     input:
-        script = "workflow/5b_coastal_adaptation/4_count_protected_assets.py",
+        script = "workflow/6b_coastal_adaptation/4_count_protected_assets.py",
         network_csv = config["paths"]["network_layers"],
         processed_data_path = config["paths"]["data"],
         coastal_adaptation_assets = f"{OUTPUT}/coastal_protection_assets/Jamaica_coastal_protection_areas.gpkg"
@@ -175,7 +175,7 @@ rule benefit_cost_ratio_coastal_protection:
     snakemake -c1 results/adaptation_benefits_costs_bcr/coastal_waste_water_facilities_NWC_nodes_adaptation_costs_avoided_EAD_EAEL.csv
     """
     input:
-        script = "workflow/5b_coastal_adaptation/5_benefit_cost_ratio.py",
+        script = "workflow/6b_coastal_adaptation/5_benefit_cost_ratio.py",
         network_csv = config["paths"]["network_layers"],
         cost_file = f"{OUTPUT}/adaptation_costs/coastal_costs/{{gpkg}}_{{layer}}_adaptation_timeseries_and_npvs.csv",
         protection_asset_dict = f"{OUTPUT}/coastal_protection_assets/network_protection_mappings/{{gpkg}}_{{layer}}_coastal_filtered.parquet",
@@ -261,7 +261,7 @@ rule benefit_cost_ratio_coastal_protection_aggregate_adaptation:
     snakemake -c1 results/adaptation_benefits_costs_bcr/coastal_coastal_protection_feature_areas_adaptation_costs_avoided_EAD_EAEL.csv
     """
     input:
-        script = "workflow/5b_coastal_adaptation/6a_aggregate_adaptation.py",
+        script = "workflow/6b_coastal_adaptation/6a_aggregate_adaptation.py",
         costs = generate_coastal_protection_cost_paths,
         EAD_EAEL = generate_coastal_protection_avoided_EAD_EAEL_paths,
         maps = generate_coastal_protection_mapping_paths,
@@ -323,7 +323,7 @@ rule benefit_cost_ratio_coastal_protection_aggregate_rp:
     snakemake -c1 results/direct_damages_summary/coastal_protection_feature_areas_damages.parquet
     """
     input:
-        script = "workflow/5b_coastal_adaptation/6b_aggregate_rp.py",
+        script = "workflow/6b_coastal_adaptation/6b_aggregate_rp.py",
         damage = generate_coastal_protection_avoided_damage_paths,
         loss = generate_coastal_protection_avoided_loss_paths,
         maps = generate_coastal_protection_mapping_paths,

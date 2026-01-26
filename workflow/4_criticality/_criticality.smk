@@ -11,7 +11,7 @@ rule collate_flow_data:
     snakemake -c1 results/transport_failures/nominal/
     """
     input:
-        script = "workflow/3_criticality/collate_flow_data.py",
+        script = "workflow/4_criticality/collate_flow_data.py",
         labour_flow_edges = f"{DATA}/networks/transport/multi_modal_network.gpkg",
         trade_flow_edges = f"{OUTPUT}/flow_mapping/sector_imports_exports_to_ports_flows.gpkg",
         trade_flows = f"{OUTPUT}/flow_mapping/sector_to_ports_flow_paths.pq",
@@ -79,7 +79,7 @@ rule single_link_failures:
     snakemake -c1 results/transport_failures/scenario_results/single_link_failure_0.csv
     """
     input:
-        script = "workflow/3_criticality/single_link_failures.py",
+        script = "workflow/4_criticality/single_link_failures.py",
         edge_chunk_map_csv = f"{OUTPUT}/transport_failures/transport_scenario_edge_map.csv",
         edges = f"{DATA}/networks/transport/multi_modal_network.gpkg",
         flow_data = f"{OUTPUT}/transport_failures/nominal/",
@@ -108,7 +108,7 @@ rule rail_stations_failure_analysis:
     snakemake -c1 results/transport_failures/single_station_failures_scenarios.csv
     """
     input:
-        script = "workflow/3_criticality/rail_stations_failure_analysis.py",
+        script = "workflow/4_criticality/rail_stations_failure_analysis.py",
         edges = f"{DATA}/networks/transport/multi_modal_network.gpkg",
         rail_nodes = f"{DATA}/networks/transport/rail.gpkg",
         flow_data_dir = f"{OUTPUT}/transport_failures/nominal/",
@@ -133,7 +133,7 @@ rule bridge_failure_analysis:
     snakemake -c1 results/transport_failures/single_bridge_failures_scenarios.csv
     """
     input:
-        script = "workflow/3_criticality/roads_bridges_failure_analysis.py",
+        script = "workflow/4_criticality/roads_bridges_failure_analysis.py",
         edges = f"{DATA}/networks/transport/multi_modal_network.gpkg",
         road_nodes = f"{DATA}/networks/transport/roads.gpkg",
         flow_data_dir = f"{OUTPUT}/transport_failures/nominal/",
@@ -157,7 +157,7 @@ rule single_point_failure_road_rail:
     snakemake -c1 results/economic_losses/single_failure_scenarios/single_point_failure_road_rail_edges_economic_losses.csv
     """
     input:
-        script = "workflow/3_criticality/transport_single_point_failure_results_combine.py",
+        script = "workflow/4_criticality/transport_single_point_failure_results_combine.py",
         single_link_failures = expand(
             f"{OUTPUT}/transport_failures/scenario_results/single_link_failure_{{chunk}}.csv",
             chunk=range(config["single_link_failure_chunk_count"]),
