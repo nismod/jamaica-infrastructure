@@ -637,21 +637,20 @@ systems.**
 
 | Mode     | Asset      | Attributes                                                                       | Source              |
 | -------- | ---------- | -------------------------------------------------------------------------------- | ------------------- |
-| Roads    | Links      | Geometry; road class; road name; pavement type; road width; lanes; traffic count | NSDMD / NWA / NROCC |
-| Roads    | Bridges    | Latitude; longitude                                                              | NSDMD / NWA / NROCC |
+| Roads    | Links      | Geometry; road class; road name; pavement type; road width; lanes; traffic count | OSM                 |
+| Roads    | Bridges    | Latitude; longitude                                                              | OSM                 |
 | Rails    | Stations   | Latitude; longitude; name; operational status                                    | NSDMD / MTM         |
 | Rails    | Rail lines | Geometry; name; operational status                                               | NSDMD / MTM         |
 | Ports    | Ports      | Polygon areas; name; passenger numbers; freight tons                             | OSM / PAJ           |
 | Airlines | Airports   | Polygon areas; name; passenger numbers; freight tons                             | OSM / AAJ           |
 
-We note that in this study we have considered a much wider road network
-than the one owned and operated by the NWA, although due to lack of
-data, some roads are missing from the modelled road network. The rail
-network of Jamaica includes all routes and stations that are no longer
-functional, which seems to be a substantial part of the network. We have
-also only considered the main ports and airports in the country through
-which most of the passenger and freight transport takes place, hence
-ignoring smaller ports and airstrips whose use might be more limited.
+We note that in this study we have considered a much wider road network than the
+one owned and operated by the NWA. The rail network of Jamaica includes all
+routes and stations that are no longer functional, which seems to be a
+substantial part of the network. We have also only considered the main ports and
+airports in the country through which most of the passenger and freight
+transport takes place, hence ignoring smaller ports and airstrips whose use
+might be more limited.
 
 Several assumptions were taken in gap filling data for each transport
 sector. We note that these assumptions could be improved if better
@@ -659,41 +658,35 @@ quality of data was available.
 
 **_Roads_**
 
-The road network created for this study is a combination of a network of
-CLASS A/B/C roads for the NWA and a bigger network within the NSDMD
-database containing additional METRO and local roads. Most information
-for road attributes was available for CLASS A/B/C roads in NWA data, but
-most of it was missing in the NSDMD data. Also, the connectivity between
-road geometries was very poor in the data, which was fixed through
-meticulous data cleaning. The following assumptions were made in
-assigning attributes to roads:
+The road network is derived wholly from OpenStreetMap. This provides significantly better coverage for both road segments and bridges that the official sources. The geometry is also high-quality, providing a network with appropriate topological connections (previous datasets for Phase I of J-SRAT used networks that were likely scanned from paper maps and thus suffered some connection problems).
 
-_Road pavement types_ -- This information was useful in determining
-the fragility (vulnerability) curves of roads in a broader sense, as there was no other way to
-determine the quality of roads in terms of their ability to perform
-under different hazard loading conditions. It was assumed that most
-roads in Jamaica were surface dressed if there was no information on
-the road pavement type in the original NWA or NSDMD data.
+We used [open-GIRA](https://github.com/nismod/open-gira) to create a road network from the OSM data. See `workflow/2a_transport/_transport.smk::preprocess_road_network` for more information.
 
-_Road widths_ -- This information was useful in determining adaptation
-costs. Based on the communications within Jamaica the general design
-lane width in Jamaica for CLASS A/B/C roads was 3.65 m and for all
-other roads it was 3.048 m.
+_Road classification_ -- To display a local road classification (e.g. Motorway,
+Class A, Class B, etc.), we use a configurable mapping from the OSM road type
+classification in `config.yaml::road_classification::OSM_to_NWA`.
+
+_Vulnerability__ -- Similarly, to set the damage curve for each segment, we map
+OSM classifications to damage curves in
+`config.yaml::road_classification::OSM_to_damage_curve`. Future work could use
+road construction, classification and other data sources more plausibly set a
+damage curve.
 
 _Road lanes_ -- This information was useful in determining damage
 costs. If no lane information was provided in the data we assumed that
 roads had 2 lanes.
 
-_Speeds_ -- This information was useful in assigning flows to roads.
-It was assumed that road speeds for CLASS A/B were 110 km/hr, CLASS C
-were 80 km/hr, and rest of the roads had speeds of 50 km/hr.
+_Speeds_ -- This information was useful in assigning flows to roads. Where OSM had gaps, we filled missing speeds with the modal value of their road classification.
 
 _Road rehabilitation unit costs_ -- Based on communications within
 Jamaica, the average rehabilitation costs for roads in Jamaica was
-estimated to be 0.75 US\$ million/km/lane. We assumed that there was a
-20% uncertainty involved in these cost estimates, which meant that in
-our analysis the road rehabilitation unit costs were between 0.6 --
-0.9 US\$ million/km/lane.
+estimated to be 0.75 US\$ million/km/lane (see
+`config.yaml::damages::rehabilitation_costs::road_cost_USD_per_lane_per_km`). We
+assumed that there was a 20% uncertainty involved in these cost estimates, which
+meant that in our analysis the road rehabilitation unit costs were between 0.6
+-- 0.9 US\$ million/km/lane.
+
+_Bridges_ -- As with road segments we used OSM data for bridges, which significantly raised the feature count and locational accuracy in the analysis over the official data previously used. For bridge rehabilitation costs we did not have Jamaican figures, so used US Dept. of Transport data (see `config.yaml::damages::rehabilitation_costs::bridge_cost_USD_per_meter`).
 
 **_Railways_**
 
