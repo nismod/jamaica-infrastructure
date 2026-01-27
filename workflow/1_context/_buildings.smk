@@ -1,6 +1,29 @@
 """Prepare building footprints with attributes for allocation to economic sectors.
 """
 
+rule download_osm_jamaica:
+    """Download country extract
+    """
+    output:
+        pbf = f"{RAW}/osm/jamaica-{config["context"]["osm_extract_date"]}.osm.pbf",
+    shell:
+        """
+        extract_dir=$(dirname {output.pbf})
+        extract_date={config[context][osm_extract_date]}
+
+        pushd $extract_dir
+
+            # download extract
+            wget http://download.geofabrik.de/central-america/jamaica-${{extract_date}}.osm.pbf
+            wget http://download.geofabrik.de/central-america/jamaica-${{extract_date}}.osm.pbf.md5
+
+            # check extract
+            md5sum --check jamaica-${{extract_date}}.osm.pbf.md5
+
+        popd
+        """
+
+
 rule filter_osm_buildings:
     """Filter OpenStreetMap extract for all buildings in Jamaica
     """
@@ -16,7 +39,7 @@ rule filter_osm_buildings:
             wnr/building \
             --overwrite \
             -o {output.pbf}
-        
+
         # Extract features from .osm.pbf to .gpkg
         OSM_CONFIG_FILE=workflow/1_context/osmconf.ini ogr2ogr -f GPKG \
             {output.gpkg} \
