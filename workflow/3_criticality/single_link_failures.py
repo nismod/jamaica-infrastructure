@@ -15,7 +15,6 @@ from jamaica_infrastructure.transport.flow import (
 
 
 tqdm.pandas()
-epsg_jamaica = 3448
 
 
 @click.command()

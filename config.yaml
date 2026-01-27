@@ -149,8 +149,6 @@ adaptation_options:
   projection_end_year: 2100
   # Annually applied percentage rate to discount future values in economic modelling
   discounting_rate: 10
-  # TODO: Store this in src/constants.py or similar, it should not be configurable
-  epsg_jamaica: 3448
   # Flood defence heights to consider for relevant adaptation options
   flood_thresholds_meters: [1.0, 1.5, 2.0, 2.5]
   # When considering adaptation to TC winds, a factor, let it be known as u, is

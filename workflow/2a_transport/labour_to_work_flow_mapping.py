@@ -12,9 +12,10 @@ from jamaica_infrastructure.transport.utils import (
     get_flow_on_edges,
     network_od_paths_assembly,
 )
+from jamaica_infrastructure.geo import LOCAL_PROJ_CRS_EPSG
+
 
 tqdm.pandas()
-epsg_jamaica = 3448
 
 
 @click.command()
@@ -57,7 +58,7 @@ def commuter_flow_mapping(network_file, buildings_file, population_file, out_dir
 
     # Set up variables
     nodes = nodes[nodes["mode"] == "road"]
-    nodes = nodes.to_crs(epsg=epsg_jamaica)
+    nodes = nodes.to_crs(epsg=LOCAL_PROJ_CRS_EPSG)
 
     columns = [
         "from_node",
@@ -77,7 +78,7 @@ def commuter_flow_mapping(network_file, buildings_file, population_file, out_dir
 
     buildings["osm_id"] = buildings.progress_apply(lambda x: f"building_{x.osm_id}", axis=1)
     buildings["geometry"] = buildings.progress_apply(lambda x: x.geometry.centroid, axis=1)
-    buildings = buildings.to_crs(epsg=epsg_jamaica)
+    buildings = buildings.to_crs(epsg=LOCAL_PROJ_CRS_EPSG)
 
     population_year = 2019
     population.columns = population.columns.map(str)
@@ -99,7 +100,7 @@ def commuter_flow_mapping(network_file, buildings_file, population_file, out_dir
     gdp_threshold = 50000
     nodes_population = buildings_to_roads.groupby(["node_id"])["working_population"].sum().reset_index()
     nodes_population = pd.merge(nodes_population, nodes[["node_id", "geometry"]], how="left", on=["node_id"])
-    nodes_population = gpd.GeoDataFrame(nodes_population, geometry="geometry", crs=f"EPSG:{epsg_jamaica}")
+    nodes_population = gpd.GeoDataFrame(nodes_population, geometry="geometry", crs=f"EPSG:{LOCAL_PROJ_CRS_EPSG}")
 
     logging.info("Write out working population at road nodes")
     nodes_population.to_file(
@@ -117,7 +118,7 @@ def commuter_flow_mapping(network_file, buildings_file, population_file, out_dir
             on=["node_id"],
         ),
         geometry="geometry",
-        crs=f"EPSG:{epsg_jamaica}",
+        crs=f"EPSG:{LOCAL_PROJ_CRS_EPSG}",
     )
     logging.info("Write out economic activity at road nodes")
     nodes_economic_activity.to_file(

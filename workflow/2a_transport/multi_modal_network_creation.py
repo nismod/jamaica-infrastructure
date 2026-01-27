@@ -13,9 +13,9 @@ from jamaica_infrastructure.transport.utils import (
     map_nearest_locations_and_create_lines,
     polygon_to_points,
 )
+from jamaica_infrastructure.geo import LOCAL_PROJ_CRS_EPSG
 
 tqdm.pandas()
-epsg_jamaica = 3448
 
 
 @click.command()
@@ -66,12 +66,12 @@ def main(
     rail_nodes = rail_nodes[
         (rail_nodes["asset_type"] == "station") & (rail_nodes["status"] == "Functional")
     ]
-    rail_nodes = rail_nodes.to_crs(epsg=epsg_jamaica)
+    rail_nodes = rail_nodes.to_crs(epsg=LOCAL_PROJ_CRS_EPSG)
     rail_nodes["mode"] = "rail"
 
     road_nodes = gpd.read_file(road_network_path, layer="nodes")
     road_nodes = road_nodes[road_nodes["component_id"] == 1]
-    road_nodes = road_nodes.to_crs(epsg=epsg_jamaica)
+    road_nodes = road_nodes.to_crs(epsg=LOCAL_PROJ_CRS_EPSG)
     road_nodes["mode"] = "road"
 
     # create linkages
@@ -101,7 +101,7 @@ def main(
     multi_modal = gpd.GeoDataFrame(
         pd.concat(multi_modal, axis=0, ignore_index=True),
         geometry="geometry",
-        crs=f"EPSG:{epsg_jamaica}",
+        crs=f"EPSG:{LOCAL_PROJ_CRS_EPSG}",
     )
     multi_modal["edge_id"] = multi_modal.index.values.tolist()
     multi_modal["edge_id"] = multi_modal.progress_apply(
@@ -147,7 +147,7 @@ def main(
             ignore_index=True,
         ),
         geometry="geometry",
-        crs=f"EPSG:{epsg_jamaica}",
+        crs=f"EPSG:{LOCAL_PROJ_CRS_EPSG}",
     )
     multi_modal.to_file(output_path, layer="edges", driver="GPKG")
 
@@ -164,7 +164,7 @@ def main(
             ignore_index=True,
         ),
         geometry="geometry",
-        crs=f"EPSG:{epsg_jamaica}",
+        crs=f"EPSG:{LOCAL_PROJ_CRS_EPSG}",
     )
     multi_modal.to_file(output_path, layer="nodes", driver="GPKG")
 

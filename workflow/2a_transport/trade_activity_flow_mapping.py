@@ -12,9 +12,10 @@ from jamaica_infrastructure.transport.utils import (
     map_nearest_locations_and_create_lines,
     network_od_paths_assembly,
 )
+from jamaica_infrastructure.geo import LOCAL_PROJ_CRS_EPSG
+
 
 tqdm.pandas()
-epsg_jamaica = 3448
 
 
 def route_areas_to_nearest_ports(
@@ -160,7 +161,7 @@ def port_import_exports(ports, tons_column, trade_type):
     ports = ports[["node_id", "name", tons_column, "geometry"]]
     ports[f"{trade_type}_wt"] = ports[tons_column] / ports[tons_column].sum()
     ports["geometry"] = ports.progress_apply(lambda x: x.geometry.centroid, axis=1)
-    ports = ports.to_crs(epsg=epsg_jamaica)
+    ports = ports.to_crs(epsg=LOCAL_PROJ_CRS_EPSG)
 
     return ports
 
@@ -285,7 +286,7 @@ def trade_flow_mapping(
         ignore_index=True,
     ).fillna(0)
 
-    nodes = nodes.to_crs(epsg=epsg_jamaica)
+    nodes = nodes.to_crs(epsg=LOCAL_PROJ_CRS_EPSG)
 
     columns = [
         "from_node",
@@ -409,7 +410,7 @@ def trade_flow_mapping(
         gdp_areas["geometry"] = gdp_areas.progress_apply(
             lambda x: x.geometry.centroid, axis=1
         )
-        gdp_areas = gdp_areas.to_crs(epsg=epsg_jamaica)
+        gdp_areas = gdp_areas.to_crs(epsg=LOCAL_PROJ_CRS_EPSG)
 
         logging.info(f"\n{gdp_areas}")
         logging.info(f"\n{all_ports[all_ports[port_wt] > 0]}")
@@ -465,7 +466,7 @@ def trade_flow_mapping(
     edge_flows = gpd.GeoDataFrame(
         pd.merge(sector_network, flow_network, how="left", on=["edge_id"]),
         geometry="geometry",
-        crs=f"EPSG:{epsg_jamaica}",
+        crs=f"EPSG:{LOCAL_PROJ_CRS_EPSG}",
     ).fillna(0)
 
     edge_flows.to_file(

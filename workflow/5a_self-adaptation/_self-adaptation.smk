@@ -23,7 +23,6 @@ rule adaptation_options_costs:
         rcp = config["coastal_adaptation"]["max_rcp"],
         rp = config["coastal_adaptation"]["max_rp"],
         discounting_rate = config["adaptation_options"]["discounting_rate"],
-        epsg = config["adaptation_options"]["epsg_jamaica"]
     output:
         npv = f"{OUTPUT}/adaptation_costs/{{hazard}}_costs/{{gpkg}}_{{layer}}_adaptation_timeseries_and_npvs.csv",
         unit_costs = f"{OUTPUT}/adaptation_costs/{{hazard}}_costs/{{gpkg}}_{{layer}}_adaptation_unit_costs.csv",
@@ -44,7 +43,6 @@ rule adaptation_options_costs:
             --rcp {params.rcp} \
             --rp {params.rp} \
             --discounting-rate {params.discounting_rate} \
-            --epsg {params.epsg}
         """
 
 
