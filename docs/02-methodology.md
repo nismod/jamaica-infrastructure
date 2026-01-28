@@ -57,6 +57,14 @@ assessment useful for decision-making, which include:
   comparing the costs of the specific options with the benefits of
   avoided risks, realized over a time horizon and climate scenario.
 
+- **Hotspots assessment** -- Spatial _hotspots analysis_ identifies
+  geographic areas where infrastructure risks and vulnerabilities are
+  concentrated. This regional perspective complements asset-level
+  assessments by aggregating exposure values, expected annual damages,
+  and economic loss metrics onto a spatial grid, producing risk maps
+  that support strategic planning and investment prioritisation at
+  regional and national scales.
+
 ## J-SRAT framework details and risk calculations
 
 ### Risk estimation framework
@@ -197,6 +205,26 @@ presented, either through the damage (loss)-probability curves or as a
 network map highlighting the most critical assets across the country in
 terms of value of EAD and EAEL estimates (see panel F in Figure 2‑1).
 
+### Spatial hotspots analysis
+
+While asset-level risk metrics identify individual critical infrastructure
+elements, spatial hotspots analysis provides a complementary regional
+perspective that identifies geographic areas where infrastructure risks and
+vulnerabilities are concentrated. Infrastructure assets are spatially
+disaggregated onto a regular grid (typically 1 km × 1 km cells), and three types
+of metrics are calculated for each cell:
+
+1) Exposure value hotspots, representing the total replacement cost of infrastructure within each cell.
+2) Risk hotspots, aggregating Expected Annual Damages across hazard types
+sectors.
+3) Economic loss hotspots for the transport sector, quantifying the wider economic consequences of losing all road and rail infrastructure within each cell through network disruption analysis.
+
+The results are presented as raster maps that can be optionally smoothed using
+Gaussian kernel density estimation to enhance visual interpretability. These
+spatially aggregated risk maps support strategic planning and investment
+prioritisation at regional and national scales. The detailed methodology is
+described in Appendix E.
+
 ### Adaptation assessment and calculations
 
 After having done an estimation of asset level risks across multiple
@@ -295,6 +323,9 @@ implementation.**
 | Vulnerability and criticality assessment | Population/User disruptions            | Number of people/households disrupted due to loss of network services                                              | People/day        |
 | Risk assessment                          | Expected annual damages (EAD)          | Direct risks                                                                                                       | US$ or J$         |
 | Risk assessment                          | Expected annual economic losses (EAEL) | Indirect risks                                                                                                     | US$ or J$         |
+| Hotspots assessment                      | Exposure value hotspots                | Total replacement cost of infrastructure aggregated by grid cell                                                   | US$ or J$         |
+| Hotspots assessment                      | Risk hotspots                          | Spatial distribution of EAD across hazard types and sectors                                                        | US$ or J$         |
+| Hotspots assessment                      | Economic loss hotspots                 | Regional economic consequences of infrastructure disruption within each grid cell                                  | US$/day or J$/day |
 | Adaptation assessment                    | NPV costs                              | Total cost of adaptation over an implementation timeline                                                           | US$ or J$         |
 | Adaptation assessment                    | NPV benefits                           | Total benefit of adaptation over an implementation timeline                                                        | US$ or J$         |
 | Adaptation assessment                    | BCR                                    | Benefit–Cost Ratio                                                                                                 | –                 |
@@ -446,3 +477,4 @@ Integrate results of the analysis into J-SRAT visualisation tool.
 - [Appendix B: Hazard models](appendix-b-hazard-models.md)
 - [Appendix C: Infrastructure network flow models for failure analysis](appendix-c-network-flow-models.md)
 - [Appendix D: Spatial disaggregation of economic activity at buildings and area levels](appendix-d-spatial-disaggregation.md)
+- [Appendix E: Spatial hotspots analysis](appendix-e-hotspots.md)
