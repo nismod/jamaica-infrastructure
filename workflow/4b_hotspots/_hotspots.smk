@@ -230,7 +230,7 @@ rule ead_by_hazard_all_sectors:
     """Per hazard, sum over all sector EAD
 
     Test with:
-    snakemake -c1 results/hotspots/exposure/all_sectors__all_flood.tiff
+    snakemake -c1 results/hotspots/EAD/all_sectors__all_flood.tiff
     """
     input:
         water = f"{OUTPUT}/hotspots/EAD/water__{{hazard_class}}.tiff",
