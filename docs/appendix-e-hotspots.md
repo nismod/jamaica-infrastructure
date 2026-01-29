@@ -17,7 +17,7 @@ The hotspots analysis framework combines three types of spatial metrics:
    wider economic consequences of infrastructure disruption within each 
    area
 
-## Methodology
+## E.1 Methodology
 
 The methodology for generating these hotspots comprises the following steps:
 
@@ -102,7 +102,7 @@ approach ensures that the total summed value across Jamaica remains constant
 while creating smoother, more continuous spatial patterns that better represent 
 the regional nature of infrastructure risk.
 
-## Application
+## E.2 Application
 
 The hotspots analysis provides decision-makers with spatially explicit 
 information about where infrastructure risks are concentrated, complementing the 

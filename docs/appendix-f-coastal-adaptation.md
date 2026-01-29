@@ -15,7 +15,7 @@ protection zones, assigning infrastructure assets to these zones, apportioning
 costs, and evaluating the collective benefit-cost ratio of protecting multiple
 assets within each zone.
 
-## Methodology
+## F.1 Methodology
 
 ### Coastal flood protection zone delineation
 
@@ -163,7 +163,7 @@ Benefit-cost ratios are calculated at two levels:
 
 Assets may be exposed to multiple hazard types beyond coastal flooding (fluvial flooding, cyclones, etc.). The coastal adaptation benefit-cost analysis focuses exclusively on avoided coastal flood risks. Other hazards and their adaptation options are assessed independently, though in practice, decision-makers may consider the combined benefits of assets that warrant protection under multiple hazard scenarios.
 
-## Application and outputs
+## F.2 Application and outputs
 
 The coastal flood protection analysis produces several key outputs:
 
@@ -193,7 +193,7 @@ The spatial outputs also support planning by:
 - Informing required design heights for coastal structures
 - Highlighting co-benefits where a single coastal defence protects multiple infrastructure sectors (energy, transport, water)
 
-## Limitations and considerations
+## F.3 Limitations and considerations
 
 Several important considerations apply to this methodology:
 
