@@ -24,8 +24,6 @@ from skimage import measure
 from rasterio.transform import from_origin
 from rasterstats import zonal_stats
 
-# region # Defining Some Helper Functions utilised through the functions
-
 
 def add_layer_to_file(data, output_file, layer_name, driver):
     data.to_file(output_file, layer=layer_name, driver=driver)
@@ -202,11 +200,6 @@ def add_max_zonal_stats(geopkg, raster_path, new_column_name):
         geopkg = geopkg.to_crs(original_crs)
 
     return geopkg  # Return the updated GeoDataFrame with the new column
-
-
-# endregion
-
-# region # Generating Flood Zones Polygons via S-CAPE Method
 
 
 def generate_polygons_along_edge(edge_layer, node_layer, buffer):
@@ -559,11 +552,6 @@ def find_max_coast_length(coast_segment):
     return max_length
 
 
-# endregion
-
-# region # Refining Flood Zones
-
-
 def merge_overlapping_polygons(gdf, overlap_threshold):
     """
     Iteratively merges overlapping polygons that overlap by more than the specified threshold.
@@ -914,10 +902,6 @@ def generate_extra_points(polygon, coastline, num_pts, scale_factor):
     ):
         return []
 
-    # t_scale = 10_000_000
-    # print(polygon.area/scale_factor)
-    # coast_segment = coast_segment.simplify(polygon.area/scale_factor)
-
     # If the coast_segment is a MultiPolygon
     if isinstance(coast_segment, MultiLineString):
         # Calculate the total length of the MultiLineString
@@ -933,20 +917,6 @@ def generate_extra_points(polygon, coastline, num_pts, scale_factor):
 
     # segments = split_geometry(coast_segment, num_splits)
     midpoints = find_midpoints(coast_segment, num_splits)
-
-    layers = {
-        "test_line": [coast_segment],
-        # "test_coast": [segments],
-        "test_points": midpoints,
-        "test_poly": [polygon],
-    }
-
-    # for name, geometries in layers.items():
-    #     try:
-    #         gdf = gpd.GeoDataFrame(geometry=geometries, crs=jamaica_polygon_revised.crs)
-    #         add_layer_to_file(gdf, processing_file, name, "GPKG")
-    #     except:
-    #         pass
 
     return midpoints
 
@@ -1072,9 +1042,6 @@ def compute_bbox_length(coasline_polygon, voronoi_polygon, crs):
 
     longest_side = max(distances)  # Longest side of the bounding box
 
-    # Save to file for debugging
-    # add_layer_to_file(gpd.GeoDataFrame({'geometry': [bounding_box]}, crs=crs), processing_file, "bbox", "GPKG")
-
     return longest_side
 
 
@@ -1113,7 +1080,6 @@ def create_voronoi(
     logging.info("   [4.0] Starting Combined Voronoi Refinement Strategy")
 
     # Initial setup
-    combined_coastline_polygons = unary_union(coastline_polygons.geometry)
     larger_polygon = get_larger_polygon(jamaica_polygon)
     smaller_polygons = coastline_polygons
     smaller_polygons.crs = coastline_polygons.crs
@@ -2111,11 +2077,6 @@ def merge_adjacent_polygons_by_coastline(gdf, coastline, length_limit):
     return merged_gdf
 
 
-# endregion
-
-# region # Main Function that calls the processes
-
-
 def generate_coastal_flood_protection_areas(
     RCP,
     RP,
@@ -2206,9 +2167,6 @@ def generate_coastal_flood_protection_areas(
         full_coastline_layer=full_coastline_layer,
     )
 
-    # print (len(joined_polygons))
-    # joined_polygons = gpd.clip(joined_polygons, jamaica_polygon_revised)
-
     # Define layer name for the final output
     layer_name = f"joined_edge_polygons_flood_{flood_depth_threshold}_area_{max_coast_segment_length}_group_{minGrpSize}"
 
@@ -2221,9 +2179,6 @@ def generate_coastal_flood_protection_areas(
     )
 
     s_cape_flood_areas = clip_larger_polygons(s_cape_flood_areas, "id")
-    # s_cape_flood_areas = gpd.clip(s_cape_flood_areas, jamaica_polygon_revised)
-
-    # s_cape_flood_areas["geometry"] = s_cape_flood_areas["geometry"].apply(keep_largest_polygon)
 
     # Create a layer name dynamically for the merged flood areas
     layer_name = f"scape_flood_areas_flood_{flood_depth_threshold}_area_{max_coast_segment_length}_group_{minGrpSize}_overlap_{overlap_threshold}"
@@ -2314,9 +2269,6 @@ def generate_coastal_flood_protection_areas(
     )
     flood_protection_areas = gpd.clip(flood_protection_areas, jamaica_polygon_buffered)
 
-    # Save the raw intersections to the processing file
-    # add_layer_to_file(flood_protection_coastline, processing_file, "flood_protection_coast", "GPKG")
-
     # Save the final flood protection areas to the processing file
     add_layer_to_file(
         flood_protection_areas, processing_file, "flood_protection_areas", "GPKG"
@@ -2396,9 +2348,6 @@ def generate_coastal_flood_protection_areas(
     add_layer_to_file(
         final_coastal_protection_coastline, output_file_2, layer_name, "GPKG"
     )
-
-
-# endregion
 
 
 @click.command()

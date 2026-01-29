@@ -249,7 +249,6 @@ def get_ead_eael_costs(
             risk_type,
             val_type,
         )
-        # print (no_adapt_ead_eael_df.columns.values.tolist())
         ead_eael_df, ead_eael_benefit_columns = get_ead_eael_benefits(
             asset_id,
             no_adapt_ead_eael_df.copy(),
