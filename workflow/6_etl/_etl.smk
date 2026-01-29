@@ -2,6 +2,12 @@
 Prepare data for ingestion by irv-jamaica repository.
 """
 
+BUILDING_HAZARDS = ["coastal", "cyclone", "fluvial", "surface"]
+BUILDING_RCPS = ["rcp_2.6", "rcp_4.5", "rcp_8.5", "rcp_baseline"]
+BUILDING_EPOCHS = ["epoch_2010", "epoch_2030", "epoch_2050", "epoch_2070", "epoch_2080", "epoch_2100"]
+BUILDING_METRICS = ["exposures", "damages", "losses"]
+
+
 rule preprocess_for_visualisation:
     """
     Tag asset data with unique IDs and reserialise risk data into parquet format.
@@ -58,8 +64,13 @@ rule preprocess_buildings_for_visualisation:
         network_csv_fragment = f"{DATA}/networks_uids/network_layer_buildings_assigned_economic_activity_areas.csv",
         # Additionally, buildings produce losses, damages and exposures for a
         # combination of RCPS, HAZARDS, EPOCHS (see script header).
-        # These look like:
-        # results/direct_damages_summary_uids/buildings_assigned_economic_activity_areas_coastal__rcp_4.5__epoch_2050__damages.parquet
+        building_outputs = expand(
+            f"{OUTPUT}/direct_damages_summary_uids/buildings_assigned_economic_activity_areas_{{hazard}}__{{rcp}}__{{epoch}}__{{metric}}.parquet",
+            hazard=BUILDING_HAZARDS,
+            rcp=BUILDING_RCPS,
+            epoch=BUILDING_EPOCHS,
+            metric=BUILDING_METRICS,
+        ),
     shell:
         """
         python {{input.script}} \\
@@ -67,8 +78,17 @@ rule preprocess_buildings_for_visualisation:
             --asset-layer areas \\
             --network-csv {{input.network_csv}} \\
             --processed-data-dir {data} \\
-            --results-dir {output}
-        """.format(data=DATA, output=OUTPUT)
+            --results-dir {output} \\
+            {hazards} \\
+            {rcps} \\
+            {epochs}
+        """.format(
+            data=DATA,
+            output=OUTPUT,
+            hazards=" ".join([f"--hazards {h}" for h in BUILDING_HAZARDS]),
+            rcps=" ".join([f"--rcps {r}" for r in BUILDING_RCPS]),
+            epochs=" ".join([f"--epochs {e}" for e in BUILDING_EPOCHS]),
+        )
 
 
 def get_coastal_defence_to_asset_map_paths(wildcards: dict) -> list[str]:
