@@ -210,7 +210,7 @@ ADAPTATIONS = [
 ]
 
 HOTSPOTS = [
-    "results/hotspots/exposure/all_sector.tiff",
+    "results/hotspots/exposure/all_sectors.tiff",
     "results/hotspots/exposure/water.tiff",
     "results/hotspots/exposure/transport.tiff",
     "results/hotspots/exposure/energy.tiff",
