@@ -176,11 +176,11 @@ rule create_multi_modal_network:
         multi_modal_network = f"{DATA}/networks/transport/multi_modal_network.gpkg",
     shell:
         f"""
-        python {{input.script}} \
-            --road-network-path {{input.road}} \
-            --rail-network-path {{input.rail}} \
-            --port-path {{input.ports}} \
-            --airport-path {{input.airports}} \
+        python {{input.script}} \\
+            --road-network-path {{input.road}} \\
+            --rail-network-path {{input.rail}} \\
+            --port-path {{input.ports}} \\
+            --airport-path {{input.airports}} \\
             --output-path {{output.multi_modal_network}}
         """
 

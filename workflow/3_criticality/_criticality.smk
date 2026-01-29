@@ -23,8 +23,8 @@ rule collate_flow_data:
         ]
     shell:
         f"""
-        python {{input.script}} \
-            --results-dir {OUTPUT} \
+        python {{input.script}} \\
+            --results-dir {OUTPUT} \\
             --processed-data-dir {DATA}
         """
 
@@ -90,13 +90,13 @@ rule single_link_failures:
         chunk = protected(f"{OUTPUT}/transport_failures/scenario_results/single_link_failure_{{chunk}}.csv"),
     shell:
         f"""
-        python {{input.script}} \
-            --edge-chunk-map-csv {{input.edge_chunk_map_csv}} \
-            --chunk-id {{wildcards.chunk}} \
-            --edges-file {{input.edges}} \
-            --flow-data-dir {{input.flow_data}} \
-            --output-path {{output.chunk}} \
-            --hourly-wage {config["economics"]["labour_cost_JMD_per_hour"]} \
+        python {{input.script}} \\
+            --edge-chunk-map-csv {{input.edge_chunk_map_csv}} \\
+            --chunk-id {{wildcards.chunk}} \\
+            --edges-file {{input.edges}} \\
+            --flow-data-dir {{input.flow_data}} \\
+            --output-path {{output.chunk}} \\
+            --hourly-wage {config["economics"]["labour_cost_JMD_per_hour"]} \\
             --trade-effect {config["economics"]["disrupted_trade_fraction"]}
         """
 
@@ -118,12 +118,12 @@ rule rail_stations_failure_analysis:
         station_failures = f"{OUTPUT}/transport_failures/single_station_failures_scenarios.csv",
     shell:
         f"""
-        python {{input.script}} \
-            --edges-file {{input.edges}} \
-            --rail-nodes-file {{input.rail_nodes}} \
-            --flow-data-dir {{input.flow_data_dir}} \
-            --output-path {{output.station_failures}} \
-            --hourly-wage {config["economics"]["labour_cost_JMD_per_hour"]} \
+        python {{input.script}} \\
+            --edges-file {{input.edges}} \\
+            --rail-nodes-file {{input.rail_nodes}} \\
+            --flow-data-dir {{input.flow_data_dir}} \\
+            --output-path {{output.station_failures}} \\
+            --hourly-wage {config["economics"]["labour_cost_JMD_per_hour"]} \\
             --trade-effect {config["economics"]["disrupted_trade_fraction"]}
         """
 
@@ -145,12 +145,12 @@ rule bridge_failure_analysis:
         bridge_failures = f"{OUTPUT}/transport_failures/single_bridge_failures_scenarios.csv",
     shell:
         f"""
-        python {{input.script}} \
-            --edges-file {{input.edges}} \
-            --road-nodes-file {{input.road_nodes}} \
-            --flow-data-dir {{input.flow_data_dir}} \
-            --output-path {{output.bridge_failures}} \
-            --hourly-wage {config["economics"]["labour_cost_JMD_per_hour"]} \
+        python {{input.script}} \\
+            --edges-file {{input.edges}} \\
+            --road-nodes-file {{input.road_nodes}} \\
+            --flow-data-dir {{input.flow_data_dir}} \\
+            --output-path {{output.bridge_failures}} \\
+            --hourly-wage {config["economics"]["labour_cost_JMD_per_hour"]} \\
             --trade-effect {config["economics"]["disrupted_trade_fraction"]}
         """
 
@@ -188,8 +188,8 @@ rule single_point_failure_road_rail:
         airports = f"{OUTPUT}/economic_losses/single_failure_scenarios/single_point_failure_airports_economic_losses.csv",
     shell:
         f"""
-        python {{input.script}} \
-            --results-dir {OUTPUT} \
+        python {{input.script}} \\
+            --results-dir {OUTPUT} \\
             --processed-data-dir {DATA}
         """
 
