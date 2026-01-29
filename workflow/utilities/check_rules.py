@@ -6,7 +6,7 @@ target file.
 It does not try and generate any of the intermediate or target files.
 
 Run from the root of the repository:
-$ python workflow/utilities/check_targets.py
+$ python workflow/utilities/check_rules.py
 """
 
 import asyncio
