@@ -33,14 +33,14 @@ rule EAD_EAEL:
         EAD_EAEL = "{output_path}/direct_damages/{gpkg}_{layer}/{gpkg}_{layer}_EAD_EAEL_{parameter_set}.csv",
     shell:
         """
-        python {input.script} \
-            --network-csv {input.network_csv} \
-            --hazard-csv {input.hazard_csv} \
-            --asset-gpkg-label {wildcards.gpkg} \
-            --asset-layer {wildcards.layer} \
-            --damage-file {input.damage_file} \
-            --single-failure-scenarios {input.single_failure_scenarios} \
-            --bridge-flood-design-rp-years {params.bridge_flood_design_RP_years} \
+        python {input.script} \\
+            --network-csv {input.network_csv} \\
+            --hazard-csv {input.hazard_csv} \\
+            --asset-gpkg-label {wildcards.gpkg} \\
+            --asset-layer {wildcards.layer} \\
+            --damage-file {input.damage_file} \\
+            --single-failure-scenarios {input.single_failure_scenarios} \\
+            --bridge-flood-design-rp-years {params.bridge_flood_design_RP_years} \\
             --output-path {output.EAD_EAEL}
         """
 
@@ -90,16 +90,16 @@ rule collapse_sensitivity:
             EAD_EAEL_FILES="$EAD_EAEL_FILES --ead-eael $FILE"
         done
 
-        python {input.script} \
-            --network-csv {input.network_csv} \
-            $DAMAGE_FILES \
-            $EAD_EAEL_FILES \
-            --single-failure-scenarios {input.single_failure_scenarios} \
-            --asset-gpkg {wildcards.gpkg} \
-            --asset-layer {wildcards.layer} \
-            --output-exposures {output.exposures} \
-            --output-damages {output.damages} \
-            --output-losses {output.losses} \
+        python {input.script} \\
+            --network-csv {input.network_csv} \\
+            $DAMAGE_FILES \\
+            $EAD_EAEL_FILES \\
+            --single-failure-scenarios {input.single_failure_scenarios} \\
+            --asset-gpkg {wildcards.gpkg} \\
+            --asset-layer {wildcards.layer} \\
+            --output-exposures {output.exposures} \\
+            --output-damages {output.damages} \\
+            --output-losses {output.losses} \\
             --output-ead-eael {output.EAD_EAEL}
         """
 

@@ -210,14 +210,14 @@ rule trade_activity_flow_mapping:
         ]
     shell:
         """
-        python {input.script} \
-            --ports {input.jam_ports} \
-            --network {input.network} \
-            --imports-xlsx {input.imports} \
-            --exports-xlsx {input.exports} \
-            --buildings-file {input.buildings} \
-            --agriculture-file {input.agriculture} \
-            --mining-file {input.mining} \
+        python {input.script} \\
+            --ports {input.jam_ports} \\
+            --network {input.network} \\
+            --imports-xlsx {input.imports} \\
+            --exports-xlsx {input.exports} \\
+            --buildings-file {input.buildings} \\
+            --agriculture-file {input.agriculture} \\
+            --mining-file {input.mining} \\
             --out-dir {wildcards.output_path}/flow_mapping
         """
 
@@ -244,9 +244,9 @@ rule labour_to_work_flow_mapping:
         ]
     shell:
         """
-        python {input.script} \
-            --network-file {input.network} \
-            --buildings-file {input.buildings} \
-            --population-file {input.population} \
+        python {input.script} \\
+            --network-file {input.network} \\
+            --buildings-file {input.buildings} \\
+            --population-file {input.population} \\
             --out-dir {wildcards.output_path}/flow_mapping
         """

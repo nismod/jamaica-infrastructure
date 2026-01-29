@@ -18,12 +18,12 @@ rule rasterise_asset_layer:
         splits = f"{OUTPUT}/hazard_asset_intersection/{{gpkg}}_splits__hazard_layers__{{layer}}.geoparquet",
     shell:
         """
-        python {input.script} \
-            --network-csv {input.networks} \
-            --hazard-csv {input.hazards} \
-            --data-dir {DATA} \
-            --asset-gpkg {wildcards.gpkg} \
-            --asset-layer {wildcards.layer} \
+        python {input.script} \\
+            --network-csv {input.networks} \\
+            --hazard-csv {input.hazards} \\
+            --data-dir {DATA} \\
+            --asset-gpkg {wildcards.gpkg} \\
+            --asset-layer {wildcards.layer} \\
             --output-path {output.splits}
         """
 
