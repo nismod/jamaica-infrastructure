@@ -37,7 +37,8 @@ csv_path_refs = {
 
 required_files = set()
 for f, cols in csv_path_refs.items():
-    csv_file = pandas.read_csv(f"https://github.com/nismod/irv-jamaica/raw/refs/heads/main/etl/{f}.csv")
+    TAG="0.4.29"
+    csv_file = pandas.read_csv(f"https://github.com/nismod/irv-jamaica/raw/refs/tags/{TAG}/etl/{f}.csv")
     for col in cols:
         required_files.update(csv_file[col].dropna().values)
 
