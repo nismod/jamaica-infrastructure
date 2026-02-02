@@ -1,12 +1,10 @@
 """Do a transport failure analysis with rerouting
 """
 
-import sys
 import os
 
 import pandas as pd
 import geopandas as gpd
-import numpy as np
 import igraph as ig
 import ast
 from tqdm import tqdm
@@ -16,7 +14,7 @@ from jamaica_infrastructure.transport.utils import (
     map_nearest_locations_and_create_lines,
     network_od_paths_assembly,
 )
-import transport_flow_and_failure_functions as tf
+import jamaica_infrastructure.transport.flow as tf
 
 tqdm.pandas()
 epsg_jamaica = 3448

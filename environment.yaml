@@ -1,0 +1,14 @@
+# to install this environment:
+# micromamba create -f environment.yaml -y
+name: jsrat
+channels:
+  - conda-forge  # majority of dependencies
+  - nodefaults  # avoid anaconda license issues
+dependencies:
+  - python~=3.11
+  - pip:
+    - --editable .
+    - -r requirements.txt
+  - bioconda::snakemake~=8.30.0
+  - gdal~=3.11.0
+  - graphviz

@@ -71,7 +71,7 @@ def main(config):
         damage_curves.to_csv(damage_curves_csv, index=False)
         del damage_curves
 
-        parameter_combinations_file = "parameter_combinations.txt"
+        parameter_combinations_file = "sensitivity_parameters.csv"
         generate_new_parameters = False
         if generate_new_parameters is True:
             # Set up problem for sensitivity analysis

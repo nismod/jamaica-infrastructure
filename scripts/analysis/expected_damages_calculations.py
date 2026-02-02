@@ -31,7 +31,7 @@ def main(config):
         )
     )
 
-    param_values = pd.read_csv("parameter_combinations.txt", sep=" ")
+    param_values = pd.read_csv("sensitivity_parameters.csv", sep=" ")
     for asset_info in asset_data_details.itertuples():
         asset_damages_results = os.path.join(
             direct_damages_results, f"{asset_info.asset_gpkg}_{asset_info.asset_layer}"

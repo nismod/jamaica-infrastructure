@@ -14,16 +14,15 @@ Clone or download this repository from
 
     git clone git@github.com:nismod/jamaica-infrastructure.git
 
-Next, install required python packages:
+Next, install required Python packages:
 
 We recommend using [`micromamba`](https://mamba.readthedocs.io/en/latest/user_guide/micromamba.html)
 to install the packages and manage installing libraries into a conda
 environment, usually handling non-Python dependencies well.
 
 Create a conda environment once (per machine/user):
-```shell
-micromamba create --file environment.yml
-```
+
+    micromamba create --file environment.yaml
 
 ## Usage
 
@@ -37,20 +36,41 @@ management system that can be used to break up complex modelling chains and
 improve the reproducibility of analyses. To invoke a rule, call `snakemake`
 followed by the file you want to produce.
 
+Some functionality is contained within a helper Python module, located in
+`src/jamaica_infrastructure`.
+
+### Workflow overview
+
+The analysis pipeline is implemented using Snakemake and organized into several main stages:
+
+1. **Damage Assessment** (`1_damage`) - Calculate direct damages to infrastructure assets from hazards
+2. **Transport Analysis** (`2a_transport`) - Create multi-modal transport networks and flow mapping
+3. **Criticality Analysis** (`3_criticality`) - Assess network performance under single-point failures
+4. **Losses** (`4a_losses`) - Calculate Expected Annual Damages (EAD) and Expected Annual Economic Losses (EAEL)
+5. **Hotspots** (`4b_hotspots`) - Identify spatial concentrations of risk
+6. **Self-Adaptation** (`5a_self-adaptation`) - Evaluate asset-level adaptation options and benefit-cost ratios
+7. **Coastal Adaptation** (`5b_coastal_adaptation`) - Generate coastal protection scenarios
+8. **ETL** (`6_etl`) - Prepare data for visualization
+
 ### Environment
 
-To make snakemake and other software dependencies available, activate the
-environment we previously created.
+To make snakemake, the helper Python module and other software dependencies
+available, activate the environment we previously created.
 ```shell
 micromamba activate jsrat
 ```
 
-### Invoke rules
+### Configuration
+
+Analysis options can be configured using the `config.yaml` file. See it for
+inline documentation.
+
+### Invoking rules
 
 To invoke the rule (and all necessary predecessor rules) to compute commuter
 flows across the transport network:
 ```shell
-snakemake --dry-run --cores 1 -- results/flow_mapping/labour_to_sectors_flow_paths.csv
+snakemake --dry-run --cores 1 -- results/flow_mapping/labour_to_sectors_flow_paths.pq
 ```
 
 Note that the `--dry-run` flag asks `snakemake` to report on what work (if any)
@@ -62,21 +82,35 @@ the rules. If rules do not depend on one another and enough processors are
 available, they may execute simultaneously. Also, some rules invoke scripts that
 are parallelised and can make use more than one processor themselves.
 
-### Available rules
+### Tests
 
-See the following files within `workflow/` for available rules and their input
-and output files:
-- `direct_damages.smk`
-- `losses.smk`
-- `transport_model.smk`
-- `hotspots.smk`
+The helper Python libary contained in `src/jamaica_infrastructure` also has
+tests. These can be run with:
+
+    python -m pytest src/jamaica_infrastructure
+
+These take a few seconds.
 
 ### Required data
 
 To run any rules you will need the `processed_data/` folder which contains data
 that has been cleaned and can be consumed by the rules. Contact the maintainers
-for access to this folder. Outputs are written to the `results/` folder. These
-paths can be configured by editing the `config.json` file.
+for access to this folder.
+
+Most(!) outputs are written to the `results/` folder.
+
+These paths can be configured by editing the `config.yaml` file.
+
+More information on the input and output data can be found in `DATA.md`.
+
+### Development
+
+Outstanding work may be seen the [issues](https://github.com/nismod/jamaica-infrastructure/)
+on the GitHub repository.
+
+If you are resurrecting scripts pertaining to this repository, they may rely on
+functionality since removed. Checkout v1.0 for the state of the project as of
+2023 (prior to the rewrite of this repository in phase 3).
 
 ## Related repositories
 

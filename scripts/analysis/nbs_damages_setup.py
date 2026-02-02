@@ -43,7 +43,7 @@ def main(config):
     processed_data_path = config["paths"]["data"]
     results_path = config["paths"]["output"]
 
-    param_values = open("parameter_combinations.txt")
+    param_values = open("sensitivity_parameters.csv")
     num_blocks = len([tuple(line.split(",")) for line in param_values.readlines()])
     """Next we call the failure analysis script and loop through the falure scenarios
     """
@@ -54,7 +54,7 @@ def main(config):
         "--colsep",
         ",",
         "-a",
-        "parameter_combinations.txt",
+        "sensitivity_parameters.csv",
         "python",
         "nbs_damages.py",
         "{}",

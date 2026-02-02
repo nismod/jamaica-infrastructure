@@ -1,0 +1,218 @@
+"""
+Collate and process criticality results for different components of the transport network
+"""
+
+import glob
+import logging
+import os
+
+import click
+import geopandas as gpd
+import pandas as pd
+from tqdm import tqdm
+
+tqdm.pandas()
+
+
+def get_failure_estimates(failure_df, id_column, hourly_wage):
+    failure_df["mean_labour_rerouting_loss"] = hourly_wage * failure_df["mean_trip_time_loss"] * failure_df["working_trips"]
+    failure_df["labour_gdp_loss"] = failure_df["no_access"] * failure_df["GDP_to_trips"]
+    failure_df["rerouting_loss"] = (1 - failure_df["no_access"]) * (
+        failure_df["mean_labour_rerouting_loss"] + failure_df["trade_rerouting_loss"]
+    )
+    failure_df["isolation_loss"] = failure_df["no_access"] * (failure_df["labour_gdp_loss"] + failure_df["trade_loss"])
+    failure_df["economic_loss"] = failure_df["rerouting_loss"] + failure_df["isolation_loss"]
+
+    failure_df = failure_df.groupby([id_column])[["rerouting_loss", "isolation_loss", "economic_loss"]].sum().reset_index()
+    failure_df["loss_unit"] = "JD/day"
+
+    return failure_df
+
+
+@click.command()
+@click.version_option("1.0.0")
+@click.option(
+    "--processed-data-dir",
+    "-p",
+    required=True,
+    type=click.Path(dir_okay=True, file_okay=False, exists=True),
+    help="Designated processed data directory.",
+)
+@click.option(
+    "--results-dir",
+    "-r",
+    required=True,
+    type=click.Path(dir_okay=True, file_okay=False, exists=True),
+    help="Designated results directory.",
+)
+def main(*, processed_data_dir, results_dir):
+
+    hourly_wage = 0.4 * (1 + 0.454) * 235.25  # Between 200 - 500 JMD for 2012 stats, 45.4% inflation in currency
+    
+    logging.info("Processing road and rail edges")
+    transport_failures_dir = os.path.join(results_dir, "transport_failures")
+    all_failures = []
+    for filepath in glob.glob(os.path.join(transport_failures_dir, "scenario_results", "single_link_failure_*.csv")):
+        df = pd.read_csv(filepath)
+        all_failures.append(
+            df[
+                [
+                    "edge_id",
+                    "no_access",
+                    "time_loss",
+                    "labour_rerouting_loss",
+                    "trade_rerouting_loss",
+                    "labour_gdp_loss",
+                    "trade_loss",
+                    "min_trip_time_loss",
+                    "max_trip_time_loss",
+                    "mean_trip_time_loss",
+                ]
+            ]
+        )
+    all_failures = pd.concat(all_failures, axis=0, ignore_index=True).fillna(0)
+
+    logging.info("Reading labour OD and routes")
+    labour_flows = gpd.read_parquet(os.path.join(results_dir, "flow_mapping", "labour_trips_and_activity.gpq"))
+
+    logging.info("Processing bridges")
+    bridge_failures = pd.read_csv(os.path.join(transport_failures_dir, "single_bridge_failures_scenarios.csv")).fillna(0)
+    bridges = gpd.read_file(
+        os.path.join(processed_data_dir, "networks", "transport", "roads.gpkg"),
+        layer="nodes",
+    )
+    bridge_node_ids: list[str] = bridges[bridges["asset_type"] == "bridge"]["node_id"].values.tolist()
+    edges = gpd.read_file(
+        os.path.join(processed_data_dir, "networks", "transport", "multi_modal_network.gpkg"),
+        layer="edges",
+    )
+
+    bridge_roads = []
+    for bridge_node_id in bridge_node_ids:
+        # by convention bridge nodes are the from_node of each bridge edge 
+        bridge_edge_mask = edges["from_node"] == bridge_node_id
+        if len(edges[bridge_edge_mask]) > 0:
+            edges.loc[bridge_edge_mask, "node_id"] = bridge_node_id
+            bridge_roads.append(edges.loc[bridge_edge_mask, ["node_id", "edge_id"]])
+    bridge_roads = pd.concat(bridge_roads, axis=0, ignore_index=True)
+
+    bridge_labour_trips = pd.read_csv(
+        os.path.join(
+            results_dir,
+            "flow_mapping",
+            "origins_destinations_labour_economic_activity.csv",
+        )
+    )
+    bridge_failures = pd.merge(bridge_failures, bridge_labour_trips, how="left", on=["node_id"]).fillna(0)
+    # bridge_trade_trips = pd.read_csv(os.path.join(results_dir,
+    #                                 'flow_mapping',
+    #                                 'origins_destinations_trade_economic_activity.csv'))
+    # bridge_failures = pd.merge(bridge_failures,
+    #                         bridge_trade_trips,
+    #                         how="left",on=["node_id"])
+    all_failures = pd.merge(
+        all_failures,
+        labour_flows[["edge_id", "working_trips", "GDP_to_trips"]],
+        how="left",
+        on=["edge_id"],
+    ).fillna(0)
+    bridge_roads = pd.merge(bridge_roads, all_failures, how="left", on=["edge_id"])
+    bridge_roads["node_degree"] = bridge_roads.groupby("node_id")["node_id"].transform("count")
+    bridge_roads_access = bridge_roads.groupby(["node_id", "node_degree"])["no_access"].sum().reset_index()
+    bridge_roads_access["no_access"] = bridge_roads_access.apply(lambda x: 1 if x.no_access > 0 else 0, axis=1)
+    bridge_roads_trips = bridge_roads.groupby(["node_id", "node_degree"])["working_trips"].sum().reset_index()
+    bridge_roads_gdp = bridge_roads.groupby(["node_id", "node_degree"])["GDP_to_trips"].max().reset_index()
+    bridge_roads_access = pd.merge(
+        bridge_roads_access,
+        bridge_roads_trips,
+        how="left",
+        on=["node_id", "node_degree"],
+    )
+    bridge_roads_access = pd.merge(bridge_roads_access, bridge_roads_gdp, how="left", on=["node_id", "node_degree"])
+    del bridge_roads, bridge_roads_trips, bridge_roads_gdp
+    bridge_roads_access["working_trips_thru"] = (1 - bridge_roads_access["no_access"]) * bridge_roads_access["working_trips"]
+    bridge_roads_access["labour_GDP_thru"] = bridge_roads_access["no_access"] * bridge_roads_access["GDP_to_trips"]
+
+    bridge_failures = pd.merge(
+        bridge_failures,
+        bridge_roads_access[["node_id", "node_degree", "working_trips_thru", "labour_GDP_thru"]],
+        how="left",
+        on=["node_id"],
+    ).fillna(0)
+
+    bridge_failures["working_trips"] = (
+        bridge_failures["working_trips_thru"] + bridge_failures["d_trip"] - bridge_failures["o_trip"]
+    ) / bridge_failures["node_degree"]
+    bridge_failures["GDP_to_trips"] = bridge_failures.apply(lambda x: max(x["GDP_to_trips"], x["labour_GDP_thru"]), axis=1)
+
+    bridge_failures = get_failure_estimates(bridge_failures, "node_id", hourly_wage)
+    all_failures = get_failure_estimates(all_failures, "edge_id", hourly_wage)
+
+    output_dir = os.path.join(results_dir, "economic_losses", "single_failure_scenarios")
+    all_failures.to_csv(
+        os.path.join(output_dir, "single_point_failure_road_rail_edges_economic_losses.csv"),
+        index=False,
+    )
+
+    bridge_failures.to_csv(
+        os.path.join(output_dir, "single_point_failure_road_bridges_economic_losses.csv"),
+        index=False,
+    )
+
+    # ports
+    logging.info("Processing ports")
+    od_losses = pd.read_csv(
+        os.path.join(
+            results_dir,
+            "flow_mapping",
+            "origins_destinations_trade_economic_activity.csv",
+        )
+    )
+    ports = gpd.read_file(os.path.join(processed_data_dir, "networks", "transport", "port_polygon.gpkg"))
+    ports = pd.merge(ports[["node_id"]], od_losses, how="left", on=["node_id"]).fillna(0)
+    ports.rename(columns={"total_trade": "economic_loss"}, inplace=True)
+    ports["loss_unit"] = "JD/day"
+    logging.info("Write out port related economic losses")
+    ports.to_csv(
+        os.path.join(output_dir, "single_point_failure_ports_economic_losses.csv"),
+        index=False,
+    )
+
+    # rail stations
+    logging.info("Processing rail stations")
+    rail_losses = pd.read_csv(
+        os.path.join(
+            results_dir,
+            "transport_failures",
+            "single_station_failures_scenarios.csv",
+        )
+    )
+    rail_losses["rerouting_loss"] = (1 - rail_losses["no_access"]) * (rail_losses["trade_rerouting_loss"])
+    rail_losses["isolation_loss"] = rail_losses["no_access"] * rail_losses["trade_loss"]
+    rail_losses["economic_loss"] = rail_losses["rerouting_loss"] + rail_losses["isolation_loss"]
+
+    rail_losses = rail_losses.groupby(["node_id"])[["rerouting_loss", "isolation_loss", "economic_loss"]].sum().reset_index()
+    rail_losses["loss_unit"] = "JD/day"
+    rail_losses.to_csv(
+        os.path.join(output_dir, "single_point_failure_rail_stations_economic_losses.csv"),
+        index=False,
+    )
+
+    # airports
+    # (only based on passenger losses)
+    logging.info("Processing airports")
+    airports = gpd.read_file(os.path.join(processed_data_dir, "networks", "transport", "airport_polygon.gpkg"))
+    airports["economic_loss"] = (35.0 / 0.0067 / 365) * airports["passenger_number"]
+    airports["loss_unit"] = "JD/day"
+    airports[["node_id", "economic_loss", "loss_unit"]].to_csv(
+        os.path.join(output_dir, "single_point_failure_airports_economic_losses.csv"),
+        index=False,
+    )
+
+    logging.info("Done")
+
+
+if __name__ == "__main__":
+
+    logging.basicConfig(format="%(asctime)s %(process)d %(filename)s %(message)s", level=logging.INFO)
+    main()

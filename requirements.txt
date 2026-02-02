@@ -17,3 +17,6 @@ shapely~=2.0.6
 snkit~=1.9.0
 tqdm~=4.66.5
 xarray~=2024.9.0
+scikit-image~=0.25.2
+rasterstats~=0.20.0
+scikit-learn~=1.6.1

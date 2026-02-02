@@ -53,7 +53,7 @@ def main(config):
         problem, 10, num_levels=4, optimal_trajectories=8, local_optimization=False
     )
     param_values = list(set([(p[0], p[1]) for p in param_values]))
-    with open("parameter_combinations.txt", "w+") as f:
+    with open("sensitivity_parameters.csv", "w+") as f:
         # f.write("parameter_set cost_uncertainty_parameter damage_uncertainty_parameter\n")
         for p in range(len(param_values)):
             f.write(f"{p},{param_values[p][0]},{param_values[p][1]}\n")
@@ -69,7 +69,7 @@ def main(config):
         "--colsep",
         ",",
         "-a",
-        "parameter_combinations.txt",
+        "sensitivity_parameters.csv",
         "python",
         "scripts/analysis/direct_damage_calculations_parallel.py",
         "{}",

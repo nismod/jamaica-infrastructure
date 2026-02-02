@@ -1,8 +1,10 @@
-#
+# Working data/results directories
 processed_data/
 results/
 drought/
 incoming_data/
+scripts/nbs_methods/river-catchment/nbs_project*
+jobs/
 
 # local module build files
 *.egg-info
@@ -18,6 +20,7 @@ config_local.yml
 # Workflow
 .snakemake
 hazard_layers__with_transforms.csv
+profiles
 
 # Text editor
 .vscode
@@ -27,14 +30,17 @@ __pycache__
 *.pyc
 .ipynb_checkpoints
 
-# Data
+# Data files
+*.cpg
+*.dbf
+*.gpkg*
 *.osm.pbf
+*.prj
+*.qgz
 *.shp
 *.shx
-*.dbf
-*.cpg
-*.prj
+*.tif
 *.xml
-*.gpkg*
 *.zip
-*.qgz
+
+.tmp/

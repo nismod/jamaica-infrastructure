@@ -1,11 +1,51 @@
-configfile: "config.json"
+configfile: "config.yaml"
+
+import pandas as pd
+import geopandas as gpd
+import os
 
 # assign globals to these paths, they're used frequently
 RAW = config["paths"]["incoming_data"]
 DATA = config["paths"]["data"]
 OUTPUT = config["paths"]["output"]
 
-include: "direct_damages.smk"
-include: "losses.smk"
-include: "transport_model.smk"
-include: "hotspots.smk"
+wildcard_constraints:
+    hazard="[^_/]+",  # no slash or underscore
+    gpkg="[^/]+",  # no slash in filename
+    protection_type="[^/]+",  # no slash
+    layer="(nodes|edges|areas)",
+    threshold=r"\d+(p\d+)?",
+    chunk=r"\d+",
+    output_path=f"{OUTPUT}(/.+[^/])?",
+    parameter_set=r"parameter_set_\d+",
+    sector=r"(water|energy|transport)",
+
+include: "utilities/_utilities.smk"
+include: "1_damage/_damage.smk"
+include: "2a_transport/_transport.smk"
+include: "3_criticality/_criticality.smk"
+include: "4a_losses/_losses.smk"
+include: "4b_hotspots/_hotspots.smk"
+include: "5a_self-adaptation/_self-adaptation.smk"
+include: "5b_coastal_adaptation/_coastal_adaptation.smk"
+include: "6_etl/_etl.smk"
+
+from check_targets import EXPOSURE, DAMAGES, LOSSES, EAD_EAEL, ADAPTATIONS, TARGETS
+
+rule all_exposure:
+    input: EXPOSURE
+
+rule all_damages:
+    input: DAMAGES
+
+rule all_losses:
+    input: LOSSES
+
+rule all_ead_eael:
+    input: EAD_EAEL
+
+rule all_adaptations:
+    input: ADAPTATIONS
+
+rule all_targets:
+    input: TARGETS
