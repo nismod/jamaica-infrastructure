@@ -280,7 +280,7 @@ def explode_multi(df):
     geoms = []
     for item in df.itertuples(index=False):
         if item.geometry.geom_type in ("MultiPoint", "MultiLineString", "MultiPolygon"):
-            for part in item.geometry:
+            for part in item.geometry.geoms:
                 items.append(item._asdict())
                 geoms.append(part)
         else:
@@ -343,18 +343,15 @@ def split_index_column(df, prefix):
 
 
 if __name__ == "__main__":
-    # Load config
-    CONFIG = load_config()
-    # Save splits, attribute data later
-    data_path = CONFIG["paths"]["data"]
     try:
-        networks_csv = sys.argv[1]
-        hazards_csv = sys.argv[2]
-        output_path = sys.argv[3]
+        data_path = sys.argv[1]
+        networks_csv = sys.argv[2]
+        hazards_csv = sys.argv[3]
+        output_path = sys.argv[4]
     except IndexError:
         logging.error(
-            "Error. Please provide networks and hazards as CSV and an output path for results.\n",
-            f"Usage: python {__file__} networks/network_files.csv hazards/hazard_layers.csv output_path/",
+            "Error. Please provide data path, networks and hazards as CSV and an output path for results.\n",
+            f"Usage: python {__file__} data_path/ networks/network_files.csv hazards/hazard_layers.csv output_path/",
         )
 
     # Ignore writing-to-parquet warnings
