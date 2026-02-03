@@ -33,10 +33,10 @@ checkpoint generate_hotspots_grid:
         grid = f"{DATA}/hotspots/grid.tiff",
     shell:
         """
-        python {input.script} \
-            --boundary-path {input.boundary} \
-            --cell-length-meters {params.resolution} \
-            --boundary-buffer-meters {params.boundary_buffer} \
+        python {input.script} \\
+            --boundary-path {input.boundary} \\
+            --cell-length-meters {params.resolution} \\
+            --boundary-buffer-meters {params.boundary_buffer} \\
             --output-path {output.grid}
         """
 
@@ -63,12 +63,12 @@ rule split_assets_by_hotspots_grid:
         splits = f"{OUTPUT}/hotspots/splits/{{gpkg}}_splits__hazard_layers__{{layer}}.geoparquet",
     shell:
         """
-        python {input.script} \
-            --network-csv {input.networks} \
-            --hazard-csv {input.hotspots_grid_metadata} \
-            --data-dir {DATA} \
-            --asset-gpkg {wildcards.gpkg} \
-            --asset-layer {wildcards.layer} \
+        python {input.script} \\
+            --network-csv {input.networks} \\
+            --hazard-csv {input.hotspots_grid_metadata} \\
+            --data-dir {DATA} \\
+            --asset-gpkg {wildcards.gpkg} \\
+            --asset-layer {wildcards.layer} \\
             --output-path {output.splits}
         """
 
@@ -91,12 +91,12 @@ rule hotspots_exposure:
         exposure = f"{OUTPUT}/hotspots/exposure/{{gpkg}}__{{layer}}.tiff",
     shell:
         """
-        python {input.script} \
-            --network-csv {input.networks} \
-            --splits-path {input.splits} \
-            --grid-path {input.grid} \
-            --asset-gpkg {wildcards.gpkg} \
-            --asset-layer {wildcards.layer} \
+        python {input.script} \\
+            --network-csv {input.networks} \\
+            --splits-path {input.splits} \\
+            --grid-path {input.grid} \\
+            --asset-gpkg {wildcards.gpkg} \\
+            --asset-layer {wildcards.layer} \\
             --output-path {output.exposure}
         """
 
@@ -134,19 +134,19 @@ rule hotspots_damage:
         damages = f"{OUTPUT}/hotspots/damages_rp/{{gpkg}}_{{layer}}/{{gpkg}}_{{layer}}_direct_damages.parquet",
     shell:
         """
-        python {input.script} \
-            --network-csv {input.network_csv} \
-            --hazard-csv {input.hazard_csv} \
-            --sensitivity-csv {input.sensitivity_parameters} \
-            --sensitivity-id {params.sensitivity_id} \
-            --asset-gpkg-file {input.asset_gpkg} \
-            --asset-gpkg-label {wildcards.gpkg} \
-            --asset-layer {wildcards.layer} \
-            --damage-curve-mapping-csv {input.damage_curve_mapping} \
-            --damage-threshold-uplift-csv {input.threshold_and_uplift} \
-            --damage-curves-dir {input.damage_curves_dir} \
-            --intersection {input.hazard_intersection_file} \
-            --USD-per-JMD {params.USD_per_JMD} \
+        python {input.script} \\
+            --network-csv {input.network_csv} \\
+            --hazard-csv {input.hazard_csv} \\
+            --sensitivity-csv {input.sensitivity_parameters} \\
+            --sensitivity-id {params.sensitivity_id} \\
+            --asset-gpkg-file {input.asset_gpkg} \\
+            --asset-gpkg-label {wildcards.gpkg} \\
+            --asset-layer {wildcards.layer} \\
+            --damage-curve-mapping-csv {input.damage_curve_mapping} \\
+            --damage-threshold-uplift-csv {input.threshold_and_uplift} \\
+            --damage-curves-dir {input.damage_curves_dir} \\
+            --intersection {input.hazard_intersection_file} \\
+            --USD-per-JMD {params.USD_per_JMD} \\
             --output-path {output.damages}
         """
 
@@ -162,10 +162,10 @@ rule hotspots_ead:
         ead = f"{OUTPUT}/hotspots/EAD/{{gpkg}}__{{layer}}__{{hazard}}.tiff",
     shell:
         """
-        python {input.script} \
-            --splits-path {input.damages} \
-            --grid-path {input.grid} \
-            --hazard {wildcards.hazard} \
+        python {input.script} \\
+            --splits-path {input.damages} \\
+            --grid-path {input.grid} \\
+            --hazard {wildcards.hazard} \\
             --output-path {output.ead}
         """
 
@@ -230,7 +230,7 @@ rule ead_by_hazard_all_sectors:
     """Per hazard, sum over all sector EAD
 
     Test with:
-    snakemake -c1 results/hotspots/exposure/all_sectors__all_flood.tiff
+    snakemake -c1 results/hotspots/EAD/all_sectors__all_flood.tiff
     """
     input:
         water = f"{OUTPUT}/hotspots/EAD/water__{{hazard_class}}.tiff",
@@ -318,13 +318,13 @@ rule transport_hotspots_economic_loss_chunked_by_latitude_slice:
         slice_loss = f"{OUTPUT}/hotspots/transport/y/{{grid_y_index}}.parquet",
     shell:
         """
-        python {input.script} \
-            --labour-cost-JMD-per-hour {params.labour_cost} \
-            --trade-rerouting-fraction {params.trade_rerouting} \
-            --grid-y-index {wildcards.grid_y_index} \
-            --road-splits-path {input.road_splits} \
-            --rail-splits-path {input.rail_splits} \
-            --flow-data-dir {input.flow_data_dir} \
+        python {input.script} \\
+            --labour-cost-JMD-per-hour {params.labour_cost} \\
+            --trade-rerouting-fraction {params.trade_rerouting} \\
+            --grid-y-index {wildcards.grid_y_index} \\
+            --road-splits-path {input.road_splits} \\
+            --rail-splits-path {input.rail_splits} \\
+            --flow-data-dir {input.flow_data_dir} \\
             --output-path {output.slice_loss}
         """
 
@@ -416,10 +416,10 @@ rule smooth_raster:
         smoothed = "{output_path}/{filename}_smoothed.tiff",
     shell:
         """
-        python {input.script} \
-            --input-raster-path {input.coarse} \
-            --output-raster-path {output.smoothed} \
-            --output-resolution {params.resolution} \
+        python {input.script} \\
+            --input-raster-path {input.coarse} \\
+            --output-raster-path {output.smoothed} \\
+            --output-resolution {params.resolution} \\
             --bandwidth {params.bandwidth}
         """
 

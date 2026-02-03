@@ -12,7 +12,6 @@ import pandas as pd
 from tqdm import tqdm
 
 tqdm.pandas()
-epsg_jamaica = 3448
 
 
 def get_failure_estimates(failure_df, id_column, hourly_wage):

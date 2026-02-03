@@ -26,16 +26,6 @@ RISK_FILE_SUFFIXES = (
     "losses.parquet",
     "EAD_EAEL.csv",
 )
-HAZARDS = ("coastal", "cyclone", "fluvial", "surface")
-RCPS = ("rcp_2.6", "rcp_4.5", "rcp_8.5", "rcp_baseline")
-EPOCHS = (
-    "epoch_2010",
-    "epoch_2030",
-    "epoch_2050",
-    "epoch_2070",
-    "epoch_2080",
-    "epoch_2100",
-)
 
 
 def get_results_fname(layer: pandas.Series, results_dir: str, suffix: str) -> pathlib.Path:
@@ -71,14 +61,14 @@ def process_subset(
     linked.to_parquet(output_fname)
 
 
-def process_buildings(layer, processed_data_dir, results_dir):
+def process_buildings(layer, processed_data_dir, results_dir, hazards, rcps, epochs):
     id_lookup = pandas.read_parquet(get_id_lookups_fname(layer, processed_data_dir)).set_index(layer.asset_id_column)
     for suffix in RISK_FILE_SUFFIXES:
         try:
             fname = get_results_fname(layer, results_dir, suffix)
             if "parquet" in suffix:
                 pf = pq.ParquetFile(fname)
-                for hazard, rcp, epoch in itertools.product(HAZARDS, RCPS, EPOCHS):
+                for hazard, rcp, epoch in itertools.product(hazards, rcps, epochs):
                     base_cols = ["osm_id"] + [col for col in pf.schema.names if "unit" in col]
                     data_cols = [col for col in pf.schema.names if hazard in col and rcp in col and epoch in col]
                     if data_cols:
@@ -158,12 +148,18 @@ def process_layer(layer, processed_data_dir, results_dir):
 )
 @click.option("--asset-gpkg", "-g", required=True, help="asset_gpkg value in the network CSV")
 @click.option("--asset-layer", "-l", required=True, help="asset_layer value in the network CSV")
+@click.option("--hazards", multiple=True, help="Hazard types for buildings (e.g., coastal, cyclone)")
+@click.option("--rcps", multiple=True, help="RCP scenarios for buildings (e.g., rcp_4.5)")
+@click.option("--epochs", multiple=True, help="Epochs for buildings (e.g., epoch_2050)")
 def preprocess_for_visualisation(
     network_csv: str,
     processed_data_dir: str,
     results_dir: str,
     asset_gpkg: str,
     asset_layer: str,
+    hazards: tuple,
+    rcps: tuple,
+    epochs: tuple,
 ) -> None:
 
     layer = get_asset(network_csv, asset_gpkg, asset_layer)
@@ -203,7 +199,7 @@ def preprocess_for_visualisation(
     logging.info("Writing results files in parquet format")
     pathlib.Path(f"{results_dir}/direct_damages_summary_uids").mkdir(parents=True, exist_ok=True)
     if "buildings" in layer.asset_gpkg:
-        process_buildings(layer, processed_data_dir, results_dir)
+        process_buildings(layer, processed_data_dir, results_dir, hazards, rcps, epochs)
     else:
         process_layer(layer, processed_data_dir, results_dir)
 

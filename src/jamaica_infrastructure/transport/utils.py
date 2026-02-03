@@ -8,12 +8,13 @@ from scipy.spatial import cKDTree
 from shapely.geometry import LineString
 from tqdm import tqdm
 
+from jamaica_infrastructure.geo import LOCAL_PROJ_CRS_EPSG
+
 
 # workaround for geopandas >0.9 until snkit #37 and geopandas #1977 are fixed
 gpd._compat.USE_PYGEOS = False
 
 tqdm.pandas()
-epsg_jamaica = 3448
 
 
 def get_flow_on_edges(save_paths_df, edge_id_column, edge_path_column, flow_column):
@@ -174,7 +175,7 @@ def ckdnearest(gdA, gdB):
 
 
 def polygon_to_points(gdf):
-    gdf = gdf.to_crs(epsg=epsg_jamaica)
+    gdf = gdf.to_crs(epsg=LOCAL_PROJ_CRS_EPSG)
     gdf["geometry"] = gdf.progress_apply(lambda x: x.geometry.centroid, axis=1)
 
     return gdf
@@ -202,7 +203,7 @@ def map_nearest_locations_and_create_lines(
     nearest_pts["from_mode"] = from_mode
     nearest_pts["to_mode"] = to_mode
     nearest_pts = gpd.GeoDataFrame(
-        nearest_pts, geometry="geometry", crs=f"EPSG:{epsg_jamaica}"
+        nearest_pts, geometry="geometry", crs=f"EPSG:{LOCAL_PROJ_CRS_EPSG}"
     )
 
     return nearest_pts

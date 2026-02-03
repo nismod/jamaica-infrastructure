@@ -12,7 +12,6 @@ from jamaica_infrastructure.transport.flow import (
 )
 
 tqdm.pandas()
-epsg_jamaica = 3448
 
 
 @click.command()
@@ -45,19 +44,25 @@ epsg_jamaica = 3448
     type=click.Path(exists=False, file_okay=True, dir_okay=False, readable=True),
     help="Path to write failure analysis results to.",
 )
-def main(*, flow_data_dir, edges_file, road_nodes_file, output_path):
+@click.option(
+    "--hourly-wage",
+    "-w",
+    required=True,
+    type=float,
+    help="Hourly wage in JMD for labour cost calculations.",
+)
+@click.option(
+    "--trade-effect",
+    "-t",
+    required=True,
+    type=float,
+    help="Fraction of trade value affected by rerouting.",
+)
+def main(*, flow_data_dir, edges_file, road_nodes_file, output_path, hourly_wage, trade_effect):
     """
     Calculate economic costs of removing road bridge nodes and adjacent edges
     from multi-modal transport network.
     """
-
-    # 0.6 - 2.1% of the value per day
-    # so we need to make an assumption on the average wage per working person,
-    # say 200 USD per day. Then if a road is disrupted which has 1000 daily trips and
-    # they have to be rerouted with an hour, the cost would be: 0.4 * 200 * 1/24 * 100 = 333 USD
-    # So corrected for inflation in 2019 values, this would be 1.2-2.9 USD per hour of value of time for business related trips
-    hourly_wage = 0.4 * (1 + 0.454) * 235.25  # Between 200 - 500 JMD for 2012 stats, 45.4% inflation in currency
-    trade_effect = 0.02  # 2% of the value of trade will be affected by rerouting
 
     logging.info("Read nominal flow data")
     network_dictionary, all_flows, trade_sectors = read_flow_data(flow_data_dir)

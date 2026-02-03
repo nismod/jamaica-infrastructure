@@ -72,6 +72,15 @@ would be interested in understanding the detailed working of the J-SRAT.
   - D.3 Disaggregating GDP to agriculture areas
   - D.4 Disaggregating GDP to mining and quarrying areas
 
+- [Appendix E: Spatial hotspots analysis](appendix-e-hotspots.md)
+  - E.1 Methodology
+  - E.2 Application
+
+- [Appendix F: Coastal flood protection adaptation analysis](appendix-f-coastal-adaptation.md)
+  - F.1 Methodology
+  - F.2 Application and outputs
+  - F.3 Limitations and considerations
+
 ## Document control
 
 | Issue | Status                                  | Author(s)        | Reviewed by | Issue Date |
@@ -87,7 +96,8 @@ would be interested in understanding the detailed working of the J-SRAT.
 |       |                                         | Ardith Grant     |             |            |
 |       |                                         |                  |             |            |
 | 2     | Conversion to markdown documentation    | as above, with:  |             | Jan 2026   |
-|       | and focus on methods, not data/results. | Fred Thomas      |             |            |
+|       | and focus on methods. Inclusion of      | Fred Thomas      |             |            |
+|       | Phase III methodology.                  |                  |             |            |
 
 This report may be cited as follows:
 

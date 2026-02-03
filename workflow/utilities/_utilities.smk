@@ -10,7 +10,7 @@ def get_n_ensemble(wildcards) -> int:
     filepath = checkpoints.sensitivity_parameters.get(**wildcards).output.sensitivity_parameters
     return len(pd.read_csv(filepath))
 
-def sensitivity_id_from_slug(wildcards):
+def sensitivity_id_from_slug(wildcards) -> str:
     """
     'parameter_set_0' -> '0'
     """
