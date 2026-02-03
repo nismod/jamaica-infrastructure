@@ -11,7 +11,7 @@ rule adaptation_options_costs:
     snakemake -c1 results/adaptation_costs/flooding_costs/waste_water_facilities_NWC_nodes_adaptation_timeseries_and_npvs.csv
     """
     input:
-        script = "workflow/5a_self-adaptation/adaptation_options_costs.py",
+        script = "workflow/6a_self-adaptation/adaptation_options_costs.py",
         cost_file = f"{DATA}/adaptation/adaptation_options_and_costs.xlsx",
         network_csv = config["paths"]["network_layers"],
         protection_asset_dict = f"{OUTPUT}/coastal_protection_assets/network_protection_mappings/{{gpkg}}_{{layer}}_coastal_filtered.parquet",
@@ -54,7 +54,7 @@ rule damage_loss_timeseries_and_NPV:
     snakemake -c1 results/flood_threshold_1p0/loss_damage_npvs/waste_water_facilities_NWC_nodes_EAD_EAEL_npvs.csv
     """
     input:
-        script = "workflow/5a_self-adaptation/damage_loss_timeseries_and_npv.py",
+        script = "workflow/6a_self-adaptation/damage_loss_timeseries_and_npv.py",
         network_csv = config["paths"]["network_layers"],
         growth_rates = f"{DATA}/macroeconomic_data/gdp_growth_rates.xlsx",
         summarised_damages = f"{{output_path}}/direct_damages_summary/{{gpkg}}_{{layer}}_EAD_EAEL.csv",
@@ -111,7 +111,7 @@ rule benefit_cost_ratio:
     snakemake -c1 results/adaptation_benefits_costs_bcr/flooding_waste_water_facilities_NWC_nodes_adaptation_costs_avoided_EAD_EAEL.csv
     """
     input:
-        script = "workflow/5a_self-adaptation/benefit_cost_ratio.py",
+        script = "workflow/6a_self-adaptation/benefit_cost_ratio.py",
         network_csv = config["paths"]["network_layers"],
         cost_file = f"{OUTPUT}/adaptation_costs/{{hazard}}_costs/{{gpkg}}_{{layer}}_adaptation_timeseries_and_npvs.csv",
         risk_files = get_risk_files

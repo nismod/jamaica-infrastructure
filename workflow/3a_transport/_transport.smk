@@ -167,7 +167,7 @@ rule create_multi_modal_network:
     snakemake -c1 processed_data/networks/transport/multi_modal_network.gpkg
     """
     input:
-        script = "workflow/2a_transport/multi_modal_network_creation.py",
+        script = "workflow/3a_transport/multi_modal_network_creation.py",
         airports = f"{DATA}/networks/transport/airport_polygon.gpkg",
         ports = f"{DATA}/networks/transport/port_polygon.gpkg",
         rail = f"{DATA}/networks/transport/rail.gpkg",
@@ -193,7 +193,7 @@ rule trade_activity_flow_mapping:
     snakemake -c1 results/flow_mapping/sector_imports_exports_to_ports_flows.gpkg
     """
     input:
-        script = "workflow/2a_transport/trade_activity_flow_mapping.py",
+        script = "workflow/3a_transport/trade_activity_flow_mapping.py",
         jam_ports = f"{DATA}/networks/transport/port_polygon.gpkg",
         network = f"{DATA}/networks/transport/multi_modal_network.gpkg",
         imports = f"{DATA}/macroeconomic_data/import_by_industry.xlsx",
@@ -230,7 +230,7 @@ rule labour_to_work_flow_mapping:
     snakemake -c1 results/flow_mapping/labour_to_sectors_trips_and_activity.pq
     """
     input:
-        script = "workflow/2a_transport/labour_to_work_flow_mapping.py",
+        script = "workflow/3a_transport/labour_to_work_flow_mapping.py",
         network = f"{DATA}/networks/transport/multi_modal_network.gpkg",
         buildings = f"{DATA}/buildings/buildings_assigned_economic_activity.gpkg",
         population = f"{DATA}/population/population_projections.gpkg",

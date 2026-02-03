@@ -10,5 +10,5 @@ dependencies:
     - --editable .
     - -r requirements.txt
   - bioconda::snakemake~=8.30.0
-  - gdal~=3.11.0
+  - gdal~=3.12.0
   - graphviz

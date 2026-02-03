@@ -21,7 +21,7 @@ rule EAD_EAEL:
     snakemake -c1 results/direct_damages/airport_polygon_areas/airport_polygon_areas_EAD_EAEL_parameter_set_0.csv
     """
     input:
-        script = "workflow/4a_losses/expected_damages_losses_calculations.py",
+        script = "workflow/5a_losses/expected_damages_losses_calculations.py",
         network_csv = config["paths"]["network_layers"],
         hazard_csv = config["paths"]["hazard_layers"],
         gpkg = lambda wildcards: f"{DATA}/{get_asset_metadata(wildcards).path}",
@@ -68,7 +68,7 @@ rule collapse_sensitivity:
     snakemake -c1 results/direct_damages_summary/roads_edges_losses.parquet
     """
     input:
-        script = "workflow/4a_losses/damage_loss_summarised.py",
+        script = "workflow/5a_losses/damage_loss_summarised.py",
         network_csv = config["paths"]["network_layers"],
         direct_damages = damage_ensemble_files,
         EAD_EAEL = EAD_EAEL_ensemble_files,

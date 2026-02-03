@@ -10,7 +10,7 @@ rule rasterise_asset_layer:
     snakemake -c1 results/hazard_asset_intersection/roads_splits__hazard_layers__edges.geoparquet
     """
     input:
-        script = "workflow/1_damage/split_networks.py",
+        script = "workflow/2_damage/split_networks.py",
         networks = config["paths"]["network_layers"],
         hazards = config["paths"]["hazard_layers"],
         gpkg = lambda wildcards: f"{DATA}/{get_asset_metadata(wildcards).path}",
@@ -115,7 +115,7 @@ rule direct_damage:
     snakemake -c1 results/direct_damages/roads_edges/roads_edges_direct_damages_parameter_set_0.parquet
     """
     input:
-        script = "workflow/1_damage/damage_calculations.py",
+        script = "workflow/2_damage/damage_calculations.py",
         network_csv = config["paths"]["network_layers"],
         hazard_csv = config["paths"]["hazard_layers"],
         sensitivity_parameters = f"{DATA}/sensitivity_parameters.csv",

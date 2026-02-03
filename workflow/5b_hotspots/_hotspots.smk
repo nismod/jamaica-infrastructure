@@ -23,7 +23,7 @@ checkpoint generate_hotspots_grid:
     snakemake -c1 processed_data/hotspots/grid.tiff
     """
     input:
-        script = "workflow/4b_hotspots/generate_grid.py",
+        script = "workflow/5b_hotspots/generate_grid.py",
         boundary = f"{DATA}/boundaries/jamaica.gpkg",
     params:
         # must be in units of boundary CRS
@@ -83,7 +83,7 @@ rule hotspots_exposure:
     snakemake -c1 results/hotspots/exposure/roads__edges.tiff
     """
     input:
-        script = "workflow/4b_hotspots/exposure.py",
+        script = "workflow/5b_hotspots/exposure.py",
         networks = config["paths"]["network_layers"],
         splits = f"{OUTPUT}/hotspots/splits/{{gpkg}}_splits__hazard_layers__{{layer}}.geoparquet",
         grid = f"{DATA}/hotspots/grid.tiff",
@@ -155,7 +155,7 @@ rule hotspots_ead:
     """Calculate EAD from direct damages, per hazard, per asset layer. Output summed to the hotspots grid.
     """
     input:
-        script = "workflow/4b_hotspots/hotspots_ead.py",
+        script = "workflow/5b_hotspots/hotspots_ead.py",
         damages = f"{OUTPUT}/hotspots/damages_rp/{{gpkg}}_{{layer}}/{{gpkg}}_{{layer}}_direct_damages.parquet",
         grid = f"{DATA}/hotspots/grid.tiff",
     output:
@@ -307,7 +307,7 @@ rule transport_hotspots_economic_loss_chunked_by_latitude_slice:
     snakemake -c1 results/hotspots/transport/y/12.parquet
     """
     input:
-        script = "workflow/4b_hotspots/transport.py",
+        script = "workflow/5b_hotspots/transport.py",
         road_splits = f"{OUTPUT}/hotspots/splits/roads_splits__hazard_layers__edges.geoparquet",
         rail_splits = f"{OUTPUT}/hotspots/splits/rail_splits__hazard_layers__edges.geoparquet",
         flow_data_dir = f"{OUTPUT}/transport_failures/nominal",
@@ -407,7 +407,7 @@ rule smooth_raster:
     snakemake -c1 results/hotspots/transport/economic_loss_smoothed.tiff,
     """
     input:
-        script = "workflow/4b_hotspots/kde.py",
+        script = "workflow/5b_hotspots/kde.py",
         coarse = "{output_path}/{filename}.tiff",
     params:
         resolution = config["hotspots"]["kernel_density_estimation"]["resolution_meters"],
