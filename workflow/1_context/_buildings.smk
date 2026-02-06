@@ -70,6 +70,38 @@ rule building_height_assignments:
             --buildings-econ-activity {input.buildings_econ_activity} 
         """
 
+rule land_use_layers_process:
+    """
+    """
+    input:
+        script = "workflow/1_context/land_use_layers_process.py",
+        tnc_landuse = f"{RAW}/nsdmb/GWP_Jamaica_NSP_Master_Geodatabase_v01.gdb",
+        forest_landuse = f"{RAW}/Landuse 2013 data/2013_landuse_Landcover.shp",
+        mining_landuse = f"{RAW}/global_mining_areas/global_mining_polygons_v1.gpkg",
+        forest_sector_mapping = f"{DATA}/land_type_and_use/forest_classes_with_sector_mapping.csv",
+        tnc_sector_mapping = f"{DATA}/land_type_and_use/tnc_classes_with_sector_mapping.csv"
+    params:
+        epsg = config["adaptation_options"]["epsg_jamaica"],
+    output:
+        input_land_use_layers = f"{DATA}/land_type_and_use/input_land_use_layers.gpkg",
+        jamaica_land_use_combined = f"{DATA}/land_type_and_use/jamaica_land_use_combined.gpkg",
+        jamaica_land_use_combined_with_sectors = f"{DATA}/land_type_and_use/jamaica_land_use_combined_with_sectors.gpkg",
+        #forest_classes = f"{DATA}/land_type_and_use/forest_classes.csv",
+        #tnc_classes = f"{DATA}/land_type_and_use/tnc_classes.csv",
+        #land_use_modified = f"{DATA}/land_type_and_use/land_use_modified.gpkg",
+    shell:
+       """
+        python {input.script} \
+            --incoming-data-dir {RAW} \
+            --data-dir {DATA} \
+            --epsg {epsg} \
+            --tnc-landuse-path {input.tnc_landuse} \
+            --forest-landuse-path {input.forest_landuse} \
+            --mining-landuse-path {input.mining_landuse} \
+            --forest-sector-mapping-path {input.forest_sector_mapping} \
+            --tnc-sector-mapping-path {input.tnc_sector_mapping} \
+        """
+
 # rule building_data_process:
 #     """
 #     """
@@ -157,34 +189,7 @@ rule building_height_assignments:
 
 #         """
 
-# rule land_use_layers_process:
-#     """
-#     """
-#     input:
-#         script = "workflow/1_context/land_use_layers_process.py",
-#         tnc_landuse = f"{RAW}/nsdmb/GWP_Jamaica_NSP_Master_Geodatabase_v01.gdb",
-#         forest_landuse = f"{RAW}/Landuse 2013 data/2013_landuse_Landcover.shp",
-#         mining_landuse = f"{RAW}/global_mining_areas/global_mining_polygons_v1.gpkg",
-#         forest_sector_mapping = f"{DATA}/land_type_and_use/forest_classes_with_sector_mapping.csv",
-#         tnc_sector_mapping = f"{DATA}/land_type_and_use/tnc_classes_with_sector_mapping.csv"
-#     params:
-#         epsg = config["adaptation_options"]["epsg_jamaica"],
-#     output:
-#         input_land_use_layers = f"{DATA}/land_type_and_use/input_land_use_layers.gpkg",
-#         #land_use_modified = f"{DATA}/land_type_and_use/land_use_modified.gpkg",
-#         jamaica_land_use_combined = f"{DATA}/land_type_and_use/jamaica_land_use_combined.gpkg",
-#         #forest_classes = f"{DATA}/land_type_and_use/forest_classes.csv",
-#         #tnc_classes = f"{DATA}/land_type_and_use/tnc_classes.csv",
-#         jamaica_land_use_combined_with_sectors = f"{DATA}/land_type_and_use/jamaica_land_use_combined_with_sectors.gpkg",
-#     shell:
-#        """
-#         python {input.script} \
-#             --incoming-data {RAW} \
-#             --data-dir {DATA} \
-#             --epsg {epsg} \
 
-
-#         """
 
 # rule planning_layers:
 #     """

@@ -11,33 +11,96 @@ import geopandas as gpd
 import numpy as np
 from preprocess_utils import *
 from tqdm import tqdm
+import click
 
 tqdm.pandas()
 
+@click.command()
+@click.version_option("1.0")
+@click.option(
+    "--data-dir",
+    "-d",
+    required=True,
+    type=click.Path(exists=False, dir_okay=True, file_okay=False, readable=True),
+    help="Path to processed data",
+)
+@click.option(
+    "--incoming-data-dir",
+    "-i",
+    required=True,
+    type=click.Path(exists=False, dir_okay=True, file_okay=False, readable=True),
+    help="Path to unprocessed incoming data",
+)
+@click.option(
+    "--epsg",
+    "-e",
+    "epsg",
+    required=True,
+    type=int,
+    help="coordinate system for Jamaica",
+)
+@click.option(
+    "--tnc-landuse-path",
+    "-tl",
+    required=True,
+    type=click.Path(exists=True, dir_okay=False, file_okay=True, readable=True),
+    help="",
+)
+@click.option(
+    "--forest-landuse-path",
+    "-fl",
+    required=True,
+    type=click.Path(exists=True, dir_okay=False, file_okay=True, readable=True),
+    help="",
+)
+@click.option(
+    "--mining-landuse-path",
+    "-ml",
+    required=True,
+    type=click.Path(exists=True, dir_okay=False, file_okay=True, readable=True),
+    help="",
+)
+@click.option(
+    "--forest-sector-mapping-path",
+    "-fsm",
+    required=True,
+    type=click.Path(exists=True, dir_okay=False, file_okay=True, readable=True),
+    help="",
+)
+@click.option(
+    "--tnc-sector-mapping-path",
+    "-tsm",
+    required=True,
+    type=click.Path(exists=True, dir_okay=False, file_okay=True, readable=True),
+    help="",
+)
 
-def main(config):
-    incoming_data_path = config["paths"]["incoming_data"]
-    processed_data_path = config["paths"]["data"]
-    epsg_jamaica = 3448
-    database_name = "GWP_Jamaica_NSP_Master_Geodatabase_v01.gdb"
+def main(
+    data_dir,
+    incoming_data_dir,
+    epsg,
+    tnc_landuse_path,
+    forest_landuse_path,
+    mining_landuse_path,
+    forest_sector_mapping_path,
+    tnc_sector_mapping_path,
+):
+    incoming_data_path = incoming_data_dir
+    processed_data_path = data_dir
+    epsg_jamaica = epsg
+    # database_name = "GWP_Jamaica_NSP_Master_Geodatabase_v01.gdb"
 
     tnc_landuse = gpd.read_file(
-        os.path.join(
-            incoming_data_path, "nsdmb", "GWP_Jamaica_NSP_Master_Geodatabase_v01.gdb"
-        ),
+        tnc_landuse_path,
         layer="LandUse_LandUse",
     ).to_crs(epsg=epsg_jamaica)
     tnc_landuse["tnc_id"] = tnc_landuse.index.values.tolist()
     forest_landuse = gpd.read_file(
-        os.path.join(
-            incoming_data_path, "Landuse 2013 data", "2013_landuse_Landcover.shp"
-        )
+        forest_landuse_path
     ).to_crs(epsg=epsg_jamaica)
     forest_landuse["forest_id"] = forest_landuse.index.values.tolist()
     mining_landuse = gpd.read_file(
-        os.path.join(
-            incoming_data_path, "global_mining_areas", "global_mining_polygons_v1.gpkg"
-        )
+        mining_landuse_path
     ).to_crs(epsg=epsg_jamaica)
     mining_landuse = mining_landuse[mining_landuse["COUNTRY_NAME"] == "Jamaica"]
     mining_landuse["global_id"] = mining_landuse.index.values.tolist()
@@ -199,11 +262,7 @@ def main(config):
         layer="areas",
     )
     forest_sector_mapping = pd.read_csv(
-        os.path.join(
-            processed_data_path,
-            "land_type_and_use",
-            "forest_classes_with_sector_mapping.csv",
-        )
+        forest_sector_mapping_path
     )
     forest_sector_mapping.rename(
         columns={
@@ -214,11 +273,7 @@ def main(config):
         inplace=True,
     )
     tnc_sector_mapping = pd.read_csv(
-        os.path.join(
-            processed_data_path,
-            "land_type_and_use",
-            "tnc_classes_with_sector_mapping.csv",
-        )
+        tnc_sector_mapping_path
     )
     tnc_sector_mapping.rename(
         columns={
@@ -248,5 +303,4 @@ def main(config):
 
 
 if __name__ == "__main__":
-    CONFIG = load_config()
-    main(CONFIG)
+    main()
