@@ -94,12 +94,46 @@ rule land_use_layers_process:
         python {input.script} \
             --incoming-data-dir {RAW} \
             --data-dir {DATA} \
-            --epsg {epsg} \
+            --epsg {params.epsg} \
             --tnc-landuse-path {input.tnc_landuse} \
             --forest-landuse-path {input.forest_landuse} \
             --mining-landuse-path {input.mining_landuse} \
             --forest-sector-mapping-path {input.forest_sector_mapping} \
             --tnc-sector-mapping-path {input.tnc_sector_mapping} \
+        """
+
+rule planning_layers:
+    """
+    """
+    input:
+        script = "workflow/1_context/planning_layers.py",
+        planning_layer_polygons = f"{RAW}/buildings/nsdmb_planning_layers_polygons.xlsx",
+        planning_layers = f"{RAW}/buildings/planning_layers.gpkg",
+        manchester_layers_path = f"{RAW}/buildings/land_use_layers_uses_codes.csv",
+        jamaica_parishes_path = f"{DATA}/boundaries/admin_boundaries.gpkg",
+
+        #there is an array that also defines the following files to be read:
+        clarendon_landuse_classes_with_sector_codes = f"{RAW}/buildings/clarendon_landuse_planning_classes_with_sector_codes.csv",
+        machester_landuse_classes_with_sector_codes = f"{RAW}/buildings/manchester_landuse_planning_classes_with_sector_codes.csv",
+        landuse_classes_with_sector_codes = f"{RAW}/buildings/landuse_classes_with_sector_codes.csv",
+    params:
+        epsg = config["adaptation_options"]["epsg_jamaica"],
+    output:
+        #landuse_planning_layers.gpkg = f"{RAW}/buildings/landuse_planning_layers.gpkg"
+        landuse_planning_layers_with_sectors = f"{RAW}/buildings/landuse_planning_layers_with_sectors.gpkg"
+    shell:
+       """
+        python {input.script} \
+            --incoming-data-dir {RAW} \
+            --data-dir {DATA} \
+            --epsg {params.epsg} \
+            --planning-layer-polygons {input.planning_layer_polygons} \
+            --planning-layers-path {input.planning_layers} \
+            --manchester-layers-path {input.manchester_layers_path} \
+            --jamaica-parishes-path {input.jamaica_parishes_path} \
+            --clarendon-landuse-classes-with-sector-codes {input.clarendon_landuse_classes_with_sector_codes} \
+            --machester-landuse-classes-with-sector-codes {input.machester_landuse_classes_with_sector_codes} \
+            --landuse-classes-with-sector-codes {input.landuse_classes_with_sector_codes} \
         """
 
 # rule building_data_process:
@@ -191,31 +225,3 @@ rule land_use_layers_process:
 
 
 
-# rule planning_layers:
-#     """
-#     """
-#     input:
-#         script = "workflow/1_context/planning_layers.py",
-#         planning_layer_polygons = f"{RAW}/buildings/nsdmb_planning_layers_polygons.xlsx",
-#         planning_layers = f"{RAW}/buildings/planning_layers.gpkg",
-#         manchester_layers = f"{RAW}/buildings/land_use_layers_uses_codes.csv",
-#         jamaica_parishes = f"{DATA}/boundaries/admin_boundaries.gpkg",
-
-#         #there is an array that also defines the following files to be read:
-#         clarendon_landuse_classes_with_sector_codes = f"{RAW}/buildings/clarendon_landuse_planning_classes_with_sector_codes.csv",
-#         machester_landuse_classes_with_sector_codes = f"{RAW}/buildings/manchester_landuse_planning_classes_with_sector_codes.csv",
-#         landuse_classes_with_sector_codes = f"{RAW}/buildings/landuse_classes_with_sector_codes.csv",
-#     params:
-#         epsg = config["adaptation_options"]["epsg_jamaica"],
-#     output:
-#         #landuse_planning_layers.gpkg = f"{RAW}/buildings/landuse_planning_layers.gpkg"
-#         landuse_planning_layers_with_sectors = f"{RAW}/buildings/landuse_planning_layers_with_sectors.gpkg"
-#     shell:
-#        """
-#         python {input.script} \
-#             --incoming-data {RAW} \
-#             --data-dir {DATA} \
-#             --epsg {epsg} \
-
-
-#         """

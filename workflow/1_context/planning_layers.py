@@ -9,8 +9,9 @@ import geopandas as gpd
 import fiona
 from collections import OrderedDict
 from shapely.geometry import shape, mapping
-from preprocess_utils import *
+# from preprocess_utils import *
 from tqdm import tqdm
+import click
 
 tqdm.pandas()
 
@@ -57,7 +58,7 @@ def match_parishes_to_landplanning(jamaica_parishes, gdf, gdf_list):
         jamaica_parishes[["CODE", "PARISH", "geometry"]],
         gdf[["layer_id", "geometry"]],
         how="inner",
-        op="intersects",
+        predicate="intersects",
     ).reset_index()
     # print (parish_match)
     parish_match.rename(columns={"geometry": "parish_geometry"}, inplace=True)
@@ -84,11 +85,95 @@ def match_parishes_to_landplanning(jamaica_parishes, gdf, gdf_list):
 
     return gdf_list
 
+@click.command()
+@click.version_option("1.0")
+@click.option(
+    "--incoming-data-dir",
+    "-i",
+    required=True,
+    type=click.Path(exists=False, dir_okay=True, file_okay=False, readable=True),
+    help="Path to unprocessed incoming data",
+)
+@click.option(
+    "--data-dir",
+    "-d",
+    required=True,
+    type=click.Path(exists=False, dir_okay=True, file_okay=False, readable=True),
+    help="Path to processed data",
+)
+@click.option(
+    "--epsg",
+    "-e",
+    "epsg",
+    required=True,
+    type=int,
+    help="coordinate system for Jamaica",
+)
+@click.option(
+    "--planning-layer-polygons",
+    "-plp",
+    required=True,
+    type=click.Path(exists=True, dir_okay=False, file_okay=True, readable=True),
+    help="",
+)
+@click.option(
+    "--planning-layers-path",
+    "-pl",
+    required=True,
+    type=click.Path(exists=True, dir_okay=False, file_okay=True, readable=True),
+    help="",
+)
+@click.option(
+    "--manchester-layers-path",
+    "-ml",
+    required=True,
+    type=click.Path(exists=True, dir_okay=False, file_okay=True, readable=True),
+    help="",
+)
+@click.option(
+    "--jamaica-parishes-path",
+    "-jp",
+    required=True,
+    type=click.Path(exists=True, dir_okay=False, file_okay=True, readable=True),
+    help="",
+)
+@click.option(
+    "--clarendon-landuse-classes-with-sector-codes",
+    "-clc",
+    required=True,
+    type=click.Path(exists=True, dir_okay=False, file_okay=True, readable=True),
+    help="",
+)
+@click.option(
+    "--machester-landuse-classes-with-sector-codes",
+    "-mlc",
+    required=True,
+    type=click.Path(exists=True, dir_okay=False, file_okay=True, readable=True),
+    help="",
+)
+@click.option(
+    "--landuse-classes-with-sector-codes",
+    "-lc",
+    required=True,
+    type=click.Path(exists=True, dir_okay=False, file_okay=True, readable=True),
+    help="",
+)
 
-def main(config):
-    incoming_data_path = config["paths"]["incoming_data"]
-    processed_data_path = config["paths"]["data"]
-    epsg_jamaica = 3448
+def main(
+    incoming_data_dir,
+    data_dir,
+    epsg,
+    planning_layer_polygons,
+    planning_layers_path,
+    manchester_layers_path,
+    jamaica_parishes_path,
+    clarendon_landuse_classes_with_sector_codes,
+    machester_landuse_classes_with_sector_codes,
+    landuse_classes_with_sector_codes,
+):
+    incoming_data_path = incoming_data_dir
+    processed_data_path = data_dir
+    epsg_jamaica = epsg
 
     """Step 1: Read the layers from the NSDMB database and write them into a Geopackage file
         This is a pre-preprocess step, so is commented out once it is done
@@ -134,9 +219,7 @@ def main(config):
     """Step 2: Take the excel file with layer names and query them from the database
     """
     planning_layers = pd.read_excel(
-        os.path.join(
-            incoming_data_path, "buildings", "nsdmb_planning_layers_polygons.xlsx"
-        ),
+        planning_layer_polygons,
         sheet_name="Sheet1",
     )
     columns = [c.strip() for c in planning_layers.columns.values.tolist()]
@@ -151,7 +234,7 @@ def main(config):
             and "macarry" not in pl["Name of feature class"].lower()
         ):
             gdf = gpd.read_file(
-                os.path.join(incoming_data_path, "buildings", "planning_layers.gpkg"),
+                planning_layers_path,
                 layer=pl["Name of feature class"],
             ).to_crs(epsg=epsg_jamaica)
             selected_layers.append(pl["Name of feature class"])
@@ -185,7 +268,7 @@ def main(config):
     # Manchester land use layers
     gdf_merge = []
     manchester_layers = pd.read_csv(
-        os.path.join(incoming_data_path, "buildings", "land_use_layers_uses_codes.csv")
+        manchester_layers_path
     )
     for i, pl in planning_layers.iterrows():
         if "manchester" in pl["Description"].lower():
@@ -204,9 +287,7 @@ def main(config):
             ]
             if pl["Name of feature class"] not in ignore_layers:
                 gdf = gpd.read_file(
-                    os.path.join(
-                        incoming_data_path, "buildings", "planning_layers.gpkg"
-                    ),
+                    planning_layers_path,
                     layer=pl["Name of feature class"],
                 ).to_crs(epsg=epsg_jamaica)
                 if pl["Name of feature class"] != "commercial_site_Manchester_proposed":
@@ -244,7 +325,7 @@ def main(config):
 
     # Create the landuse layers from the existing and proposed developments in Jamaica
     jamaica_parishes = gpd.read_file(
-        os.path.join(processed_data_path, "boundaries", "admin_boundaries.gpkg"),
+        jamaica_parishes_path,
         layer="admin1",
     ).to_crs(epsg=epsg_jamaica)
     existing_landuse_layers = [
@@ -263,7 +344,7 @@ def main(config):
     gdf_existing = []
     for layer in existing_landuse_layers:
         gdf = gpd.read_file(
-            os.path.join(incoming_data_path, "buildings", "planning_layers.gpkg"),
+            planning_layers_path,
             layer=layer,
         ).to_crs(epsg=epsg_jamaica)
         gdf.rename(
@@ -319,7 +400,7 @@ def main(config):
     gdf_existing = []
     for layer in proposed_landuse_layers:
         gdf = gpd.read_file(
-            os.path.join(incoming_data_path, "buildings", "planning_layers.gpkg"),
+            planning_layers_path,
             layer=layer,
         ).to_crs(epsg=epsg_jamaica)
         # print (layer,gdf.columns.values.tolist())
@@ -420,10 +501,10 @@ def main(config):
         "existing_proposed_landuse",
     ]
     landuse_classes = [
-        "clarendon_landuse_planning_classes_with_sector_codes.csv",
-        "manchester_landuse_planning_classes_with_sector_codes.csv",
-        "landuse_classes_with_sector_codes.csv",
-        "landuse_classes_with_sector_codes.csv",
+        f"{clarendon_landuse_classes_with_sector_codes}",
+        f"{machester_landuse_classes_with_sector_codes}",
+        f"{landuse_classes_with_sector_codes}",
+        f"{landuse_classes_with_sector_codes}",
     ]
 
     for i, (layer, sector_classes) in enumerate(
@@ -435,7 +516,7 @@ def main(config):
             ),
             layer=layer,
         )
-        csv = pd.read_csv(os.path.join(incoming_data_path, "buildings", sector_classes))
+        csv = pd.read_csv(sector_classes)
 
         if layer in ["clarendon_landuse", "manchester_landuse"]:
             csv.drop("area_sqm", axis=1, inplace=True)
@@ -489,5 +570,4 @@ def main(config):
 
 
 if __name__ == "__main__":
-    CONFIG = load_config()
-    main(CONFIG)
+    main()
