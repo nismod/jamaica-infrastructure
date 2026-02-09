@@ -11,8 +11,8 @@ import numpy as np
 import fiona
 from collections import OrderedDict, defaultdict
 from shapely.geometry import Point
-from preprocess_utils import *
 from tqdm import tqdm
+import click
 
 tqdm.pandas()
 
@@ -434,25 +434,200 @@ def assign_building_type(x):
         return "Other"
 
 
-def main(config):
+@click.command()
+@click.version_option("1.0")
+@click.option(
+    "--incoming-data-dir",
+    required=True,
+    type=click.Path(exists=True, dir_okay=True, file_okay=False, readable=True),
+    help="Path to unprocessed incoming data",
+)
+@click.option(
+    "--data-dir",
+    required=True,
+    type=click.Path(exists=True, dir_okay=True, file_okay=False, readable=True),
+    help="Path to processed data",
+)
+@click.option(
+    "--epsg",
+    required=True,
+    type=int,
+    help="EPSG code for Jamaica coordinate system",
+)
+@click.option(
+    "--residential-min-area",
+    required=True,
+    type=float,
+    help="Minimum area of residential dwelling allowed in Jamaica (sq meters)",
+)
+@click.option(
+    "--poi-data",
+    required=True,
+    type=click.Path(exists=True, dir_okay=False, file_okay=True, readable=True),
+    help="Path to points of interest gpkg",
+)
+@click.option(
+    "--poi-mapping",
+    required=True,
+    type=click.Path(exists=True, dir_okay=False, file_okay=True, readable=True),
+    help="Path to points of interest mapping xlsx",
+)
+@click.option(
+    "--buildings-input-map",
+    required=True,
+    type=click.Path(exists=True, dir_okay=False, file_okay=True, readable=True),
+    help="Path to buildings input mapping xlsx",
+)
+@click.option(
+    "--buildings-input-file",
+    required=True,
+    type=click.Path(exists=True, dir_okay=False, file_okay=True, readable=True),
+    help="Path to buildings input gpkg",
+)
+@click.option(
+    "--landuse-planning-layers-file",
+    required=True,
+    type=click.Path(exists=True, dir_okay=False, file_okay=True, readable=True),
+    help="Path to landuse planning layers gpkg",
+)
+@click.option(
+    "--landuse-types-file",
+    required=True,
+    type=click.Path(exists=True, dir_okay=False, file_okay=True, readable=True),
+    help="Path to landuse types gpkg",
+)
+@click.option(
+    "--landuse-types-with-sectors-file",
+    required=True,
+    type=click.Path(exists=True, dir_okay=False, file_okay=True, readable=True),
+    help="Path to landuse types with sectors gpkg",
+)
+@click.option(
+    "--commercial-buildings-file",
+    required=True,
+    type=click.Path(exists=True, dir_okay=False, file_okay=True, readable=True),
+    help="Path to commercial buildings shp",
+)
+@click.option(
+    "--nsdmb-layers-file",
+    required=True,
+    type=click.Path(exists=True, dir_okay=False, file_okay=True, readable=True),
+    help="Path to nsdmb layers xlsx",
+)
+@click.option(
+    "--ports-file",
+    required=True,
+    type=click.Path(exists=True, dir_okay=False, file_okay=True, readable=True),
+    help="Path to ports gpkg",
+)
+@click.option(
+    "--airports-file",
+    required=True,
+    type=click.Path(exists=True, dir_okay=False, file_okay=True, readable=True),
+    help="Path to airports gpkg",
+)
+@click.option(
+    "--residential-buildings-file",
+    required=True,
+    type=click.Path(exists=True, dir_okay=False, file_okay=True, readable=True),
+    help="Path to residential buildings shp",
+)
+@click.option(
+    "--known-building-assign-file",
+    required=True,
+    type=click.Path(exists=True, dir_okay=False, file_okay=True, readable=True),
+    help="Path to known building assignments shp",
+)
+@click.option(
+    "--fishing-locations-file",
+    required=True,
+    type=click.Path(exists=True, dir_okay=False, file_okay=True, readable=True),
+    help="Path to fishing locations gpkg",
+)
+@click.option(
+    "--population-file",
+    required=True,
+    type=click.Path(exists=True, dir_okay=False, file_okay=True, readable=True),
+    help="Path to population gpkg",
+)
+@click.option(
+    "--trade-plants-file",
+    required=True,
+    type=click.Path(exists=True, dir_okay=False, file_okay=True, readable=True),
+    help="Path to trade plants xlsx",
+)
+@click.option(
+    "--exporters-file",
+    required=True,
+    type=click.Path(exists=True, dir_okay=False, file_okay=True, readable=True),
+    help="Path to exporters xlsx",
+)
+@click.option(
+    "--industry-file",
+    required=True,
+    type=click.Path(exists=True, dir_okay=False, file_okay=True, readable=True),
+    help="Path to industry xlsx",
+)
+@click.option(
+    "--building-costs-1",
+    required=True,
+    type=click.Path(exists=True, dir_okay=False, file_okay=True, readable=True),
+    help="Path to building costs shp 1",
+)
+@click.option(
+    "--building-costs-2",
+    required=True,
+    type=click.Path(exists=True, dir_okay=False, file_okay=True, readable=True),
+    help="Path to building costs shp 2",
+)
+@click.option(
+    "--building-costs-3",
+    required=True,
+    type=click.Path(exists=True, dir_okay=False, file_okay=True, readable=True),
+    help="Path to building costs shp 3",
+)
+@click.option(
+    "--building-costs-4",
+    required=True,
+    type=click.Path(exists=True, dir_okay=False, file_okay=True, readable=True),
+    help="Path to building costs shp 4",
+)
+def main(
+    incoming_data_dir,
+    data_dir,
+    epsg,
+    residential_min_area,
+    poi_data,
+    poi_mapping,
+    buildings_input_map,
+    buildings_input_file,
+    landuse_planning_layers_file,
+    landuse_types_file,
+    landuse_types_with_sectors_file,
+    commercial_buildings_file,
+    nsdmb_layers_file,
+    ports_file,
+    airports_file,
+    residential_buildings_file,
+    known_building_assign_file,
+    fishing_locations_file,
+    population_file,
+    trade_plants_file,
+    exporters_file,
+    industry_file,
+    building_costs_1,
+    building_costs_2,
+    building_costs_3,
+    building_costs_4,
+):
     # Set the file paths on your machine for the data
-    # All input data is stored in a path ../incoming_data/..
-    # All output data will be written in a path ../processed_data/..
-
-    incoming_data_path = config["paths"]["incoming_data"]
-    processed_data_path = config["paths"]["data"]
+    incoming_data_path = incoming_data_dir
+    processed_data_path = data_dir
     building_data_path = os.path.join(incoming_data_path, "buildings")
-    points_of_interest_data_path = os.path.join(
-        incoming_data_path, "hotosm_data", "hotosm_jam_points_of_interest_gpkg"
-    )
-    buildings_input_mapping = os.path.join(
-        building_data_path, "osm_building_column_mapping_economic_sectors.xlsx"
-    )
+    points_of_interest_data_path = os.path.dirname(poi_data)
+    buildings_input_mapping = buildings_input_map
 
-    epsg_jamaica = 3448  # Jamaica projection system
-    residential_min_area = (
-        11.15  # Minimum area of residential dwelling allowed in Jamaica
-    )
+    epsg_jamaica = epsg
 
     """Step 1: Extract the different types of entries in useful columns 
         To infer what kind of building attributes are listed in the OSM building layer
@@ -460,9 +635,7 @@ def main(config):
         The columns in the layer which have useful information are - 'building','amenity','office','shop','other_tags'
     """
     matched_buildings = []
-    buildings_input = gpd.read_file(
-        os.path.join(building_data_path, "jamaica-buildings.gpkg")
-    )
+    buildings_input = gpd.read_file(buildings_input_file)
     buildings_input = buildings_input.to_crs(epsg=epsg_jamaica)
     buildings_input[["osm_id", "osm_way_id"]] = buildings_input[
         ["osm_id", "osm_way_id"]
@@ -487,9 +660,7 @@ def main(config):
             driver="GPKG",
         )
 
-    points_of_interest = gpd.read_file(
-        os.path.join(points_of_interest_data_path, "hotosm_jam_points_of_interest.gpkg")
-    )
+    points_of_interest = gpd.read_file(poi_data)
     points_of_interest = points_of_interest.to_crs(epsg=epsg_jamaica)
     points_of_interest["shop"] = points_of_interest["shop"].replace(
         "yes", "wholesale", regex=True
@@ -549,13 +720,10 @@ def main(config):
 
        NOTE: From this step onwards we filter out buildings that have been matched to a given land use sector != X
     """
-    points_of_interest_mapping = os.path.join(
-        points_of_interest_data_path, "hotosm_mapping_economic_sectors.xlsx"
-    )
     points_of_interest = sector_subsector_asset_mapping(
         points_of_interest,
         "osm_id",
-        points_of_interest_mapping,
+        poi_mapping,
         ["amenity", "man_made", "shop", "tourism"],
     )
     write_output = False
@@ -625,15 +793,11 @@ def main(config):
         "clarendon_landuse",
         "manchester_landuse",
     ]
-    landuse_types = ["existing", "proposals", "existing", "existing", "existing"]
+    landuse_type_names = ["existing", "proposals", "existing", "existing", "existing"]
 
-    for j, (layer, layer_type) in enumerate(list(zip(landuse_layers, landuse_types))):
+    for j, (layer, layer_type) in enumerate(list(zip(landuse_layers, landuse_type_names))):
         planning_layer = gpd.read_file(
-            os.path.join(
-                incoming_data_path,
-                "buildings",
-                "landuse_planning_layers_with_sectors.gpkg",
-            ),
+            landuse_planning_layers_file,
             layer=layer,
         )
         if layer_type == "proposals":
@@ -685,27 +849,25 @@ def main(config):
     """Step 4: Identify the buildings within mining and quarrying areas
     """
 
-    land_use_types = gpd.read_file(
-        os.path.join(
-            processed_data_path, "land_type_and_use", "jamaica_land_use_combined.gpkg"
-        ),
+    land_use_types_gdf = gpd.read_file(
+        landuse_types_file,
         layer="areas",
     )
 
-    if "index_left" in land_use_types.columns.values.tolist():
-        land_use_types.drop("index_left", axis=1, inplace=True)
-    elif "index_right" in land_use_types.columns.values.tolist():
-        land_use_types.drop("index_right", axis=1, inplace=True)
+    if "index_left" in land_use_types_gdf.columns.values.tolist():
+        land_use_types_gdf.drop("index_left", axis=1, inplace=True)
+    elif "index_right" in land_use_types_gdf.columns.values.tolist():
+        land_use_types_gdf.drop("index_right", axis=1, inplace=True)
 
     mining_types = [
         ("bauxite", "C", "132", "Bauxite mining and alumina"),
         ("quarry", "C", "141", "Quarry"),
     ]
     for i, (mtype, msect, msubsect, mname) in enumerate(mining_types):
-        land_use_types[f"{mtype}_identify"] = land_use_types.progress_apply(
+        land_use_types_gdf[f"{mtype}_identify"] = land_use_types_gdf.progress_apply(
             lambda x: identify_specific_areas(x, mtype), axis=1
         )
-        mining_quarry_areas = land_use_types[land_use_types[f"{mtype}_identify"] == 1]
+        mining_quarry_areas = land_use_types_gdf[land_use_types_gdf[f"{mtype}_identify"] == 1]
 
         mining_quarry_areas["sector_code"] = msect
         mining_quarry_areas["subsector_code"] = msubsect
@@ -747,13 +909,7 @@ def main(config):
     # matched_buildings.append(buildings_input[buildings_input["sector_code"] != "X"])
     # buildings_input = buildings_input[buildings_input["sector_code"] == "X"]
 
-    commercial_buildings = gpd.read_file(
-        os.path.join(
-            incoming_data_path,
-            "JAM_classified_buildings_industries",
-            "JAM_classified_buildings.shp",
-        )
-    )[
+    commercial_buildings = gpd.read_file(commercial_buildings_file)[
         [
             "osm_id",
             "layer",
@@ -797,17 +953,17 @@ def main(config):
     layer_dict = [
         {
             "layer_name": "trade_plants",
-            "excel_file": "nsdmb_tradeplants_layer_economic_sectors.xlsx",
+            "excel_file": trade_plants_file,
             "layer_columns": ["Name_of_Plant"],
         },
         {
             "layer_name": "exporters",
-            "excel_file": "nsdmb_exporters_layer_economic_sectors.xlsx",
+            "excel_file": exporters_file,
             "layer_columns": ["SECTOR", "SUB_SECTOR", "PRODUCTS", "HS_CODE"],
         },
         {
             "layer_name": "industry",
-            "excel_file": "nsdmb_industry_layer_economic_sectors.xlsx",
+            "excel_file": industry_file,
             "excel_sheets": ["manufacturing", "mining"],
             "layer_columns": [["SECTOR"], ["SECTOR", "COMPANY_NA"]],
         },
@@ -820,23 +976,23 @@ def main(config):
         if layer_properties["layer_name"] == "industry":
             # points_file['SECTOR'] = points_file['SECTOR'].replace(' ', 'Unknown')
             for sh in range(len(layer_properties["excel_sheets"])):
-                nsdmb_layers = pd.read_excel(
-                    os.path.join(building_data_path, layer_properties["excel_file"]),
+                nsdmb_layers_df = pd.read_excel(
+                    layer_properties["excel_file"],
                     sheet_name=layer_properties["excel_sheets"][sh],
                 )
                 commercial_layer = column_merging(
-                    nsdmb_layers,
+                    nsdmb_layers_df,
                     commercial_layer,
                     "osm_id",
                     layer_properties["layer_columns"][sh],
                 )
         else:
-            nsdmb_layers = pd.read_excel(
-                os.path.join(building_data_path, layer_properties["excel_file"]),
+            nsdmb_layers_df = pd.read_excel(
+                layer_properties["excel_file"],
                 sheet_name="Sheet1",
             )
             commercial_layer = column_merging(
-                nsdmb_layers,
+                nsdmb_layers_df,
                 commercial_layer,
                 "osm_id",
                 layer_properties["layer_columns"],
@@ -845,11 +1001,8 @@ def main(config):
         commercial_layers.append(commercial_layer)
         print(f"* Done with points layer - {layer_properties['layer_name']}")
 
-    nsdmb_layers = pd.read_excel(
-        os.path.join(building_data_path, "nsdmb_layers_economic_sectors.xlsx"),
-        sheet_name="Sheet1",
-    )
-    for layer_properties in nsdmb_layers.itertuples():
+    nsdmb_layers_df = pd.read_excel(nsdmb_layers_file, sheet_name="Sheet1")
+    for layer_properties in nsdmb_layers_df.itertuples():
         layer_name = layer_properties.layer
         sector_code = layer_properties.sector_code
         subsector_code = layer_properties.subsector_code
@@ -946,10 +1099,7 @@ def main(config):
     #                                 'buildings_assigned_economic_sectors_intermediate.gpkg'),
     #                               layer="commercial")
 
-    ports = gpd.read_file(
-        os.path.join(processed_data_path, "networks", "transport", "port_polygon.gpkg"),
-        layer="areas",
-    )
+    ports = gpd.read_file(ports_file, layer="areas")
     ports["sector_code"] = "I"
     ports["subsector_code"] = "600"
     ports["assigned_attribute"] = "Seaport"
@@ -962,19 +1112,14 @@ def main(config):
     matched_buildings.append(buildings_input[buildings_input["sector_code"] != "X"])
     buildings_input = buildings_input[buildings_input["sector_code"] == "X"]
 
-    ports = gpd.read_file(
-        os.path.join(
-            processed_data_path, "networks", "transport", "airport_polygon.gpkg"
-        ),
-        layer="areas",
-    )
-    ports["sector_code"] = "I"
-    ports["subsector_code"] = "600"
-    ports["assigned_attribute"] = "Airport"
-    ports["infra_type"] = "Airport"
+    airports = gpd.read_file(airports_file, layer="areas")
+    airports["sector_code"] = "I"
+    airports["subsector_code"] = "600"
+    airports["assigned_attribute"] = "Airport"
+    airports["infra_type"] = "Airport"
 
     buildings_input = match_buildings_to_polygon_dataframe(
-        buildings_input, ports, epsg=epsg_jamaica
+        buildings_input, airports, epsg=epsg_jamaica
     )
     matched_buildings.append(buildings_input[buildings_input["sector_code"] != "X"])
     buildings_input = buildings_input[buildings_input["sector_code"] == "X"]
@@ -1010,27 +1155,21 @@ def main(config):
     # matched_buildings.append(buildings_input[buildings_input["sector_code"] != "X"])
     # buildings_input = buildings_input[buildings_input["sector_code"] == "X"]
 
-    land_use_types = gpd.read_file(
-        os.path.join(
-            processed_data_path,
-            "land_type_and_use",
-            "jamaica_land_use_combined_with_sectors.gpkg",
-        ),
+    land_use_with_sectors_gdf = gpd.read_file(
+        landuse_types_with_sectors_file,
         layer="areas",
     )
-    land_use_types = land_use_types.to_crs(epsg=epsg_jamaica)
+    land_use_with_sectors_gdf = land_use_with_sectors_gdf.to_crs(epsg=epsg_jamaica)
 
-    if "index_left" in land_use_types.columns.values.tolist():
-        land_use_types.drop("index_left", axis=1, inplace=True)
-    elif "index_right" in land_use_types.columns.values.tolist():
-        land_use_types.drop("index_right", axis=1, inplace=True)
+    if "index_left" in land_use_with_sectors_gdf.columns.values.tolist():
+        land_use_with_sectors_gdf.drop("index_left", axis=1, inplace=True)
+    elif "index_right" in land_use_with_sectors_gdf.columns.values.tolist():
+        land_use_with_sectors_gdf.drop("index_right", axis=1, inplace=True)
 
-    land_use_types["layer_id"] = land_use_types.index.values.tolist()
-    # land_use_types["sector_code_res"] = "RES"
-    # land_use_types["subsector_code"] = "RES"
+    land_use_with_sectors_gdf["layer_id"] = land_use_with_sectors_gdf.index.values.tolist()
 
-    land_use_types = create_sector_subsector_attribute_columns(
-        land_use_types,
+    land_use_with_sectors_gdf = create_sector_subsector_attribute_columns(
+        land_use_with_sectors_gdf,
         "layer_id",
         [
             ("sector_code_forest", "subsector_code_forest"),
@@ -1047,14 +1186,12 @@ def main(config):
     )
 
     buildings_input = match_buildings_to_polygon_dataframe(
-        buildings_input, land_use_types, epsg=epsg_jamaica
+        buildings_input, land_use_with_sectors_gdf, epsg=epsg_jamaica
     )
 
     """Step 9: Match the residential building based on the area estimation
     """
-    residential_buildings = gpd.read_file(
-        os.path.join(incoming_data_path, "JAM_residential", "jam_residential.shp")
-    )
+    residential_buildings = gpd.read_file(residential_buildings_file)
     residential_buildings["sector_code"] = "RES"
     residential_buildings["subsector_code"] = "RES"
     residential_buildings["assigned_attribute"] = "Residentail"
@@ -1109,9 +1246,7 @@ def main(config):
     # matched_buildings.append(buildings_input[buildings_input["sector_code"] != "X"])
     # buildings_input = buildings_input[buildings_input["sector_code"] == "X"]
 
-    known_assignment = gpd.read_file(
-        os.path.join(building_data_path, "manual_building_assign.shp")
-    )
+    known_assignment = gpd.read_file(known_building_assign_file)
     known_assignment.rename(
         columns={
             "sector_cod": "sector_code",
@@ -1213,10 +1348,7 @@ def main(config):
     assigned_fishing = buildings_input[buildings_input["find_aqua"] == 1]
     all_fishing_assigned_ids = assigned_fishing["osm_id"].values.tolist()
 
-    fishing_locations = gpd.read_file(
-        os.path.join(processed_data_path, "land_type_and_use", "aqua_farms.gpkg"),
-        layer="areas",
-    )
+    fishing_locations = gpd.read_file(fishing_locations_file, layer="areas")
     fishery_matches = gpd.sjoin(
         fishing_locations, buildings_input, how="inner", predicate="intersects"
     ).reset_index()
@@ -1312,10 +1444,10 @@ def main(config):
     )
 
     costs_shapefiles = [
-        "Construction_Permit_Mapping_Jan-March_Q4_2019-2020",
-        "Construction_Permits_October_-_December_(Q3)_2019-2020",
-        "Construction_Permits_Q1_2019_2020",
-        "Q2-2019- Construction Permits",
+        building_costs_1,
+        building_costs_2,
+        building_costs_3,
+        building_costs_4,
     ]
     cost_columns = [
         ["Nature_of_", "Building_T", "Parish", "B_Area", "Est_Val"],
@@ -1327,14 +1459,7 @@ def main(config):
     for c in range(len(costs_shapefiles)):
         shapefile = costs_shapefiles[c]
         columns = cost_columns[c]
-        building_costs = gpd.read_file(
-            os.path.join(
-                incoming_data_path,
-                "construction_permits",
-                "Construction Permit Mapping 2019-2020 FY",
-                f"{shapefile}.shp",
-            )
-        )[columns]
+        building_costs = gpd.read_file(shapefile)[columns]
         building_costs.columns = [
             "development_type",
             "building_type",
@@ -1413,10 +1538,7 @@ def main(config):
     )
     buildings_input = buildings_input.to_crs(epsg=epsg_jamaica)
     population_column = "2019"
-    population = gpd.read_file(
-        os.path.join(processed_data_path, "population", "population_projections.gpkg"),
-        layer="mean",
-    )
+    population = gpd.read_file(population_file, layer="mean")
     print(population[population_column].sum())
     population = population.to_crs(epsg=epsg_jamaica)
     buildings_input["residential_type"] = buildings_input.progress_apply(
@@ -1499,5 +1621,4 @@ def main(config):
 
 
 if __name__ == "__main__":
-    CONFIG = load_config()
-    main(CONFIG)
+    main()
