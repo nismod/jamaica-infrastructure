@@ -173,12 +173,12 @@ rule building_data_process:
         residential_min_area = 11.15, #perhaps should be added to config.yaml
     output:
         #there are some intermediary files that get generated (not sure if they have to be in output):
-        #incoming_data/buildings/buildings_assigned_economic_sectors_intermediate.gpkg
         #incoming_data/buildings/commercial_buildings_assigned_economic_sectors_intermediate.gpkg
         #incoming_data/hotosm_data/hotosm_jam_points_of_interest_gpkg/points_of_interest_assigned_economic_sectors_intermediate.gpkg
         #incoming_data/buildings/building_attributes.csv
         #incoming_data/buildings/buidling_sector_subsectors.csv
         #incoming_data/buildings/building_cost_ranges.csv
+        intermediate_file = f"{RAW}/buildings/buildings_assigned_economic_sectors_intermediate.gpkg", #seems to be required by socio economic model scripts
         result = f"{DATA}/buildings/buildings_assigned_economic_activity.gpkg"
 
     shell:

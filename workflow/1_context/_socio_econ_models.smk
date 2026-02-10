@@ -29,3 +29,41 @@ rule population_growth_employment:
             --parish-population {input.parish_population} \
             --population-employment {input.population_employment}
         """
+
+rule agriculture_areas_economic_activity:
+    """
+    Assign agriculture GDP to land use layers in Jamaica
+    """
+    input:
+        script = "workflow/1_context/socio_econ_model_scripts/agriculture_areas_economic_activity.py",
+        agri_crop_details = f"{DATA}/agriculture_data/crop_details.csv",
+        econ_output = f"{DATA}/macroeconomic_data/detailed_sector_GVA_GDP_current_prices.xlsx",
+        land_use = f"{DATA}/land_type_and_use/jamaica_land_use_combined_with_sectors.gpkg",
+        intermediate_file = f"{RAW}/buildings/buildings_assigned_economic_sectors_intermediate.gpkg",
+        agri_data_prod_dir = f"{RAW}/agriculture_data/spam2010v2r0_global_val_prod_agg.geotiff/JAM",
+        agri_data_prod_agg_dir = f"{RAW}/agriculture_data/spam2010v2r0_global_prod.geotiff/JAM",
+        agri_data_yield_dir = f"{RAW}/agriculture_data/spam2010v2r0_global_yield.geotiff/JAM",
+    params:
+        epsg = config["adaptation_options"]["epsg_jamaica"],
+        financial_year = config["economics"]["financial_year"]
+    output:
+        spam_agri_outputs = f"{DATA}/agriculture_data/spam_agriculture_outputs.gpkg",
+        prod_keys = f"{DATA}/agriculture_data/production_column_keys.csv",
+        tonnage_keys = f"{DATA}/agriculture_data/tonnage_column_keys.csv",
+        yield_keys = f"{DATA}/agriculture_data/yield_column_keys.csv",
+        agri_gdp = f"{DATA}/agriculture_data/agriculture_gdp.gpkg",
+        building_gdp = f"{DATA}/agriculture_data/building_agriculture_gdp.csv"
+    shell:
+        """
+        python {input.script} \
+            --data-dir {DATA} \
+            --epsg {params.epsg} \
+            --financial-year {params.financial_year} \
+            --agri-crop-details {input.agri_crop_details} \
+            --econ-output {input.econ_output} \
+            --land-use {input.land_use} \
+            --intermediate-file {input.intermediate_file} \
+            --agri-data-prod-dir {input.agri_data_prod_dir} \
+            --agri-data-prod-agg-dir {input.agri_data_prod_agg_dir} \
+            --agri-data-yield-dir {input.agri_data_yield_dir}
+        """
