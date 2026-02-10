@@ -92,3 +92,41 @@ rule mining_areas_economic_activity:
             --mining-gdp-output {output.mining_gdp_output} \
             --building-mining-gdp {output.building_mining_gdp}
         """
+
+rule spatial_economic_allocation:
+    """
+    Assign GDP values to buildings in Jamaica
+    Aggregate values to Admin level
+    """
+    input:
+        script = "workflow/1_context/socio_econ_model_scripts/spatial_economic_allocation.py",
+        pop_projections = f"{DATA}/population/population_projections.gpkg",
+        buildings_econ_activity = f"{DATA}/buildings/buildings_assigned_economic_activity.gpkg",
+        econ_output = f"{DATA}/macroeconomic_data/detailed_sector_GVA_GDP_current_prices.xlsx",
+        fishing_locals = f"{DATA}/land_type_and_use/aqua_farms.gpkg",
+        agri_buidlings_gdp = f"{DATA}/agriculture_data/building_agricuture_gdp.csv",
+        mining_buildings_gdp = f"{DATA}/mining_data/building_mining_gdp.csv",
+    params:
+        epsg = config["adaptation_options"]["epsg_jamaica"],
+        financial_year = config["economics"]["financial_year"],
+        buffer_distance = 10000,
+        pop_year = config["economics"]["population_year"]
+    output:
+        # final_buildings_econ_activity = f"{DATA}/buildings/buildings_assigned_economic_activity.gpkg", #this is technically an output and also an input
+        admin_level_assigned_econ_activity = f"{DATA}/buildings/admin_level_assigned_economic_activity.gpkg"
+    shell:
+        """
+        python {input.script} \
+            --incoming-data-dir {RAW} \
+            --data-dir {DATA} \
+            --epsg {params.epsg} \
+            --financial-year {params.financial_year} \
+            --buffer-distance {params.buffer_distance} \
+            --pop-year {params.pop_year} \
+            --pop-projections {input.pop_projections} \
+            --buildings-econ-activity {input.buildings_econ_activity} \
+            --econ-output {input.econ_output} \
+            --fishing-locals {input.fishing_locals} \
+            --agri-buildings-gdp {input.agri_buidlings_gdp} \
+            --mining-buildings-gdp {input.mining_buildings_gdp}
+        """
