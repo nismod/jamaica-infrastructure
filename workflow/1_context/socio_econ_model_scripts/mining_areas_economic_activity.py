@@ -7,6 +7,7 @@ import subprocess
 
 import pandas as pd
 import geopandas as gpd
+import click
 
 # gpd._compat.USE_PYGEOS = True
 # gpd.options.use_pygeos = True
@@ -18,15 +19,55 @@ from tqdm import tqdm
 
 tqdm.pandas()
 
-epsg_jamaica = 3448
 
-
-def main(config):
-    incoming_data_path = config["paths"]["incoming_data"]
-    processed_data_path = config["paths"]["data"]
+@click.command()
+@click.option(
+    "--epsg",
+    "-e",
+    "epsg",
+    required=True,
+    type=int,
+    help="Coordinate system for Jamaica",
+)
+@click.option(
+    "--mining-gdp",
+    "-mg",
+    required=True,
+    type=click.Path(exists=True, dir_okay=False, file_okay=True, readable=True),
+    help="Path to mining GDP gpkg input",
+)
+@click.option(
+    "--intermediate-file",
+    "-if",
+    required=True,
+    type=click.Path(exists=True, dir_okay=False, file_okay=True, readable=True),
+    help="Path to buildings assigned economic sectors intermediate gpkg",
+)
+@click.option(
+    "--mining-gdp-output",
+    "-mgo",
+    required=True,
+    type=click.Path(exists=False, dir_okay=False, file_okay=True, writable=True),
+    help="Path to output mining GDP with buildings gpkg",
+)
+@click.option(
+    "--building-mining-gdp",
+    "-bmg",
+    required=True,
+    type=click.Path(exists=False, dir_okay=False, file_okay=True, writable=True),
+    help="Path to output building mining GDP csv",
+)
+def main(
+    epsg,
+    mining_gdp,
+    intermediate_file,
+    mining_gdp_output,
+    building_mining_gdp,
+):
+    epsg_jamaica = epsg
 
     mining_areas = gpd.read_file(
-        os.path.join(processed_data_path, "mining_data", "mining_gdp.gpkg"),
+        mining_gdp,
         layer="areas",
     )
 
@@ -35,11 +76,7 @@ def main(config):
     print("* Estimated GDP", tot_gpd)
     print("* Estimated Areas", tot_area)
     sector_df = gpd.read_file(
-        os.path.join(
-            incoming_data_path,
-            "buildings",
-            "buildings_assigned_economic_sectors_intermediate.gpkg",
-        ),
+        intermediate_file,
         layer="commercial_sectors",
     )
     sector_df = sector_df.to_crs(epsg=epsg_jamaica)
@@ -88,16 +125,15 @@ def main(config):
     gpd.GeoDataFrame(
         mining_areas, geometry="geometry", crs=f"EPSG:{epsg_jamaica}"
     ).to_file(
-        os.path.join(processed_data_path, "mining_data", "mining_gdp.gpkg"),
+        mining_gdp_output,
         layer="areas",
         driver="GPKG",
     )
     mining_buildings.to_csv(
-        os.path.join(processed_data_path, "mining_data", "building_mining_gdp.csv"),
+        building_mining_gdp,
         index=False,
     )
 
 
 if __name__ == "__main__":
-    CONFIG = load_config()
-    main(CONFIG)
+    main()

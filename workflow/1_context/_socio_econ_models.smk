@@ -67,3 +67,28 @@ rule agriculture_areas_economic_activity:
             --agri-data-prod-agg-dir {input.agri_data_prod_agg_dir} \
             --agri-data-yield-dir {input.agri_data_yield_dir}
         """
+
+rule mining_areas_economic_activity:
+    """
+    Assign mining GDP to land use layers in Jamaica
+    """
+    input:
+        script = "workflow/1_context/socio_econ_model_scripts/mining_areas_economic_activity.py",
+        mining_gdp = f"{DATA}/mining_data/mining_gdp.gpkg",
+        intermediate_file = f"{RAW}/buildings/buildings_assigned_economic_sectors_intermediate.gpkg",
+    params:
+        epsg = config["adaptation_options"]["epsg_jamaica"],
+    output:
+        mining_gdp_output = f"{DATA}/mining_data/mining_gdp_with_buildings.gpkg", 
+        #originially the above output was the smae mining_gdp.gpk and the name has bee changed
+        #An issue arises as to what scripts require this modifie minign gdp as an input as oposed which scripts need mining_gdp before the chanegs 
+        building_mining_gdp = f"{DATA}/mining_data/building_mining_gdp.csv"
+    shell:
+        """
+        python {input.script} \
+            --epsg {params.epsg} \
+            --mining-gdp {input.mining_gdp} \
+            --intermediate-file {input.intermediate_file} \
+            --mining-gdp-output {output.mining_gdp_output} \
+            --building-mining-gdp {output.building_mining_gdp}
+        """
