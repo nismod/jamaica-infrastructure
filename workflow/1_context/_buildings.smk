@@ -157,10 +157,10 @@ rule building_data_process:
         industry = f"{RAW}/buildings/nsdmb_industry_layer_economic_sectors.xlsx",
 
         #there are some cost shapefiles also in an array:
-        building_costs_1 = f"{RAW}/construction_permits/Construction Permit Mapping 2019-2020 FY/Construction_Permit_Mapping_Jan-March_Q4_2019-2020.shp",
-        building_costs_2 = f"{RAW}/construction_permits/Construction Permit Mapping 2019-2020 FY/Construction_Permits_October_-_December_(Q3)_2019-2020.shp",
-        building_costs_3 = f"{RAW}/construction_permits/Construction Permit Mapping 2019-2020 FY/Construction_Permits_Q1_2019_2020.shp",
-        building_costs_4 = f"{RAW}/construction_permits/Construction Permit Mapping 2019-2020 FY/Q2-2019- Construction Permits.shp",
+        building_costs_1 = f"{RAW}/construction_permits/2019-2020/Construction_Permit_Mapping_Jan-March_Q4_2019-2020.shp",
+        building_costs_2 = f"{RAW}/construction_permits/2019-2020/Construction_Permits_October_-_December_Q3_2019-2020.shp",
+        building_costs_3 = f"{RAW}/construction_permits/2019-2020/Construction_Permits_Q1_2019_2020.shp",
+        building_costs_4 = f"{RAW}/construction_permits/2019-2020/Q2-2019-Construction-Permits.shp",
 
     params:
         residential_min_area = 11.15, #perhaps should be added to config.yaml
