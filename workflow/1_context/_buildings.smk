@@ -176,31 +176,31 @@ rule building_data_process:
 
     shell:
         """
-        python {input.script} \
-            --incoming-data-dir {RAW} \
-            --data-dir {DATA} \
-            --residential-min-area {params.residential_min_area} \
-            --poi-data {input.poi_data} \
-            --poi-mapping {input.poi_mapping} \
-            --buildings-input-map {input.buildings_input_map} \
-            --buildings-input-file {input.buildings_input} \
-            --landuse-planning-layers-file {input.landuse_planning_layers} \
-            --landuse-types-file {input.landuse_types} \
-            --landuse-types-with-sectors-file {input.landuse_types_with_sectors} \
-            --commercial-buildings-file {input.commercial_buildings} \
-            --nsdmb-layers-file {input.nsdmb_layers} \
-            --ports-file {input.ports} \
-            --airports-file {input.airports} \
-            --residential-buildings-file {input.residential_buildings} \
-            --known-building-assign-file {input.known_building_assign} \
-            --fishing-locations-file {input.fishing_locations} \
-            --population-file {input.population} \
-            --trade-plants-file {input.trade_plants} \
-            --exporters-file {input.exporters} \
-            --industry-file {input.industry} \
-            --building-costs-1 {input.building_costs_1} \
-            --building-costs-2 {input.building_costs_2} \
-            --building-costs-3 {input.building_costs_3} \
+        python {input.script} \\
+            --incoming-data-dir {RAW} \\
+            --data-dir {DATA} \\
+            --residential-min-area {params.residential_min_area} \\
+            --poi-data {input.poi_data} \\
+            --poi-mapping {input.poi_mapping} \\
+            --buildings-input-map {input.buildings_input_map} \\
+            --buildings-input-file {input.buildings_input} \\
+            --landuse-planning-layers-file {input.landuse_planning_layers} \\
+            --landuse-types-file {input.landuse_types} \\
+            --landuse-types-with-sectors-file {input.landuse_types_with_sectors} \\
+            --commercial-buildings-file {input.commercial_buildings} \\
+            --nsdmb-layers-file {input.nsdmb_layers} \\
+            --ports-file {input.ports} \\
+            --airports-file {input.airports} \\
+            --residential-buildings-file {input.residential_buildings} \\
+            --known-building-assign-file {input.known_building_assign} \\
+            --fishing-locations-file {input.fishing_locations} \\
+            --population-file {input.population} \\
+            --trade-plants-file {input.trade_plants} \\
+            --exporters-file {input.exporters} \\
+            --industry-file {input.industry} \\
+            --building-costs-1 {input.building_costs_1} \\
+            --building-costs-2 {input.building_costs_2} \\
+            --building-costs-3 {input.building_costs_3} \\
             --building-costs-4 {input.building_costs_4}
         """
 
