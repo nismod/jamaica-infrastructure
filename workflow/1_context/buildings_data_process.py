@@ -1,5 +1,5 @@
 """Take the buildings footprints from OSM and add attributes to them economic sectors
-    Write the final buildings footprints into a geopackage
+Write the final buildings footprints into a geopackage
 """
 
 import sys
@@ -788,7 +788,9 @@ def main(
     ]
     landuse_type_names = ["existing", "proposals", "existing", "existing", "existing"]
 
-    for j, (layer, layer_type) in enumerate(list(zip(landuse_layers, landuse_type_names))):
+    for j, (layer, layer_type) in enumerate(
+        list(zip(landuse_layers, landuse_type_names))
+    ):
         planning_layer = gpd.read_file(
             landuse_planning_layers_file,
             layer=layer,
@@ -860,7 +862,9 @@ def main(
         land_use_types_gdf[f"{mtype}_identify"] = land_use_types_gdf.progress_apply(
             lambda x: identify_specific_areas(x, mtype), axis=1
         )
-        mining_quarry_areas = land_use_types_gdf[land_use_types_gdf[f"{mtype}_identify"] == 1]
+        mining_quarry_areas = land_use_types_gdf[
+            land_use_types_gdf[f"{mtype}_identify"] == 1
+        ]
 
         mining_quarry_areas["sector_code"] = msect
         mining_quarry_areas["subsector_code"] = msubsect
@@ -1061,7 +1065,10 @@ def main(
         buildings_input.rename(columns={column: f"{column}_building"}, inplace=True)
 
     buildings_input = match_buildings_to_polygon_dataframe(
-        buildings_input, commercial_buildings, epsg=LOCAL_PROJ_CRS_EPSG, spatial_join=False
+        buildings_input,
+        commercial_buildings,
+        epsg=LOCAL_PROJ_CRS_EPSG,
+        spatial_join=False,
     )
     matched_buildings.append(buildings_input[buildings_input["sector_code"] != "X"])
     buildings_input = buildings_input[buildings_input["sector_code"] == "X"]
@@ -1152,14 +1159,18 @@ def main(
         landuse_types_with_sectors_file,
         layer="areas",
     )
-    land_use_with_sectors_gdf = land_use_with_sectors_gdf.to_crs(epsg=LOCAL_PROJ_CRS_EPSG)
+    land_use_with_sectors_gdf = land_use_with_sectors_gdf.to_crs(
+        epsg=LOCAL_PROJ_CRS_EPSG
+    )
 
     if "index_left" in land_use_with_sectors_gdf.columns.values.tolist():
         land_use_with_sectors_gdf.drop("index_left", axis=1, inplace=True)
     elif "index_right" in land_use_with_sectors_gdf.columns.values.tolist():
         land_use_with_sectors_gdf.drop("index_right", axis=1, inplace=True)
 
-    land_use_with_sectors_gdf["layer_id"] = land_use_with_sectors_gdf.index.values.tolist()
+    land_use_with_sectors_gdf["layer_id"] = (
+        land_use_with_sectors_gdf.index.values.tolist()
+    )
 
     land_use_with_sectors_gdf = create_sector_subsector_attribute_columns(
         land_use_with_sectors_gdf,

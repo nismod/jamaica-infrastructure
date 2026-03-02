@@ -1,5 +1,4 @@
-"""Assign agriculture GDP to land use layers in Jamaica
-"""
+"""Assign agriculture GDP to land use layers in Jamaica"""
 
 import sys
 import os
@@ -157,7 +156,9 @@ def main(
         del all_crops
         print(crop_points)
 
-        crop_areas = create_voronoi_layer(crop_points, "crop_id", epsg=LOCAL_PROJ_CRS_EPSG)
+        crop_areas = create_voronoi_layer(
+            crop_points, "crop_id", epsg=LOCAL_PROJ_CRS_EPSG
+        )
 
         crop_areas = gpd.GeoDataFrame(
             pd.merge(
@@ -263,7 +264,9 @@ def main(
     economic_output_df.columns = [
         str(c).strip() for c in economic_output_df.columns.values.tolist()
     ]
-    economic_output_df["subsector_code"] = economic_output_df["subsector_code"].apply(str)
+    economic_output_df["subsector_code"] = economic_output_df["subsector_code"].apply(
+        str
+    )
     totat_gva = economic_output_df[economic_output_df["sector_code"] == "GVA"][
         f"{financial_year}"
     ].sum()

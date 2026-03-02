@@ -1,6 +1,6 @@
 """Create a combined land use layer from TNC and Forestry land use layers
-    Also combine a global mining areas land use layer 
-    Add macroeconomic sector and subsector codes to the data
+Also combine a global mining areas land use layer
+Add macroeconomic sector and subsector codes to the data
 """
 
 import sys
@@ -16,6 +16,7 @@ import click
 from jamaica_infrastructure import LOCAL_PROJ_CRS_EPSG
 
 tqdm.pandas()
+
 
 @click.command()
 @click.version_option("1.0")
@@ -68,7 +69,6 @@ tqdm.pandas()
     type=click.Path(exists=True, dir_okay=False, file_okay=True, readable=True),
     help="",
 )
-
 def main(
     data_dir,
     incoming_data_dir,
@@ -87,13 +87,9 @@ def main(
         layer="LandUse_LandUse",
     ).to_crs(epsg=LOCAL_PROJ_CRS_EPSG)
     tnc_landuse["tnc_id"] = tnc_landuse.index.values.tolist()
-    forest_landuse = gpd.read_file(
-        forest_landuse_path
-    ).to_crs(epsg=LOCAL_PROJ_CRS_EPSG)
+    forest_landuse = gpd.read_file(forest_landuse_path).to_crs(epsg=LOCAL_PROJ_CRS_EPSG)
     forest_landuse["forest_id"] = forest_landuse.index.values.tolist()
-    mining_landuse = gpd.read_file(
-        mining_landuse_path
-    ).to_crs(epsg=LOCAL_PROJ_CRS_EPSG)
+    mining_landuse = gpd.read_file(mining_landuse_path).to_crs(epsg=LOCAL_PROJ_CRS_EPSG)
     mining_landuse = mining_landuse[mining_landuse["COUNTRY_NAME"] == "Jamaica"]
     mining_landuse["global_id"] = mining_landuse.index.values.tolist()
     mining_landuse["global_LU_type"] = "Bauxite Extraction"
@@ -196,7 +192,9 @@ def main(
     )
     matches = matches.drop(["tnc_geomtery", "forest_geomtery"], axis=1)
     tnc_forest_df = gpd.GeoDataFrame(
-        matches[~matches.is_empty], geometry="geometry", crs=f"EPSG:{LOCAL_PROJ_CRS_EPSG}"
+        matches[~matches.is_empty],
+        geometry="geometry",
+        crs=f"EPSG:{LOCAL_PROJ_CRS_EPSG}",
     )
 
     """If we want to save the intermediate result
@@ -253,9 +251,7 @@ def main(
         ),
         layer="areas",
     )
-    forest_sector_mapping = pd.read_csv(
-        forest_sector_mapping_path
-    )
+    forest_sector_mapping = pd.read_csv(forest_sector_mapping_path)
     forest_sector_mapping.rename(
         columns={
             "sector_code": "sector_code_forest",
@@ -264,9 +260,7 @@ def main(
         },
         inplace=True,
     )
-    tnc_sector_mapping = pd.read_csv(
-        tnc_sector_mapping_path
-    )
+    tnc_sector_mapping = pd.read_csv(tnc_sector_mapping_path)
     tnc_sector_mapping.rename(
         columns={
             "sector_code": "sector_code_tnc",

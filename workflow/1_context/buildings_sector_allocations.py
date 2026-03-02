@@ -1,5 +1,5 @@
 """Take the buildings footprints from OSM and add attributes to them
-    Write a final buildings footprints into a geopackage
+Write a final buildings footprints into a geopackage
 """
 
 import sys
@@ -232,7 +232,9 @@ def main(config):
     buildings_input.rename(columns={"geometry": "polygon_geometry"}, inplace=True)
     buildings_input.rename(columns={"centroid": "geometry"}, inplace=True)
     buildings_input = gpd.GeoDataFrame(
-        buildings_input, geometry="geometry", crs={"init": f"epsg:{LOCAL_PROJ_CRS_EPSG}"}
+        buildings_input,
+        geometry="geometry",
+        crs={"init": f"epsg:{LOCAL_PROJ_CRS_EPSG}"},
     )
 
     points_layers_data = os.path.join(
@@ -382,7 +384,9 @@ def main(config):
     buildings_input.drop(["geometry"], axis=1, inplace=True)
     buildings_input.rename(columns={"polygon_geometry": "geometry"}, inplace=True)
     buildings_input = gpd.GeoDataFrame(
-        buildings_input, geometry="geometry", crs={"init": f"epsg:{LOCAL_PROJ_CRS_EPSG}"}
+        buildings_input,
+        geometry="geometry",
+        crs={"init": f"epsg:{LOCAL_PROJ_CRS_EPSG}"},
     )
 
     write_output = True

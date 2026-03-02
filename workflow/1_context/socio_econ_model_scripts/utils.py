@@ -1,5 +1,4 @@
-"""Functions for preprocessing data
-"""
+"""Functions for preprocessing data"""
 
 import sys
 import os

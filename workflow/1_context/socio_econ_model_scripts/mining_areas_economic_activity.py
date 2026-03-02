@@ -1,5 +1,4 @@
-"""Assign mining GDP to land use layers in Jamaica
-"""
+"""Assign mining GDP to land use layers in Jamaica"""
 
 import sys
 import os

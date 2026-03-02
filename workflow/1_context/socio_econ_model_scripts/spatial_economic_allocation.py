@@ -1,5 +1,5 @@
 """Assign GDP values to buildings in Jamaica
-    Aggregate values to Admin level
+Aggregate values to Admin level
 """
 
 import sys

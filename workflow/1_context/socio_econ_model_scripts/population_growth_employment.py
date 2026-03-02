@@ -1,5 +1,4 @@
-"""Create population projections for Jamaica
-"""
+"""Create population projections for Jamaica"""
 
 import sys
 import os
@@ -29,8 +28,8 @@ def modify_working_ages(working_dataframe):
         elif row.max_age - row.min_age == 4:
             df.append((f"{row.min_age}-{row.max_age}", row.min, row.mean, row.max))
         else:
-            df.append((f"{row.min_age}-{row.min_age+4}", row.min, row.mean, row.max))
-            df.append((f"{row.max_age-4}-{row.max_age}", row.min, row.mean, row.max))
+            df.append((f"{row.min_age}-{row.min_age + 4}", row.min, row.mean, row.max))
+            df.append((f"{row.max_age - 4}-{row.max_age}", row.min, row.mean, row.max))
 
     return pd.DataFrame(
         df,
@@ -318,9 +317,7 @@ def main(
     """Population changes by age group
     """
     forecasts = ["min", "mean", "max"]
-    employed_population = pd.read_csv(
-        population_employment
-    )
+    employed_population = pd.read_csv(population_employment)
     employed_population["age_group"] = employed_population.apply(
         lambda x: str(x["age_group"]).strip().replace(" - ", "-"), axis=1
     )
@@ -348,7 +345,7 @@ def main(
             all_year_columns.append(year_column)
             population_gender[year_column] = 0
             for pop in population_changes.itertuples():
-                pop_column = f"F{str(pop.age_group).replace('-','_')}_{gender_string}"
+                pop_column = f"F{str(pop.age_group).replace('-', '_')}_{gender_string}"
                 population_gender[year_column] += (
                     population_gender[pop_column]
                     * 0.01

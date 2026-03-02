@@ -1,5 +1,4 @@
-""" Assign heights to buildings in Jamaica
-"""
+"""Assign heights to buildings in Jamaica"""
 
 import os
 import glob
@@ -14,14 +13,6 @@ import click
 from jamaica_infrastructure import LOCAL_PROJ_CRS_EPSG
 
 tqdm.pandas()
-
-
-# def load_config():
-#     """Read config.json"""
-#     config_path = os.path.join(os.path.dirname(__file__), "..", "..", "config.json")
-#     with open(config_path, "r") as config_fh:
-#         config = json.load(config_fh)
-#     return config
 
 
 @click.command()
@@ -67,14 +58,13 @@ tqdm.pandas()
     required=True,
     type=click.Path(exists=True, dir_okay=False, file_okay=True, readable=True),
 )
-
 def main(
     data_dir,
     output_dir,
     vector_raster_intersections_script,
     building_layers,
     building_rasters,
-    buildings_econ_activity
+    buildings_econ_activity,
 ):
     # Set global paths
     processed_data_path = data_dir
@@ -140,7 +130,9 @@ def main(
 
         del building_intersections
 
-    gpd.GeoDataFrame(all_buildings, geometry="geometry", crs=f"EPSG:{LOCAL_PROJ_CRS_EPSG}").to_file(
+    gpd.GeoDataFrame(
+        all_buildings, geometry="geometry", crs=f"EPSG:{LOCAL_PROJ_CRS_EPSG}"
+    ).to_file(
         os.path.join(output_path, "buildings_heights.gpkg"),
         layer="areas",
         driver="GPKG",

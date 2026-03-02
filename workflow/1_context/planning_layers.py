@@ -1,5 +1,5 @@
-"""Create a alnd use planning database for Jamaica by extracting data from the NSDMB database 
-    Map land use sector and subsector codes for the different land use types
+"""Create a alnd use planning database for Jamaica by extracting data from the NSDMB database
+Map land use sector and subsector codes for the different land use types
 """
 
 import os
@@ -9,6 +9,7 @@ import geopandas as gpd
 import fiona
 from collections import OrderedDict
 from shapely.geometry import shape, mapping
+
 # from preprocess_utils import *
 from tqdm import tqdm
 import click
@@ -87,6 +88,7 @@ def match_parishes_to_landplanning(jamaica_parishes, gdf, gdf_list):
 
     return gdf_list
 
+
 @click.command()
 @click.version_option("1.0")
 @click.option(
@@ -152,7 +154,6 @@ def match_parishes_to_landplanning(jamaica_parishes, gdf, gdf_list):
     type=click.Path(exists=True, dir_okay=False, file_okay=True, readable=True),
     help="",
 )
-
 def main(
     incoming_data_dir,
     data_dir,
@@ -244,7 +245,9 @@ def main(
 
     gdf_merge = pd.concat(gdf_merge, axis=0, ignore_index=True)
     gdf_merge["land_use_id"] = gdf_merge.index.values.tolist()
-    gdf = gpd.GeoDataFrame(gdf_merge, geometry="geometry", crs=f"EPSG:{LOCAL_PROJ_CRS_EPSG}")
+    gdf = gpd.GeoDataFrame(
+        gdf_merge, geometry="geometry", crs=f"EPSG:{LOCAL_PROJ_CRS_EPSG}"
+    )
     gdf["area_sqm"] = gdf.progress_apply(lambda x: x.geometry.area, axis=1)
     gdf.to_file(
         os.path.join(incoming_data_path, "buildings", "landuse_planning_layers.gpkg"),
@@ -259,9 +262,7 @@ def main(
 
     # Manchester land use layers
     gdf_merge = []
-    manchester_layers = pd.read_csv(
-        manchester_layers_path
-    )
+    manchester_layers = pd.read_csv(manchester_layers_path)
     for i, pl in planning_layers.iterrows():
         if "manchester" in pl["Description"].lower():
             ignore_layers = [
@@ -303,7 +304,9 @@ def main(
 
     gdf_merge = pd.concat(gdf_merge, axis=0, ignore_index=True)
     gdf_merge["land_use_id"] = gdf_merge.index.values.tolist()
-    gdf = gpd.GeoDataFrame(gdf_merge, geometry="geometry", crs=f"EPSG:{LOCAL_PROJ_CRS_EPSG}")
+    gdf = gpd.GeoDataFrame(
+        gdf_merge, geometry="geometry", crs=f"EPSG:{LOCAL_PROJ_CRS_EPSG}"
+    )
     gdf["area_sqm"] = gdf.progress_apply(lambda x: x.geometry.area, axis=1)
     gdf.to_file(
         os.path.join(incoming_data_path, "buildings", "landuse_planning_layers.gpkg"),
@@ -538,7 +541,9 @@ def main(
 
                     gdf.drop("sector_subsector_infra", axis=1, inplace=True)
 
-        gdf = gpd.GeoDataFrame(gdf, geometry="geometry", crs=f"EPSG:{LOCAL_PROJ_CRS_EPSG}")
+        gdf = gpd.GeoDataFrame(
+            gdf, geometry="geometry", crs=f"EPSG:{LOCAL_PROJ_CRS_EPSG}"
+        )
         gdf.to_file(
             os.path.join(
                 incoming_data_path,
