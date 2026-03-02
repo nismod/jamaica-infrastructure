@@ -32,7 +32,7 @@ include: "6a_self-adaptation/_self-adaptation.smk"
 include: "6b_coastal_adaptation/_coastal_adaptation.smk"
 include: "7_etl/_etl.smk"
 
-from check_targets import EXPOSURE, DAMAGES, LOSSES, EAD_EAEL, ADAPTATIONS, TARGETS
+from check_rules import EXPOSURE, DAMAGES, LOSSES, EAD_EAEL, ADAPTATIONS, TARGETS
 
 rule all_exposure:
     input: EXPOSURE

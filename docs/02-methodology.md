@@ -57,6 +57,14 @@ assessment useful for decision-making, which include:
   comparing the costs of the specific options with the benefits of
   avoided risks, realized over a time horizon and climate scenario.
 
+- **Hotspots assessment** -- Spatial _hotspots analysis_ identifies
+  geographic areas where infrastructure risks and vulnerabilities are
+  concentrated. This regional perspective complements asset-level
+  assessments by aggregating exposure values, expected annual damages,
+  and economic loss metrics onto a spatial grid, producing risk maps
+  that support strategic planning and investment prioritisation at
+  regional and national scales.
+
 ## J-SRAT framework details and risk calculations
 
 ### Risk estimation framework
@@ -197,6 +205,26 @@ presented, either through the damage (loss)-probability curves or as a
 network map highlighting the most critical assets across the country in
 terms of value of EAD and EAEL estimates (see panel F in Figure 2‑1).
 
+### Spatial hotspots analysis
+
+While asset-level risk metrics identify individual critical infrastructure
+elements, spatial hotspots analysis provides a complementary regional
+perspective that identifies geographic areas where infrastructure risks and
+vulnerabilities are concentrated. Infrastructure assets are spatially
+disaggregated onto a regular grid (typically 1 km × 1 km cells), and three types
+of metrics are calculated for each cell:
+
+1) Exposure value hotspots, representing the total replacement cost of infrastructure within each cell.
+2) Risk hotspots, aggregating Expected Annual Damages across hazard types
+sectors.
+3) Economic loss hotspots for the transport sector, quantifying the wider economic consequences of losing all road and rail infrastructure within each cell through network disruption analysis.
+
+The results are presented as raster maps that can be optionally smoothed using
+Gaussian kernel density estimation to enhance visual interpretability. These
+spatially aggregated risk maps support strategic planning and investment
+prioritisation at regional and national scales. The detailed methodology is
+described in Appendix E.
+
 ### Adaptation assessment and calculations
 
 After having done an estimation of asset level risks across multiple
@@ -263,6 +291,38 @@ highest BCR. At the aggregated regional levels, we can use this analysis
 to estimate the total budget needed for investing in climate adaptation
 for assets with $BCR \geq 1$.
 
+### Coastal flood protection adaptation
+
+Coastal flooding poses a particular challenge for infrastructure adaptation due
+to the concentration of critical assets in coastal zones and the regional nature
+of flood propagation. Unlike asset-specific adaptation measures, coastal flood
+protection involves constructing engineered defence structures (seawalls,
+revetments, levees) that provide regional-scale protection to multiple
+infrastructure assets simultaneously.
+
+The coastal adaptation methodology developed here spatially delineates discrete
+coastal protection zones by analyzing coastal flood hazard maps under severe
+climate scenarios (typically RCP 8.5, 100-year return period, year 2100). Using
+DBSCAN clustering, contiguous flood-affected areas are identified and associated
+with coastal defence segments along the shoreline. Each segment is assigned a
+required design height based on maximum flood depths in its protection zone.
+
+Infrastructure assets falling within these protection zones benefit from flood
+risk reduction up to the design height of the coastal defence (which is the most
+severe seen in the hazard data). The cost of constructing and maintaining
+coastal protection infrastructure is apportioned among benefiting assets in
+proportion to their rehabilitation costs. Benefit-cost analysis is performed at
+two levels:
+
+1) Per-asset BCR, comparing each asset's apportioned cost share against its avoided damages and losses.
+2) Per-protection-zone BCR, aggregating benefits across all protected assets to evaluate the overall economic justification for each coastal defence segment.
+
+This approach enables identification of priority coastal segments where
+protection yields the highest collective benefits relative to costs, accounting
+for the co-benefits of defending multiple infrastructure sectors (energy,
+transport, water) with a single intervention. The detailed methodology is
+described in Appendix F.
+
 ## Output metrics
 
 A summary of the main output metrics developed in this study, their
@@ -295,6 +355,9 @@ implementation.**
 | Vulnerability and criticality assessment | Population/User disruptions            | Number of people/households disrupted due to loss of network services                                              | People/day        |
 | Risk assessment                          | Expected annual damages (EAD)          | Direct risks                                                                                                       | US$ or J$         |
 | Risk assessment                          | Expected annual economic losses (EAEL) | Indirect risks                                                                                                     | US$ or J$         |
+| Hotspots assessment                      | Exposure value hotspots                | Total replacement cost of infrastructure aggregated by grid cell                                                   | US$ or J$         |
+| Hotspots assessment                      | Risk hotspots                          | Spatial distribution of EAD across hazard types and sectors                                                        | US$ or J$         |
+| Hotspots assessment                      | Economic loss hotspots                 | Regional economic consequences of infrastructure disruption within each grid cell                                  | US$/day or J$/day |
 | Adaptation assessment                    | NPV costs                              | Total cost of adaptation over an implementation timeline                                                           | US$ or J$         |
 | Adaptation assessment                    | NPV benefits                           | Total benefit of adaptation over an implementation timeline                                                        | US$ or J$         |
 | Adaptation assessment                    | BCR                                    | Benefit–Cost Ratio                                                                                                 | –                 |
@@ -303,8 +366,9 @@ implementation.**
 
 As noted previously, the J-SRAT analysis is implemented in a Python
 programming environment. Here, we summarise the overall sequence of
-steps in implementation of the J-SRAT risk and adaptation assessment
-methodology.
+steps in implementation of the primary J-SRAT risk and adaptation assessment
+methodology (estimation of EAD, EAEL, NPV of adaptation costs and benefits and
+adaptation BCR).
 
 ### Step 1
 
@@ -446,3 +510,5 @@ Integrate results of the analysis into J-SRAT visualisation tool.
 - [Appendix B: Hazard models](appendix-b-hazard-models.md)
 - [Appendix C: Infrastructure network flow models for failure analysis](appendix-c-network-flow-models.md)
 - [Appendix D: Spatial disaggregation of economic activity at buildings and area levels](appendix-d-spatial-disaggregation.md)
+- [Appendix E: Spatial hotspots analysis](appendix-e-hotspots.md)
+- [Appendix F: Coastal flood protection adaptation](appendix-f-coastal-adaptation.md)

@@ -87,10 +87,12 @@ economics:
   # Exchange rate to use when converting rehabilitation costs, losses, etc.
   USD_per_JMD: 0.0064
   # Labour cost, used to put a value on disruption cost of labour rerouting
-  # Average wage is 200~500 JMD for 2012 stats, with a 45.4% inflation in currency
-  # 0.4 * (1 + 0.454) * 235.25 = 136.82
+  # For more information, see `docs/appendix-c-network-flow-models.md`
+  # §C.4.2 Transport flow disruption analysis
   labour_cost_JMD_per_hour: 136.82
   # Multiplied by additional rerouting time and trade value to find a lost value of trade
+  # For more information, see `docs/appendix-c-network-flow-models.md`
+  # §C.4.2 Transport flow disruption analysis
   disrupted_trade_fraction: 0.02
 
 ### CONTEXT FROM LAND-USE / BUILDINGS / POPULATION ###
@@ -153,8 +155,6 @@ adaptation_options:
   projection_end_year: 2100
   # Annually applied percentage rate to discount future values in economic modelling
   discounting_rate: 10
-  # TODO: Store this in src/constants.py or similar, it should not be configurable
-  epsg_jamaica: 3448
   # Flood defence heights to consider for relevant adaptation options
   flood_thresholds_meters: [1.0, 1.5, 2.0, 2.5]
   # When considering adaptation to TC winds, a factor, let it be known as u, is

@@ -20,6 +20,10 @@ Those CSVs are:
 import subprocess
 import pandas
 
+
+# Version of the web tool to target
+IRV_JAMAICA_TAG = "0.4.29"
+
 # Check the files that we need to generate
 csv_path_refs = {
     "adaptation_files": ["avoided_risk"],
@@ -37,7 +41,7 @@ csv_path_refs = {
 
 required_files = set()
 for f, cols in csv_path_refs.items():
-    csv_file = pandas.read_csv(f"https://github.com/nismod/irv-jamaica/raw/refs/heads/main/etl/{f}.csv")
+    csv_file = pandas.read_csv(f"https://github.com/nismod/irv-jamaica/raw/refs/tags/{IRV_JAMAICA_TAG}/etl/{f}.csv")
     for col in cols:
         required_files.update(csv_file[col].dropna().values)
 

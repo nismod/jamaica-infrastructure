@@ -23,8 +23,8 @@ rule collate_flow_data:
         ]
     shell:
         f"""
-        python {{input.script}} \
-            --results-dir {OUTPUT} \
+        python {{input.script}} \\
+            --results-dir {OUTPUT} \\
             --processed-data-dir {DATA}
         """
 
@@ -89,13 +89,15 @@ rule single_link_failures:
     output:
         chunk = protected(f"{OUTPUT}/transport_failures/scenario_results/single_link_failure_{{chunk}}.csv"),
     shell:
-        """
-        python {input.script} \
-            --edge-chunk-map-csv {input.edge_chunk_map_csv} \
-            --chunk-id {wildcards.chunk} \
-            --edges-file {input.edges} \
-            --flow-data-dir {input.flow_data} \
-            --output-path {output.chunk}
+        f"""
+        python {{input.script}} \\
+            --edge-chunk-map-csv {{input.edge_chunk_map_csv}} \\
+            --chunk-id {{wildcards.chunk}} \\
+            --edges-file {{input.edges}} \\
+            --flow-data-dir {{input.flow_data}} \\
+            --output-path {{output.chunk}} \\
+            --hourly-wage {config["economics"]["labour_cost_JMD_per_hour"]} \\
+            --trade-effect {config["economics"]["disrupted_trade_fraction"]}
         """
 
 
@@ -115,12 +117,14 @@ rule rail_stations_failure_analysis:
     output:
         station_failures = f"{OUTPUT}/transport_failures/single_station_failures_scenarios.csv",
     shell:
-        """
-        python {input.script} \
-            --edges-file {input.edges} \
-            --rail-nodes-file {input.rail_nodes} \
-            --flow-data-dir {input.flow_data_dir} \
-            --output-path {output.station_failures}
+        f"""
+        python {{input.script}} \\
+            --edges-file {{input.edges}} \\
+            --rail-nodes-file {{input.rail_nodes}} \\
+            --flow-data-dir {{input.flow_data_dir}} \\
+            --output-path {{output.station_failures}} \\
+            --hourly-wage {config["economics"]["labour_cost_JMD_per_hour"]} \\
+            --trade-effect {config["economics"]["disrupted_trade_fraction"]}
         """
 
 
@@ -140,12 +144,14 @@ rule bridge_failure_analysis:
     output:
         bridge_failures = f"{OUTPUT}/transport_failures/single_bridge_failures_scenarios.csv",
     shell:
-        """
-        python {input.script} \
-            --edges-file {input.edges} \
-            --road-nodes-file {input.road_nodes} \
-            --flow-data-dir {input.flow_data_dir} \
-            --output-path {output.bridge_failures}
+        f"""
+        python {{input.script}} \\
+            --edges-file {{input.edges}} \\
+            --road-nodes-file {{input.road_nodes}} \\
+            --flow-data-dir {{input.flow_data_dir}} \\
+            --output-path {{output.bridge_failures}} \\
+            --hourly-wage {config["economics"]["labour_cost_JMD_per_hour"]} \\
+            --trade-effect {config["economics"]["disrupted_trade_fraction"]}
         """
 
 
@@ -165,14 +171,14 @@ rule single_point_failure_road_rail:
         station_failures = f"{OUTPUT}/transport_failures/single_station_failures_scenarios.csv",
         bridge_failures = f"{OUTPUT}/transport_failures/single_bridge_failures_scenarios.csv",
         labour_flows = f"{OUTPUT}/flow_mapping/labour_trips_and_activity.gpq",
-        bridges = f"{DATA}/networks/transport/roads.gpkg",  # assumed to be road nodes, alas not yet
+        bridges = f"{DATA}/networks/transport/roads.gpkg",
         edges = f"{DATA}/networks/transport/multi_modal_network.gpkg",
         bridge_labour_trips = f"{OUTPUT}/flow_mapping/origins_destinations_labour_economic_activity.csv",
         od_losses = f"{OUTPUT}/flow_mapping/origins_destinations_trade_economic_activity.csv",
         ports = f"{DATA}/networks/transport/port_polygon.gpkg",
         airports = f"{DATA}/networks/transport/airport_polygon.gpkg",
     params:
-        # include as a param to trigger re-run on change
+        # Include as a param to trigger re-run on change
         chunk_count = config["single_link_failure_chunk_count"]
     output:
         road_rail_edges = f"{OUTPUT}/economic_losses/single_failure_scenarios/single_point_failure_road_rail_edges_economic_losses.csv",
@@ -182,8 +188,8 @@ rule single_point_failure_road_rail:
         airports = f"{OUTPUT}/economic_losses/single_failure_scenarios/single_point_failure_airports_economic_losses.csv",
     shell:
         f"""
-        python {{input.script}} \
-            --results-dir {OUTPUT} \
+        python {{input.script}} \\
+            --results-dir {OUTPUT} \\
             --processed-data-dir {DATA}
         """
 

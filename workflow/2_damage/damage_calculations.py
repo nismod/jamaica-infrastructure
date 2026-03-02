@@ -11,14 +11,14 @@ import numpy as np
 from scipy.interpolate import interp1d
 from tqdm import tqdm
 
+from jamaica_infrastructure.geo import LOCAL_PROJ_CRS_EPSG
+
 
 warnings.simplefilter(action="ignore", category=FutureWarning)
 warnings.simplefilter(action="ignore", category=pd.errors.PerformanceWarning)
 pd.options.mode.chained_assignment = None  # default='warn'
 
 tqdm.pandas()
-
-epsg_jamaica = 3448
 
 
 def get_damage_data(x, damage_data_path, uplift_factor=0, uncertainty_parameter=0):
@@ -275,8 +275,8 @@ def direct_damages(
 
     logging.info("Reading intersection (splits) data")
     hazard_df = gpd.read_parquet(intersection)
-    hazard_df = hazard_df.to_crs(epsg=epsg_jamaica)
-    hazard_df = add_exposure_dimensions(hazard_df, dataframe_type=asset_info.asset_layer, epsg=epsg_jamaica)
+    hazard_df = hazard_df.to_crs(epsg=LOCAL_PROJ_CRS_EPSG)
+    hazard_df = add_exposure_dimensions(hazard_df, dataframe_type=asset_info.asset_layer, epsg=LOCAL_PROJ_CRS_EPSG)
 
     logging.info("Calculating direct damages")
     for hazard_info in hazard_attributes.itertuples():

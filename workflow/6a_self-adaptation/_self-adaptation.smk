@@ -23,28 +23,26 @@ rule adaptation_options_costs:
         rcp = config["coastal_adaptation"]["max_rcp"],
         rp = config["coastal_adaptation"]["max_rp"],
         discounting_rate = config["adaptation_options"]["discounting_rate"],
-        epsg = config["adaptation_options"]["epsg_jamaica"]
     output:
         npv = f"{OUTPUT}/adaptation_costs/{{hazard}}_costs/{{gpkg}}_{{layer}}_adaptation_timeseries_and_npvs.csv",
         unit_costs = f"{OUTPUT}/adaptation_costs/{{hazard}}_costs/{{gpkg}}_{{layer}}_adaptation_unit_costs.csv",
     shell:
         """
-        python {input.script} \
-            --network-csv {input.network_csv} \
-            --asset-file {input.asset_file} \
-            --cost-file {input.cost_file} \
-            --protection-asset-dict {input.protection_asset_dict} \
-            --protection-feature-breakdown {input.protection_feature_breakdown} \
-            --hazard-label {wildcards.hazard} \
-            --asset-gpkg {wildcards.gpkg} \
-            --asset-layer {wildcards.layer} \
-            --output-dir {OUTPUT} \
-            --baseline-year {params.baseline_year} \
-            --projection-end-year {params.projection_end_year} \
-            --rcp {params.rcp} \
-            --rp {params.rp} \
+        python {input.script} \\
+            --network-csv {input.network_csv} \\
+            --asset-file {input.asset_file} \\
+            --cost-file {input.cost_file} \\
+            --protection-asset-dict {input.protection_asset_dict} \\
+            --protection-feature-breakdown {input.protection_feature_breakdown} \\
+            --hazard-label {wildcards.hazard} \\
+            --asset-gpkg {wildcards.gpkg} \\
+            --asset-layer {wildcards.layer} \\
+            --output-dir {OUTPUT} \\
+            --baseline-year {params.baseline_year} \\
+            --projection-end-year {params.projection_end_year} \\
+            --rcp {params.rcp} \\
+            --rp {params.rp} \\
             --discounting-rate {params.discounting_rate} \
-            --epsg {params.epsg}
         """
 
 
@@ -73,14 +71,14 @@ rule damage_loss_timeseries_and_NPV:
         ),
     shell:
         """
-        python {input.script} \
-            --network-csv {input.network_csv} \
-            --growth-rates-xls {input.growth_rates} \
-            --asset-gpkg {wildcards.gpkg} \
-            --asset-layer {wildcards.layer} \
-            --baseline-year {params.baseline_year} \
-            --projection-end-year {params.projection_end_year} \
-            --discounting-rate {params.discounting_rate} \
+        python {input.script} \\
+            --network-csv {input.network_csv} \\
+            --growth-rates-xls {input.growth_rates} \\
+            --asset-gpkg {wildcards.gpkg} \\
+            --asset-layer {wildcards.layer} \\
+            --baseline-year {params.baseline_year} \\
+            --projection-end-year {params.projection_end_year} \\
+            --discounting-rate {params.discounting_rate} \\
             --output-path {wildcards.output_path}
         """
 

@@ -11,6 +11,8 @@ from tqdm import tqdm
 from jamaica_infrastructure.adaptation import (
     calculate_discounting_rate_factor,
 )
+from jamaica_infrastructure.geo import LOCAL_PROJ_CRS_EPSG
+
 
 warnings.simplefilter(action="ignore", category=FutureWarning)
 pd.options.mode.chained_assignment = None  # default='warn'
@@ -377,14 +379,6 @@ def write_empty_output(asset_unit_costs_csv: str, asset_timeseries_csv: str, bas
     type=float,
     help="Discounting rate",
 )
-@click.option(
-    "--epsg",
-    "-e",
-    default=3448,
-    required=False,
-    type=int,
-    help="EPSG",
-)
 def adaptation_options_costs(
     network_csv,
     asset_file,
@@ -400,7 +394,6 @@ def adaptation_options_costs(
     rcp,
     rp,
     discounting_rate,
-    epsg,
 ):
 
     # make output folders
@@ -429,7 +422,7 @@ def adaptation_options_costs(
     asset_type_col = network_layer[asset_type_lookup]
 
     logging.info("Read network layer (per-asset attributes)")
-    assets = gpd.read_file(asset_file, layer=asset_layer).to_crs(epsg=epsg)
+    assets = gpd.read_file(asset_file, layer=asset_layer).to_crs(epsg=LOCAL_PROJ_CRS_EPSG)
 
     logging.info("Lookup costs for network assets")
     if network_layer.asset_description != "roads":

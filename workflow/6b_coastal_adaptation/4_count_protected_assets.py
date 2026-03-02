@@ -12,8 +12,6 @@ def process_network_assets(network_info, flood_polygons, data_path):
     layer_type = network_info["asset_layer"]
     asset = network_info["asset_gpkg"]
 
-    # mean_cost_col = network_info['asset_mean_cost_column']
-
     def is_empty(val):
         return val is None or val == "" or str(val).lower() == "none" or pd.isna(val)
 
@@ -313,9 +311,6 @@ def main(
     rp,
     output_dir,
 ):
-    # RP = ['100']
-    # RCP = ['baseline2010', '262050', '262100', '452030', '452050', '452070', '452100', '852030', '852050', '852070', '852100']
-    # RCP = ['baseline2010', '262050']
 
     RP = [f"{rp}"]
 

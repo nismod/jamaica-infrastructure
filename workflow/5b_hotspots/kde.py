@@ -71,7 +71,7 @@ def main(
         output_transform = input_transform
         # Run relatively fast convolution without changing resolution
         bw_pixels: int = int(bandwidth / input_res)
-        assert bw_pixels > 0, f"Bandwidth must be >= pixel resolution"
+        assert bw_pixels > 0, "Bandwidth must be >= pixel resolution"
         logging.info(f"Define kernel {bandwidth=}, {bw_pixels=}")
         kernel = np.outer(
             scipy.signal.windows.gaussian(bw_pixels * 8, bw_pixels),
