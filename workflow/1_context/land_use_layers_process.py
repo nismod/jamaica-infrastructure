@@ -1,6 +1,6 @@
 """Create a combined land use layer from TNC and Forestry land use layers
-    Also combine a global mining areas land use layer 
-    Add macroeconomic sector and subsector codes to the data
+Also combine a global mining areas land use layer
+Add macroeconomic sector and subsector codes to the data
 """
 
 import sys
@@ -11,34 +11,85 @@ import geopandas as gpd
 import numpy as np
 from preprocess_utils import *
 from tqdm import tqdm
+import click
+
+from jamaica_infrastructure.geo import LOCAL_PROJ_CRS_EPSG
 
 tqdm.pandas()
 
 
-def main(config):
-    incoming_data_path = config["paths"]["incoming_data"]
-    processed_data_path = config["paths"]["data"]
-    epsg_jamaica = 3448
-    database_name = "GWP_Jamaica_NSP_Master_Geodatabase_v01.gdb"
+@click.command()
+@click.version_option("1.0")
+@click.option(
+    "--data-dir",
+    "-d",
+    required=True,
+    type=click.Path(exists=False, dir_okay=True, file_okay=False, readable=True),
+    help="Path to processed data",
+)
+@click.option(
+    "--incoming-data-dir",
+    "-i",
+    required=True,
+    type=click.Path(exists=False, dir_okay=True, file_okay=False, readable=True),
+    help="Path to unprocessed incoming data",
+)
+@click.option(
+    "--tnc-landuse-path",
+    "-tl",
+    required=True,
+    type=click.Path(exists=True, dir_okay=False, file_okay=True, readable=True),
+    help="",
+)
+@click.option(
+    "--forest-landuse-path",
+    "-fl",
+    required=True,
+    type=click.Path(exists=True, dir_okay=False, file_okay=True, readable=True),
+    help="",
+)
+@click.option(
+    "--mining-landuse-path",
+    "-ml",
+    required=True,
+    type=click.Path(exists=True, dir_okay=False, file_okay=True, readable=True),
+    help="",
+)
+@click.option(
+    "--forest-sector-mapping-path",
+    "-fsm",
+    required=True,
+    type=click.Path(exists=True, dir_okay=False, file_okay=True, readable=True),
+    help="",
+)
+@click.option(
+    "--tnc-sector-mapping-path",
+    "-tsm",
+    required=True,
+    type=click.Path(exists=True, dir_okay=False, file_okay=True, readable=True),
+    help="",
+)
+def main(
+    data_dir,
+    incoming_data_dir,
+    tnc_landuse_path,
+    forest_landuse_path,
+    mining_landuse_path,
+    forest_sector_mapping_path,
+    tnc_sector_mapping_path,
+):
+    incoming_data_path = incoming_data_dir
+    processed_data_path = data_dir
+    # database_name = "GWP_Jamaica_NSP_Master_Geodatabase_v01.gdb"
 
     tnc_landuse = gpd.read_file(
-        os.path.join(
-            incoming_data_path, "nsdmb", "GWP_Jamaica_NSP_Master_Geodatabase_v01.gdb"
-        ),
+        tnc_landuse_path,
         layer="LandUse_LandUse",
-    ).to_crs(epsg=epsg_jamaica)
+    ).to_crs(epsg=LOCAL_PROJ_CRS_EPSG)
     tnc_landuse["tnc_id"] = tnc_landuse.index.values.tolist()
-    forest_landuse = gpd.read_file(
-        os.path.join(
-            incoming_data_path, "Landuse 2013 data", "2013_landuse_Landcover.shp"
-        )
-    ).to_crs(epsg=epsg_jamaica)
+    forest_landuse = gpd.read_file(forest_landuse_path).to_crs(epsg=LOCAL_PROJ_CRS_EPSG)
     forest_landuse["forest_id"] = forest_landuse.index.values.tolist()
-    mining_landuse = gpd.read_file(
-        os.path.join(
-            incoming_data_path, "global_mining_areas", "global_mining_polygons_v1.gpkg"
-        )
-    ).to_crs(epsg=epsg_jamaica)
+    mining_landuse = gpd.read_file(mining_landuse_path).to_crs(epsg=LOCAL_PROJ_CRS_EPSG)
     mining_landuse = mining_landuse[mining_landuse["COUNTRY_NAME"] == "Jamaica"]
     mining_landuse["global_id"] = mining_landuse.index.values.tolist()
     mining_landuse["global_LU_type"] = "Bauxite Extraction"
@@ -76,7 +127,7 @@ def main(config):
     tnc_global_mining_df = gpd.GeoDataFrame(
         pd.DataFrame(tnc_global_mining_df),
         geometry="geometry",
-        crs=f"EPSG:{epsg_jamaica}",
+        crs=f"EPSG:{LOCAL_PROJ_CRS_EPSG}",
     )
     merge_geometry = tnc_global_mining_df.dissolve(by="tnc_id").reset_index()
     tnc_r = []
@@ -101,7 +152,7 @@ def main(config):
             [tnc_global_mining_df, tnc_r, tnc_modified], axis=0, ignore_index=True
         ),
         geometry="geometry",
-        crs=f"EPSG:{epsg_jamaica}",
+        crs=f"EPSG:{LOCAL_PROJ_CRS_EPSG}",
     )
     tnc_final.to_file(
         os.path.join(
@@ -141,7 +192,9 @@ def main(config):
     )
     matches = matches.drop(["tnc_geomtery", "forest_geomtery"], axis=1)
     tnc_forest_df = gpd.GeoDataFrame(
-        matches[~matches.is_empty], geometry="geometry", crs=f"EPSG:{epsg_jamaica}"
+        matches[~matches.is_empty],
+        geometry="geometry",
+        crs=f"EPSG:{LOCAL_PROJ_CRS_EPSG}",
     )
 
     """If we want to save the intermediate result
@@ -168,7 +221,7 @@ def main(config):
             ~(tnc_forest_df.geometry.geom_type.isin(["LineString", "Point"]))
         ],
         geometry="geometry",
-        crs=f"EPSG:{epsg_jamaica}",
+        crs=f"EPSG:{LOCAL_PROJ_CRS_EPSG}",
     )
     tnc_forest_df["area_m2"] = tnc_forest_df.progress_apply(
         lambda x: x.geometry.area, axis=1
@@ -198,13 +251,7 @@ def main(config):
         ),
         layer="areas",
     )
-    forest_sector_mapping = pd.read_csv(
-        os.path.join(
-            processed_data_path,
-            "land_type_and_use",
-            "forest_classes_with_sector_mapping.csv",
-        )
-    )
+    forest_sector_mapping = pd.read_csv(forest_sector_mapping_path)
     forest_sector_mapping.rename(
         columns={
             "sector_code": "sector_code_forest",
@@ -213,13 +260,7 @@ def main(config):
         },
         inplace=True,
     )
-    tnc_sector_mapping = pd.read_csv(
-        os.path.join(
-            processed_data_path,
-            "land_type_and_use",
-            "tnc_classes_with_sector_mapping.csv",
-        )
-    )
+    tnc_sector_mapping = pd.read_csv(tnc_sector_mapping_path)
     tnc_sector_mapping.rename(
         columns={
             "sector_code": "sector_code_tnc",
@@ -235,7 +276,7 @@ def main(config):
     tnc_forest_df = pd.merge(tnc_forest_df, tnc_sector_mapping, how="left", on=["NAME"])
 
     gpd.GeoDataFrame(
-        tnc_forest_df, geometry="geometry", crs=f"EPSG:{epsg_jamaica}"
+        tnc_forest_df, geometry="geometry", crs=f"EPSG:{LOCAL_PROJ_CRS_EPSG}"
     ).to_file(
         os.path.join(
             processed_data_path,
@@ -248,5 +289,4 @@ def main(config):
 
 
 if __name__ == "__main__":
-    CONFIG = load_config()
-    main(CONFIG)
+    main()

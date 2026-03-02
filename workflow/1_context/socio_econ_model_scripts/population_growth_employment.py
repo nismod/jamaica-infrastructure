@@ -1,5 +1,4 @@
-"""Create population projections for Jamaica
-"""
+"""Create population projections for Jamaica"""
 
 import sys
 import os
@@ -7,8 +6,8 @@ import os
 import pandas as pd
 import geopandas as gpd
 import numpy as np
+import click
 
-from utils import *
 from tqdm import tqdm
 
 tqdm.pandas()
@@ -29,8 +28,8 @@ def modify_working_ages(working_dataframe):
         elif row.max_age - row.min_age == 4:
             df.append((f"{row.min_age}-{row.max_age}", row.min, row.mean, row.max))
         else:
-            df.append((f"{row.min_age}-{row.min_age+4}", row.min, row.mean, row.max))
-            df.append((f"{row.max_age-4}-{row.max_age}", row.min, row.mean, row.max))
+            df.append((f"{row.min_age}-{row.min_age + 4}", row.min, row.mean, row.max))
+            df.append((f"{row.max_age - 4}-{row.max_age}", row.min, row.mean, row.max))
 
     return pd.DataFrame(
         df,
@@ -120,12 +119,69 @@ def get_population_changes(population_dataframe, start_year, end_year, base_year
     return population_dataframe
 
 
-def main(config):
-    incoming_data_path = config["paths"]["incoming_data"]
-    processed_data_path = config["paths"]["data"]
-    epsg_jamaica = 3448
+@click.command()
+@click.option(
+    "--data-dir",
+    "-d",
+    required=True,
+    type=click.Path(exists=False, dir_okay=True, file_okay=False, readable=True),
+    help="Path to processed data",
+)
+@click.option(
+    "--incoming-data-dir",
+    "-i",
+    required=True,
+    type=click.Path(exists=False, dir_okay=True, file_okay=False, readable=True),
+    help="Path to unprocessed incoming data",
+)
+@click.option(
+    "--base-year",
+    "-b",
+    required=True,
+    type=int,
+    help="Base year for population projections",
+)
+@click.option(
+    "--admin-boundaries",
+    "-ab",
+    required=True,
+    type=click.Path(exists=True, dir_okay=False, file_okay=True, readable=True),
+    help="Path to admin boundaries gpkg",
+)
+@click.option(
+    "--population",
+    "-p",
+    required=True,
+    type=click.Path(exists=True, dir_okay=False, file_okay=True, readable=True),
+    help="Path to population gpkg",
+)
+@click.option(
+    "--parish-population",
+    "-pp",
+    required=True,
+    type=click.Path(exists=True, dir_okay=False, file_okay=True, readable=True),
+    help="Path to parish population changes xlsx",
+)
+@click.option(
+    "--population-employment",
+    "-pe",
+    required=True,
+    type=click.Path(exists=True, dir_okay=False, file_okay=True, readable=True),
+    help="Path to population employment percent by age csv",
+)
+def main(
+    data_dir,
+    incoming_data_dir,
+    base_year,
+    admin_boundaries,
+    population,
+    parish_population,
+    population_employment,
+):
+    incoming_data_path = incoming_data_dir
+    processed_data_path = data_dir
 
-    baseyear = 2011
+    baseyear = base_year
     id_column = "ED_ID"
     id_columns = ["ED_ID", "ED"]
     other_columns = ["ED_CLASS", "AREA", "PERIMETER", "PARISH", "CONST_NAME", "ED"]
@@ -213,12 +269,12 @@ def main(config):
     female_total_column = "TOTAL_FMLE"
     male_total_column = "TOTAL_MLE"
     total_column_column = "TOTAL_POP"
-    population = gpd.read_file(
-        os.path.join(processed_data_path, "boundaries", "admin_boundaries.gpkg"),
+    population_data = gpd.read_file(
+        admin_boundaries,
         layer="admin3",
     )
     population_estimation = gpd.read_file(
-        os.path.join(processed_data_path, "population", "population.gpkg"),
+        population,
         layer="admin3",
     )
     population_estimation["parish_rename"] = population_estimation.progress_apply(
@@ -226,9 +282,7 @@ def main(config):
     )
 
     population_growth = pd.read_excel(
-        os.path.join(
-            incoming_data_path, "macroeconomic_data", "parish_population_changes.xlsx"
-        ),
+        parish_population,
         sheet_name="2014-2019",
     )
     population_growth = population_growth[population_growth["Parish"] != "Total"]
@@ -236,22 +290,22 @@ def main(config):
         lambda x: str(x["Parish"]).replace(" ", "").lower(), axis=1
     )
 
-    population = pd.merge(
-        population,
+    population_data = pd.merge(
+        population_data,
         population_estimation[id_columns + ["population"]],
         how="left",
         on=id_columns,
     )
-    population["parish_rename"] = population.progress_apply(
+    population_data["parish_rename"] = population_data.progress_apply(
         lambda x: str(x["PARISH"]).replace(".", "").replace(" ", "").lower(), axis=1
     )
     """Get the population growth from 2011 to 2019
     """
-    parish_population = (
-        population.groupby("parish_rename")["population"].sum().reset_index()
+    parish_population_df = (
+        population_data.groupby("parish_rename")["population"].sum().reset_index()
     )
     parish_population_change = pd.merge(
-        parish_population, population_growth, how="left", on=["parish_rename"]
+        parish_population_df, population_growth, how="left", on=["parish_rename"]
     )
     parish_population_change.rename(columns={"population": "2011"}, inplace=True)
     parish_population_change.columns = parish_population_change.columns.map(str)
@@ -263,13 +317,7 @@ def main(config):
     """Population changes by age group
     """
     forecasts = ["min", "mean", "max"]
-    employed_population = pd.read_csv(
-        os.path.join(
-            incoming_data_path,
-            "macroeconomic_data",
-            "population_employment_percent_by_age.csv",
-        )
-    )
+    employed_population = pd.read_csv(population_employment)
     employed_population["age_group"] = employed_population.apply(
         lambda x: str(x["age_group"]).strip().replace(" - ", "-"), axis=1
     )
@@ -291,13 +339,13 @@ def main(config):
             pd.Series
         )
         population_changes = modify_working_ages(gender_working)
-        population_gender = population.copy()
+        population_gender = population_data.copy()
         for forecast in forecasts:
             year_column = f"{forecast}_{gender.lower()}_{baseyear}"
             all_year_columns.append(year_column)
             population_gender[year_column] = 0
             for pop in population_changes.itertuples():
-                pop_column = f"F{str(pop.age_group).replace('-','_')}_{gender_string}"
+                pop_column = f"F{str(pop.age_group).replace('-', '_')}_{gender_string}"
                 population_gender[year_column] += (
                     population_gender[pop_column]
                     * 0.01
@@ -419,5 +467,4 @@ def main(config):
 
 
 if __name__ == "__main__":
-    CONFIG = load_config()
-    main(CONFIG)
+    main()

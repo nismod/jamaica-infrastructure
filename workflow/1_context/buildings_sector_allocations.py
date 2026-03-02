@@ -1,5 +1,5 @@
 """Take the buildings footprints from OSM and add attributes to them
-    Write a final buildings footprints into a geopackage
+Write a final buildings footprints into a geopackage
 """
 
 import sys
@@ -7,8 +7,10 @@ import os
 
 import geopandas as gpd
 import pandas as pd
-from preprocess_utils import *
 from tqdm import tqdm
+
+from preprocess_utils import *
+from jamaica_infrastructure.geo import LOCAL_PROJ_CRS_EPSG
 
 tqdm.pandas()
 
@@ -122,7 +124,6 @@ def main(config):
     incoming_data_path = config["paths"]["incoming_data"]
     processed_data_path = config["paths"]["data"]
     building_data_path = os.path.join(incoming_data_path, "buildings")
-    epsg_jamaica = 3448  # Jamaica projectin system
 
     """Step 1: Extract the differet types of entries in useful columns 
         To infer what kind of building attributes are listed in the OSM building layer
@@ -133,7 +134,7 @@ def main(config):
     buildings_input = gpd.read_file(
         os.path.join(building_data_path, "jamaica-buildings.gpkg")
     )
-    buildings_input = buildings_input.to_crs(epsg=epsg_jamaica)
+    buildings_input = buildings_input.to_crs(epsg=LOCAL_PROJ_CRS_EPSG)
     buildings_input["bid"] = buildings_input.index.values.tolist()
     print(buildings_input)
     """Extract categories within columns
@@ -231,7 +232,9 @@ def main(config):
     buildings_input.rename(columns={"geometry": "polygon_geometry"}, inplace=True)
     buildings_input.rename(columns={"centroid": "geometry"}, inplace=True)
     buildings_input = gpd.GeoDataFrame(
-        buildings_input, geometry="geometry", crs={"init": f"epsg:{epsg_jamaica}"}
+        buildings_input,
+        geometry="geometry",
+        crs={"init": f"epsg:{LOCAL_PROJ_CRS_EPSG}"},
     )
 
     points_layers_data = os.path.join(
@@ -249,7 +252,7 @@ def main(config):
         points_file = gpd.read_file(points_layers_data, layer=layer_name)
         # print (points_file)
         # print (points_file.crs)
-        points_file = points_file.to_crs(epsg=epsg_jamaica)
+        points_file = points_file.to_crs(epsg=LOCAL_PROJ_CRS_EPSG)
 
         points_file = match_points_to_nearest_buildings(
             buildings_input, points_file, ["X", sector_code]
@@ -303,7 +306,7 @@ def main(config):
 
     for layer in layer_dict:
         points_file = gpd.read_file(points_layers_data, layer=layer["layer_name"])
-        points_file = points_file.to_crs(epsg=epsg_jamaica)
+        points_file = points_file.to_crs(epsg=LOCAL_PROJ_CRS_EPSG)
 
         # This is to just fix a data problem in the indsutry layer
         if layer["layer_name"] == "industry":
@@ -381,7 +384,9 @@ def main(config):
     buildings_input.drop(["geometry"], axis=1, inplace=True)
     buildings_input.rename(columns={"polygon_geometry": "geometry"}, inplace=True)
     buildings_input = gpd.GeoDataFrame(
-        buildings_input, geometry="geometry", crs={"init": f"epsg:{epsg_jamaica}"}
+        buildings_input,
+        geometry="geometry",
+        crs={"init": f"epsg:{LOCAL_PROJ_CRS_EPSG}"},
     )
 
     write_output = True

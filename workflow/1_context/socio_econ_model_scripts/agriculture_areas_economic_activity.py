@@ -1,5 +1,4 @@
-"""Assign agriculture GDP to land use layers in Jamaica
-"""
+"""Assign agriculture GDP to land use layers in Jamaica"""
 
 import sys
 import os
@@ -9,28 +8,99 @@ import rasterio
 import rioxarray
 import pandas as pd
 import geopandas as gpd
-
-# gpd._compat.USE_PYGEOS = True
-# gpd.options.use_pygeos = True
+import click
 from shapely.geometry import Point
 import shapely
 import numpy as np
-from utils import *
 from tqdm import tqdm
+
+from utils import *
+from jamaica_infrastructure.geo import LOCAL_PROJ_CRS_EPSG
 
 tqdm.pandas()
 
-epsg_jamaica = 3448
 
+@click.command()
+@click.option(
+    "--data-dir",
+    "-d",
+    required=True,
+    type=click.Path(exists=False, dir_okay=True, file_okay=False, readable=True),
+    help="Path to processed data",
+)
+@click.option(
+    "--financial-year",
+    "-fy",
+    required=True,
+    type=int,
+    help="Financial year for economic data",
+)
+@click.option(
+    "--agri-crop-details",
+    "-acd",
+    required=True,
+    type=click.Path(exists=True, dir_okay=False, file_okay=True, readable=True),
+    help="Path to crop details csv",
+)
+@click.option(
+    "--econ-output",
+    "-eo",
+    required=True,
+    type=click.Path(exists=True, dir_okay=False, file_okay=True, readable=True),
+    help="Path to detailed sector GVA GDP xlsx",
+)
+@click.option(
+    "--land-use",
+    "-lu",
+    required=True,
+    type=click.Path(exists=True, dir_okay=False, file_okay=True, readable=True),
+    help="Path to land use combined with sectors gpkg",
+)
+@click.option(
+    "--intermediate-file",
+    "-if",
+    required=True,
+    type=click.Path(exists=True, dir_okay=False, file_okay=True, readable=True),
+    help="Path to buildings assigned economic sectors intermediate gpkg",
+)
+@click.option(
+    "--agri-data-prod-dir",
+    "-apd",
+    required=True,
+    type=click.Path(exists=True, dir_okay=True, file_okay=False, readable=True),
+    help="Path to SPAM production value aggregate geotiff directory",
+)
+@click.option(
+    "--agri-data-prod-agg-dir",
+    "-apad",
+    required=True,
+    type=click.Path(exists=True, dir_okay=True, file_okay=False, readable=True),
+    help="Path to SPAM production geotiff directory",
+)
+@click.option(
+    "--agri-data-yield-dir",
+    "-ayd",
+    required=True,
+    type=click.Path(exists=True, dir_okay=True, file_okay=False, readable=True),
+    help="Path to SPAM yield geotiff directory",
+)
+def main(
+    data_dir,
+    financial_year,
+    agri_crop_details,
+    econ_output,
+    land_use,
+    intermediate_file,
+    agri_data_prod_dir,
+    agri_data_prod_agg_dir,
+    agri_data_yield_dir,
+):
+    processed_data_path = data_dir
 
-def main(config):
-    incoming_data_path = config["paths"]["incoming_data"]
-    processed_data_path = config["paths"]["data"]
-
-    crop_folders = [
-        "spam2010v2r0_global_val_prod_agg.geotiff",
-        "spam2010v2r0_global_prod.geotiff",
-        "spam2010v2r0_global_yield.geotiff",
+    crop_data_paths = [
+        agri_data_prod_dir,
+        agri_data_prod_agg_dir,
+        agri_data_yield_dir,
     ]
     crop_strings = [
         "spam2010V2r0_global_V_agg_",
@@ -38,12 +108,9 @@ def main(config):
         "spam2010V2r0_global_Y_",
     ]
     crop_outputs = ["production", "tonnage", "yield"]
-    for i, (crop_path, crop_field, crop_layer) in enumerate(
-        list(zip(crop_folders, crop_strings, crop_outputs))
+    for i, (crop_data_path, crop_field, crop_layer) in enumerate(
+        list(zip(crop_data_paths, crop_strings, crop_outputs))
     ):
-        crop_data_path = os.path.join(
-            incoming_data_path, "agriculture_data", crop_path, "JAM"
-        )
         all_crops = []
         all_fields = []
         for file in os.listdir(crop_data_path):
@@ -83,13 +150,15 @@ def main(config):
 
         all_crops["geometry"] = [Point(xy) for xy in zip(all_crops.x, all_crops.y)]
         crop_points = gpd.GeoDataFrame(
-            all_crops, crs=f"EPSG:{epsg_jamaica}", geometry="geometry"
+            all_crops, crs=f"EPSG:{LOCAL_PROJ_CRS_EPSG}", geometry="geometry"
         )
         crop_points["crop_id"] = crop_points.index.values.tolist()
         del all_crops
         print(crop_points)
 
-        crop_areas = create_voronoi_layer(crop_points, "crop_id", epsg=epsg_jamaica)
+        crop_areas = create_voronoi_layer(
+            crop_points, "crop_id", epsg=LOCAL_PROJ_CRS_EPSG
+        )
 
         crop_areas = gpd.GeoDataFrame(
             pd.merge(
@@ -99,7 +168,7 @@ def main(config):
                 on=["crop_id"],
             ),
             geometry="geometry",
-            crs=f"EPSG:{epsg_jamaica}",
+            crs=f"EPSG:{LOCAL_PROJ_CRS_EPSG}",
         )
 
         crop_points.to_file(
@@ -135,12 +204,10 @@ def main(config):
         ),
         layer=f"tonnage_areas",
     )
-    crop_yields = crop_yields.to_crs(epsg=epsg_jamaica)
+    crop_yields = crop_yields.to_crs(epsg=LOCAL_PROJ_CRS_EPSG)
     print(crop_yields)
-    crop_details = pd.read_csv(
-        os.path.join(processed_data_path, "agriculture_data", "crop_details.csv")
-    )
-    print(crop_details)
+    crop_details_df = pd.read_csv(agri_crop_details)
+    print(crop_details_df)
     tech_type = ["A", "I", "R"]
     poultry_crops = ["maiz", "ocer", "pmil", "smil", "soyb", "sunf", "whea"]
 
@@ -148,7 +215,7 @@ def main(config):
 
     all_crop_columns = []
     all_sector_columns = []
-    for crop in crop_details.itertuples():
+    for crop in crop_details_df.itertuples():
         crop_columns = [f"{crop.name.upper()}_{t}" for t in tech_type]
         sector_columns = [
             f"{crop.sector_code}_{crop.subsector_code}_{t}" for t in tech_type
@@ -190,38 +257,31 @@ def main(config):
             driver="GPKG",
         )
 
-    financial_year = 2019
-    economic_output = pd.read_excel(
-        os.path.join(
-            processed_data_path,
-            "macroeconomic_data",
-            "detailed_sector_GVA_GDP_current_prices.xlsx",
-        ),
-        sheet_name="2019",
+    economic_output_df = pd.read_excel(
+        econ_output,
+        sheet_name=str(financial_year),
     )
-    economic_output.columns = [
-        str(c).strip() for c in economic_output.columns.values.tolist()
+    economic_output_df.columns = [
+        str(c).strip() for c in economic_output_df.columns.values.tolist()
     ]
-    economic_output["subsector_code"] = economic_output["subsector_code"].apply(str)
-    totat_gva = economic_output[economic_output["sector_code"] == "GVA"][
+    economic_output_df["subsector_code"] = economic_output_df["subsector_code"].apply(
+        str
+    )
+    totat_gva = economic_output_df[economic_output_df["sector_code"] == "GVA"][
         f"{financial_year}"
     ].sum()
-    total_tax = economic_output[economic_output["sector_code"] == "TAX"][
+    total_tax = economic_output_df[economic_output_df["sector_code"] == "TAX"][
         f"{financial_year}"
     ].sum()
     tax_rate = 1.0 * total_tax / totat_gva
 
-    economic_output = economic_output[economic_output["sector_code"] == "A"]
+    economic_output_df = economic_output_df[economic_output_df["sector_code"] == "A"]
 
     agri_land_use = gpd.read_file(
-        os.path.join(
-            processed_data_path,
-            "land_type_and_use",
-            "jamaica_land_use_combined_with_sectors.gpkg",
-        ),
+        land_use,
         layer="areas",
     )
-    agri_land_use = agri_land_use.to_crs(epsg=epsg_jamaica)
+    agri_land_use = agri_land_use.to_crs(epsg=LOCAL_PROJ_CRS_EPSG)
     agri_land_use["land_id"] = agri_land_use.index.values.tolist()
     agri_land_use["land_id"] = agri_land_use.progress_apply(
         lambda x: f"land_{x.land_id}", axis=1
@@ -291,7 +351,7 @@ def main(config):
     )
     agri_areas["A_GDP"] = 0
     tot_gpd = 0
-    for i, econ in economic_output.iterrows():
+    for i, econ in economic_output_df.iterrows():
         econ_subsector_codes = str(econ["subsector_code"]).split(",")
         econ_codes = [
             f"A_{e}_A"
@@ -311,9 +371,9 @@ def main(config):
     post_harvest_output = (
         (1 + tax_rate)
         * (1.0e6 / 365.0)
-        * economic_output[
-            (economic_output["sector_code"] == "A")
-            & (economic_output["subsector_code"] == "14")
+        * economic_output_df[
+            (economic_output_df["sector_code"] == "A")
+            & (economic_output_df["subsector_code"] == "14")
         ][f"{financial_year}"].sum()
     )
     tot_gpd += post_harvest_output
@@ -331,9 +391,9 @@ def main(config):
     forest_output = (
         (1 + tax_rate)
         * (1.0e6 / 365.0)
-        * economic_output[
-            (economic_output["sector_code"] == "A")
-            & (economic_output["subsector_code"] == "20")
+        * economic_output_df[
+            (economic_output_df["sector_code"] == "A")
+            & (economic_output_df["subsector_code"] == "20")
         ][f"{financial_year}"].sum()
     )
     tot_gpd += forest_output
@@ -376,33 +436,29 @@ def main(config):
     print("* Estimated GDP", agri_areas["A_GDP"].sum())
 
     agri_areas = gpd.GeoDataFrame(
-        agri_areas, geometry="geometry", crs=f"EPSG:{epsg_jamaica}"
+        agri_areas, geometry="geometry", crs=f"EPSG:{LOCAL_PROJ_CRS_EPSG}"
     )
     agri_areas = remove_geometry_collections(agri_areas)
     write_results = False
     if write_results is True:
         agri_areas.to_file(
             os.path.join(
-                processed_data_path, "agriculture_data", "agricuture_gdp.gpkg"
+                processed_data_path, "agriculture_data", "agriculture_gdp.gpkg"
             ),
             layer="areas",
             driver="GPKG",
         )
-    del crop_yields, agri_forest, agri_land_use, economic_output
+    del crop_yields, agri_forest, agri_land_use, economic_output_df
 
     tot_gpd = agri_areas["A_GDP"].sum()
     tot_area = agri_areas["area_m2"].sum()
     print("* Estimated GDP", tot_gpd)
     print("* Estimated Areas", tot_area)
     sector_df = gpd.read_file(
-        os.path.join(
-            incoming_data_path,
-            "buildings",
-            "buildings_assigned_economic_sectors_intermediate.gpkg",
-        ),
+        intermediate_file,
         layer="commercial_sectors",
     )
-    sector_df = sector_df.to_crs(epsg=epsg_jamaica)
+    sector_df = sector_df.to_crs(epsg=LOCAL_PROJ_CRS_EPSG)
     sector_columns = [c for c in sector_df.columns.values.tolist() if "A_" in c[:2]]
     sector_df["A"] = sector_df[sector_columns].sum(axis=1)
     sector_df["A"] = sector_df.progress_apply(lambda x: 1 if x["A"] > 0 else 0, axis=1)
@@ -442,20 +498,19 @@ def main(config):
     )
 
     gpd.GeoDataFrame(
-        agri_areas, geometry="geometry", crs=f"EPSG:{epsg_jamaica}"
+        agri_areas, geometry="geometry", crs=f"EPSG:{LOCAL_PROJ_CRS_EPSG}"
     ).to_file(
-        os.path.join(processed_data_path, "agriculture_data", "agricuture_gdp.gpkg"),
+        os.path.join(processed_data_path, "agriculture_data", "agriculture_gdp.gpkg"),
         layer="areas",
         river="GPKG",
     )
     agri_buildings.to_csv(
         os.path.join(
-            processed_data_path, "agriculture_data", "building_agricuture_gdp.csv"
+            processed_data_path, "agriculture_data", "building_agriculture_gdp.csv"
         ),
         index=False,
     )
 
 
 if __name__ == "__main__":
-    CONFIG = load_config()
-    main(CONFIG)
+    main()
