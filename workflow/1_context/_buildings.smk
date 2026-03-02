@@ -80,8 +80,6 @@ rule land_use_layers_process:
         mining_landuse = f"{RAW}/global_mining_areas/global_mining_polygons_v1.gpkg",
         forest_sector_mapping = f"{DATA}/land_type_and_use/forest_classes_with_sector_mapping.csv",
         tnc_sector_mapping = f"{DATA}/land_type_and_use/tnc_classes_with_sector_mapping.csv"
-    params:
-        epsg = config["adaptation_options"]["epsg_jamaica"],
     output:
         input_land_use_layers = f"{DATA}/land_type_and_use/input_land_use_layers.gpkg",
         jamaica_land_use_combined = f"{DATA}/land_type_and_use/jamaica_land_use_combined.gpkg",
@@ -94,7 +92,6 @@ rule land_use_layers_process:
         python {input.script} \
             --incoming-data-dir {RAW} \
             --data-dir {DATA} \
-            --epsg {params.epsg} \
             --tnc-landuse-path {input.tnc_landuse} \
             --forest-landuse-path {input.forest_landuse} \
             --mining-landuse-path {input.mining_landuse} \
@@ -116,8 +113,6 @@ rule planning_layers:
         clarendon_landuse_classes_with_sector_codes = f"{RAW}/buildings/clarendon_landuse_planning_classes_with_sector_codes.csv",
         machester_landuse_classes_with_sector_codes = f"{RAW}/buildings/manchester_landuse_planning_classes_with_sector_codes.csv",
         landuse_classes_with_sector_codes = f"{RAW}/buildings/landuse_classes_with_sector_codes.csv",
-    params:
-        epsg = config["adaptation_options"]["epsg_jamaica"],
     output:
         #landuse_planning_layers.gpkg = f"{RAW}/buildings/landuse_planning_layers.gpkg"
         landuse_planning_layers_with_sectors = f"{RAW}/buildings/landuse_planning_layers_with_sectors.gpkg"
@@ -126,7 +121,6 @@ rule planning_layers:
         python {input.script} \
             --incoming-data-dir {RAW} \
             --data-dir {DATA} \
-            --epsg {params.epsg} \
             --planning-layer-polygons {input.planning_layer_polygons} \
             --planning-layers-path {input.planning_layers} \
             --manchester-layers-path {input.manchester_layers_path} \
@@ -169,7 +163,6 @@ rule building_data_process:
         building_costs_4 = f"{RAW}/construction_permits/Construction Permit Mapping 2019-2020 FY/Q2-2019- Construction Permits.shp",
 
     params:
-        epsg = config["adaptation_options"]["epsg_jamaica"],
         residential_min_area = 11.15, #perhaps should be added to config.yaml
     output:
         #there are some intermediary files that get generated (not sure if they have to be in output):
@@ -186,7 +179,6 @@ rule building_data_process:
         python {input.script} \
             --incoming-data-dir {RAW} \
             --data-dir {DATA} \
-            --epsg {params.epsg} \
             --residential-min-area {params.residential_min_area} \
             --poi-data {input.poi_data} \
             --poi-mapping {input.poi_mapping} \

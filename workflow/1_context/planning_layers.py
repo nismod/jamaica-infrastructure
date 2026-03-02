@@ -13,6 +13,8 @@ from shapely.geometry import shape, mapping
 from tqdm import tqdm
 import click
 
+from jamaica_infrastructure import LOCAL_PROJ_CRS_EPSG
+
 tqdm.pandas()
 
 
@@ -102,14 +104,6 @@ def match_parishes_to_landplanning(jamaica_parishes, gdf, gdf_list):
     help="Path to processed data",
 )
 @click.option(
-    "--epsg",
-    "-e",
-    "epsg",
-    required=True,
-    type=int,
-    help="coordinate system for Jamaica",
-)
-@click.option(
     "--planning-layer-polygons",
     "-plp",
     required=True,
@@ -162,7 +156,6 @@ def match_parishes_to_landplanning(jamaica_parishes, gdf, gdf_list):
 def main(
     incoming_data_dir,
     data_dir,
-    epsg,
     planning_layer_polygons,
     planning_layers_path,
     manchester_layers_path,
@@ -173,7 +166,6 @@ def main(
 ):
     incoming_data_path = incoming_data_dir
     processed_data_path = data_dir
-    epsg_jamaica = epsg
 
     """Step 1: Read the layers from the NSDMB database and write them into a Geopackage file
         This is a pre-preprocess step, so is commented out once it is done
@@ -236,7 +228,7 @@ def main(
             gdf = gpd.read_file(
                 planning_layers_path,
                 layer=pl["Name of feature class"],
-            ).to_crs(epsg=epsg_jamaica)
+            ).to_crs(epsg=LOCAL_PROJ_CRS_EPSG)
             selected_layers.append(pl["Name of feature class"])
             if "LU_Zone" in gdf.columns.values.tolist():
                 """find the most frequent land use and code and assign it to the blanks"""
@@ -252,7 +244,7 @@ def main(
 
     gdf_merge = pd.concat(gdf_merge, axis=0, ignore_index=True)
     gdf_merge["land_use_id"] = gdf_merge.index.values.tolist()
-    gdf = gpd.GeoDataFrame(gdf_merge, geometry="geometry", crs=f"EPSG:{epsg_jamaica}")
+    gdf = gpd.GeoDataFrame(gdf_merge, geometry="geometry", crs=f"EPSG:{LOCAL_PROJ_CRS_EPSG}")
     gdf["area_sqm"] = gdf.progress_apply(lambda x: x.geometry.area, axis=1)
     gdf.to_file(
         os.path.join(incoming_data_path, "buildings", "landuse_planning_layers.gpkg"),
@@ -289,7 +281,7 @@ def main(
                 gdf = gpd.read_file(
                     planning_layers_path,
                     layer=pl["Name of feature class"],
-                ).to_crs(epsg=epsg_jamaica)
+                ).to_crs(epsg=LOCAL_PROJ_CRS_EPSG)
                 if pl["Name of feature class"] != "commercial_site_Manchester_proposed":
                     lu_zone = manchester_layers.loc[
                         manchester_layers["layer_name"] == pl["Name of feature class"],
@@ -311,7 +303,7 @@ def main(
 
     gdf_merge = pd.concat(gdf_merge, axis=0, ignore_index=True)
     gdf_merge["land_use_id"] = gdf_merge.index.values.tolist()
-    gdf = gpd.GeoDataFrame(gdf_merge, geometry="geometry", crs=f"EPSG:{epsg_jamaica}")
+    gdf = gpd.GeoDataFrame(gdf_merge, geometry="geometry", crs=f"EPSG:{LOCAL_PROJ_CRS_EPSG}")
     gdf["area_sqm"] = gdf.progress_apply(lambda x: x.geometry.area, axis=1)
     gdf.to_file(
         os.path.join(incoming_data_path, "buildings", "landuse_planning_layers.gpkg"),
@@ -327,7 +319,7 @@ def main(
     jamaica_parishes = gpd.read_file(
         jamaica_parishes_path,
         layer="admin1",
-    ).to_crs(epsg=epsg_jamaica)
+    ).to_crs(epsg=LOCAL_PROJ_CRS_EPSG)
     existing_landuse_layers = [
         "ClarendonExistingLanduse",
         "HanoverExistingLanduse",
@@ -346,7 +338,7 @@ def main(
         gdf = gpd.read_file(
             planning_layers_path,
             layer=layer,
-        ).to_crs(epsg=epsg_jamaica)
+        ).to_crs(epsg=LOCAL_PROJ_CRS_EPSG)
         gdf.rename(
             columns={
                 "Existing_L": "LU_Zone",
@@ -373,7 +365,7 @@ def main(
     gdf_existing = pd.concat(gdf_existing, axis=0, ignore_index=True)
     gdf_existing["land_use_id"] = gdf_existing.index.values.tolist()
     gdf = gpd.GeoDataFrame(
-        gdf_existing, geometry="geometry", crs=f"EPSG:{epsg_jamaica}"
+        gdf_existing, geometry="geometry", crs=f"EPSG:{LOCAL_PROJ_CRS_EPSG}"
     )
     gdf["area_sqm"] = gdf.progress_apply(lambda x: x.geometry.area, axis=1)
     gdf.to_file(
@@ -402,7 +394,7 @@ def main(
         gdf = gpd.read_file(
             planning_layers_path,
             layer=layer,
-        ).to_crs(epsg=epsg_jamaica)
+        ).to_crs(epsg=LOCAL_PROJ_CRS_EPSG)
         # print (layer,gdf.columns.values.tolist())
         gdf.rename(
             columns={
@@ -448,7 +440,7 @@ def main(
     gdf_existing = pd.concat(gdf_existing, axis=0, ignore_index=True)
     gdf_existing["land_use_id"] = gdf_existing.index.values.tolist()
     gdf = gpd.GeoDataFrame(
-        gdf_existing, geometry="geometry", crs=f"EPSG:{epsg_jamaica}"
+        gdf_existing, geometry="geometry", crs=f"EPSG:{LOCAL_PROJ_CRS_EPSG}"
     )
     gdf["area_sqm"] = gdf.progress_apply(lambda x: x.geometry.area, axis=1)
     gdf.to_file(
@@ -546,7 +538,7 @@ def main(
 
                     gdf.drop("sector_subsector_infra", axis=1, inplace=True)
 
-        gdf = gpd.GeoDataFrame(gdf, geometry="geometry", crs=f"EPSG:{epsg_jamaica}")
+        gdf = gpd.GeoDataFrame(gdf, geometry="geometry", crs=f"EPSG:{LOCAL_PROJ_CRS_EPSG}")
         gdf.to_file(
             os.path.join(
                 incoming_data_path,

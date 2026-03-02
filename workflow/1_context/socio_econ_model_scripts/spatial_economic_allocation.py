@@ -4,6 +4,7 @@
 
 import sys
 import os
+from collections import OrderedDict, defaultdict
 
 import pandas as pd
 import geopandas as gpd
@@ -11,9 +12,9 @@ import numpy as np
 import igraph as ig
 import click
 from scipy.spatial import cKDTree
-from collections import OrderedDict, defaultdict
-
 from tqdm import tqdm
+
+from jamaica_infrastructure import LOCAL_PROJ_CRS_EPSG
 
 tqdm.pandas()
 
@@ -194,14 +195,6 @@ def remove_sector_assignment(x, sector_code):
     help="Path to unprocessed incoming data",
 )
 @click.option(
-    "--epsg",
-    "-e",
-    "epsg",
-    required=True,
-    type=int,
-    help="Coordinate system for Jamaica",
-)
-@click.option(
     "--financial-year",
     "-fy",
     required=True,
@@ -267,7 +260,6 @@ def remove_sector_assignment(x, sector_code):
 def main(
     data_dir,
     incoming_data_dir,
-    epsg,
     financial_year,
     buffer_distance,
     pop_year,
@@ -280,7 +272,6 @@ def main(
 ):
     incoming_data_path = incoming_data_dir
     processed_data_path = data_dir
-    epsg_jamaica = epsg
     population_year = pop_year
     id_column = "ED_ID"
     id_columns = ["ED_ID", "ED"]
@@ -290,7 +281,7 @@ def main(
         layer="mean",
     )
     total_pop = population_areas[f"{population_year}"].sum()
-    population_areas = population_areas.to_crs(epsg=epsg_jamaica)
+    population_areas = population_areas.to_crs(epsg=LOCAL_PROJ_CRS_EPSG)
     population = population_areas.copy()
 
     average_pop = (
@@ -430,7 +421,7 @@ def main(
             on=["ED_ID", "ED"],
         )
         region_radiation = gpd.GeoDataFrame(
-            region_radiation, geometry="geometry", crs=f"EPSG:{epsg_jamaica}"
+            region_radiation, geometry="geometry", crs=f"EPSG:{LOCAL_PROJ_CRS_EPSG}"
         )
         region_radiation.to_file(
             os.path.join(processed_data_path, "population", "region_radiation.gpkg"),
@@ -449,7 +440,7 @@ def main(
         on=["ED_ID", "ED"],
     )
     region_attractiveness = gpd.GeoDataFrame(
-        region_attractiveness, geometry="geometry", crs=f"EPSG:{epsg_jamaica}"
+        region_attractiveness, geometry="geometry", crs=f"EPSG:{LOCAL_PROJ_CRS_EPSG}"
     )
 
     # This is just part of some testing of the resutls. Can be skipped
@@ -561,7 +552,7 @@ def main(
         sector_df, buildings[["osm_id", "geometry"]], how="left", on=["osm_id"]
     )
     sector_df = gpd.GeoDataFrame(
-        sector_df, geometry="geometry", crs=f"EPSG:{epsg_jamaica}"
+        sector_df, geometry="geometry", crs=f"EPSG:{LOCAL_PROJ_CRS_EPSG}"
     )
     del commercial_buildings, buildings_regions
 
@@ -597,7 +588,7 @@ def main(
         fishing_locals,
         layer="areas",
     )
-    fishing_locations = fishing_locations.to_crs(epsg=epsg_jamaica)
+    fishing_locations = fishing_locations.to_crs(epsg=LOCAL_PROJ_CRS_EPSG)
     fishing_locations["farm_wt"] = (
         fishing_locations["Size_Farm"] / fishing_locations["Size_Farm"].sum()
     )
@@ -611,7 +602,7 @@ def main(
     # postal = [p for p in postal if "post" in p]
     # print (postal)
 
-    sector_df = sector_df.to_crs(epsg=epsg_jamaica)
+    sector_df = sector_df.to_crs(epsg=LOCAL_PROJ_CRS_EPSG)
     sector_codes = [
         "A",
         "B",
@@ -743,7 +734,7 @@ def main(
         buildings[col] = buildings[col].fillna(0)
     buildings["GDP_unit"] = "JD/day"
     buildings = gpd.GeoDataFrame(
-        buildings, geometry="geometry", crs=f"EPSG:{epsg_jamaica}"
+        buildings, geometry="geometry", crs=f"EPSG:{LOCAL_PROJ_CRS_EPSG}"
     )
     buildings.to_file(
         os.path.join(
@@ -797,7 +788,7 @@ def main(
             on=["ED_ID", "ED"],
         ),
         geometry="geometry",
-        crs=f"EPSG:{epsg_jamaica}",
+        crs=f"EPSG:{LOCAL_PROJ_CRS_EPSG}",
     )
     admin_gdp.to_file(
         os.path.join(

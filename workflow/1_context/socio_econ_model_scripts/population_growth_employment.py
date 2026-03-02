@@ -136,14 +136,6 @@ def get_population_changes(population_dataframe, start_year, end_year, base_year
     help="Path to unprocessed incoming data",
 )
 @click.option(
-    "--epsg",
-    "-e",
-    "epsg",
-    required=True,
-    type=int,
-    help="Coordinate system for Jamaica",
-)
-@click.option(
     "--base-year",
     "-b",
     required=True,
@@ -181,7 +173,6 @@ def get_population_changes(population_dataframe, start_year, end_year, base_year
 def main(
     data_dir,
     incoming_data_dir,
-    epsg,
     base_year,
     admin_boundaries,
     population,
@@ -190,7 +181,6 @@ def main(
 ):
     incoming_data_path = incoming_data_dir
     processed_data_path = data_dir
-    epsg_jamaica = epsg
 
     baseyear = base_year
     id_column = "ED_ID"

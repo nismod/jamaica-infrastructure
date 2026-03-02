@@ -11,6 +11,8 @@ import json
 from tqdm import tqdm
 import click
 
+from jamaica_infrastructure import LOCAL_PROJ_CRS_EPSG
+
 tqdm.pandas()
 
 
@@ -138,7 +140,7 @@ def main(
 
         del building_intersections
 
-    gpd.GeoDataFrame(all_buildings, geometry="geometry", crs="EPSG:3448").to_file(
+    gpd.GeoDataFrame(all_buildings, geometry="geometry", crs=f"EPSG:{LOCAL_PROJ_CRS_EPSG}").to_file(
         os.path.join(output_path, "buildings_heights.gpkg"),
         layer="areas",
         driver="GPKG",

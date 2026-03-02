@@ -10,14 +10,13 @@ import rioxarray
 import pandas as pd
 import geopandas as gpd
 import click
-
-# gpd._compat.USE_PYGEOS = True
-# gpd.options.use_pygeos = True
 from shapely.geometry import Point
 import shapely
 import numpy as np
-from utils import *
 from tqdm import tqdm
+
+from utils import *
+from jamaica_infrastructure import LOCAL_PROJ_CRS_EPSG
 
 tqdm.pandas()
 
@@ -29,14 +28,6 @@ tqdm.pandas()
     required=True,
     type=click.Path(exists=False, dir_okay=True, file_okay=False, readable=True),
     help="Path to processed data",
-)
-@click.option(
-    "--epsg",
-    "-e",
-    "epsg",
-    required=True,
-    type=int,
-    help="Coordinate system for Jamaica",
 )
 @click.option(
     "--financial-year",
@@ -96,7 +87,6 @@ tqdm.pandas()
 )
 def main(
     data_dir,
-    epsg,
     financial_year,
     agri_crop_details,
     econ_output,
@@ -107,7 +97,6 @@ def main(
     agri_data_yield_dir,
 ):
     processed_data_path = data_dir
-    epsg_jamaica = epsg
 
     crop_data_paths = [
         agri_data_prod_dir,
@@ -162,13 +151,13 @@ def main(
 
         all_crops["geometry"] = [Point(xy) for xy in zip(all_crops.x, all_crops.y)]
         crop_points = gpd.GeoDataFrame(
-            all_crops, crs=f"EPSG:{epsg_jamaica}", geometry="geometry"
+            all_crops, crs=f"EPSG:{LOCAL_PROJ_CRS_EPSG}", geometry="geometry"
         )
         crop_points["crop_id"] = crop_points.index.values.tolist()
         del all_crops
         print(crop_points)
 
-        crop_areas = create_voronoi_layer(crop_points, "crop_id", epsg=epsg_jamaica)
+        crop_areas = create_voronoi_layer(crop_points, "crop_id", epsg=LOCAL_PROJ_CRS_EPSG)
 
         crop_areas = gpd.GeoDataFrame(
             pd.merge(
@@ -178,7 +167,7 @@ def main(
                 on=["crop_id"],
             ),
             geometry="geometry",
-            crs=f"EPSG:{epsg_jamaica}",
+            crs=f"EPSG:{LOCAL_PROJ_CRS_EPSG}",
         )
 
         crop_points.to_file(
@@ -214,7 +203,7 @@ def main(
         ),
         layer=f"tonnage_areas",
     )
-    crop_yields = crop_yields.to_crs(epsg=epsg_jamaica)
+    crop_yields = crop_yields.to_crs(epsg=LOCAL_PROJ_CRS_EPSG)
     print(crop_yields)
     crop_details_df = pd.read_csv(agri_crop_details)
     print(crop_details_df)
@@ -289,7 +278,7 @@ def main(
         land_use,
         layer="areas",
     )
-    agri_land_use = agri_land_use.to_crs(epsg=epsg_jamaica)
+    agri_land_use = agri_land_use.to_crs(epsg=LOCAL_PROJ_CRS_EPSG)
     agri_land_use["land_id"] = agri_land_use.index.values.tolist()
     agri_land_use["land_id"] = agri_land_use.progress_apply(
         lambda x: f"land_{x.land_id}", axis=1
@@ -444,7 +433,7 @@ def main(
     print("* Estimated GDP", agri_areas["A_GDP"].sum())
 
     agri_areas = gpd.GeoDataFrame(
-        agri_areas, geometry="geometry", crs=f"EPSG:{epsg_jamaica}"
+        agri_areas, geometry="geometry", crs=f"EPSG:{LOCAL_PROJ_CRS_EPSG}"
     )
     agri_areas = remove_geometry_collections(agri_areas)
     write_results = False
@@ -466,7 +455,7 @@ def main(
         intermediate_file,
         layer="commercial_sectors",
     )
-    sector_df = sector_df.to_crs(epsg=epsg_jamaica)
+    sector_df = sector_df.to_crs(epsg=LOCAL_PROJ_CRS_EPSG)
     sector_columns = [c for c in sector_df.columns.values.tolist() if "A_" in c[:2]]
     sector_df["A"] = sector_df[sector_columns].sum(axis=1)
     sector_df["A"] = sector_df.progress_apply(lambda x: 1 if x["A"] > 0 else 0, axis=1)
@@ -506,7 +495,7 @@ def main(
     )
 
     gpd.GeoDataFrame(
-        agri_areas, geometry="geometry", crs=f"EPSG:{epsg_jamaica}"
+        agri_areas, geometry="geometry", crs=f"EPSG:{LOCAL_PROJ_CRS_EPSG}"
     ).to_file(
         os.path.join(processed_data_path, "agriculture_data", "agriculture_gdp.gpkg"),
         layer="areas",

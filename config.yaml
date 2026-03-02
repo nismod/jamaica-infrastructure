@@ -94,6 +94,10 @@ economics:
   # For more information, see `docs/appendix-c-network-flow-models.md`
   # §C.4.2 Transport flow disruption analysis
   disrupted_trade_fraction: 0.02
+  # Baseline population year
+  baseline_population_year: 2011
+  # Which year are the per sector GVA figures for?
+  GVA_per_sector_year: 2019
 
 ### CONTEXT FROM LAND-USE / BUILDINGS / POPULATION ###
 context:

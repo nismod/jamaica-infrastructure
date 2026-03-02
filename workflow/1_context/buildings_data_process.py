@@ -14,6 +14,8 @@ from shapely.geometry import Point
 from tqdm import tqdm
 import click
 
+from jamaica_infrastructure import LOCAL_PROJ_CRS_EPSG
+
 tqdm.pandas()
 
 
@@ -449,12 +451,6 @@ def assign_building_type(x):
     help="Path to processed data",
 )
 @click.option(
-    "--epsg",
-    required=True,
-    type=int,
-    help="EPSG code for Jamaica coordinate system",
-)
-@click.option(
     "--residential-min-area",
     required=True,
     type=float,
@@ -595,7 +591,6 @@ def assign_building_type(x):
 def main(
     incoming_data_dir,
     data_dir,
-    epsg,
     residential_min_area,
     poi_data,
     poi_mapping,
@@ -627,8 +622,6 @@ def main(
     points_of_interest_data_path = os.path.dirname(poi_data)
     buildings_input_mapping = buildings_input_map
 
-    epsg_jamaica = epsg
-
     """Step 1: Extract the different types of entries in useful columns 
         To infer what kind of building attributes are listed in the OSM building layer
         Using these attributes we want to map a macroeconomic sector to a building based on this attribute 
@@ -636,7 +629,7 @@ def main(
     """
     matched_buildings = []
     buildings_input = gpd.read_file(buildings_input_file)
-    buildings_input = buildings_input.to_crs(epsg=epsg_jamaica)
+    buildings_input = buildings_input.to_crs(epsg=LOCAL_PROJ_CRS_EPSG)
     buildings_input[["osm_id", "osm_way_id"]] = buildings_input[
         ["osm_id", "osm_way_id"]
     ].astype("str")
@@ -661,7 +654,7 @@ def main(
         )
 
     points_of_interest = gpd.read_file(poi_data)
-    points_of_interest = points_of_interest.to_crs(epsg=epsg_jamaica)
+    points_of_interest = points_of_interest.to_crs(epsg=LOCAL_PROJ_CRS_EPSG)
     points_of_interest["shop"] = points_of_interest["shop"].replace(
         "yes", "wholesale", regex=True
     )
@@ -760,7 +753,7 @@ def main(
     buildings_input = buildings_input[buildings_input["sector_code"] == "X"]
 
     buildings_input = match_buildings_to_polygon_dataframe(
-        buildings_input, points_of_interest, epsg=epsg_jamaica
+        buildings_input, points_of_interest, epsg=LOCAL_PROJ_CRS_EPSG
     )
     matched_buildings.append(buildings_input[buildings_input["sector_code"] != "X"])
     buildings_input = buildings_input[buildings_input["sector_code"] == "X"]
@@ -771,7 +764,7 @@ def main(
         write_df = gpd.GeoDataFrame(
             pd.concat(matched_buildings + [buildings_input], axis=0, ignore_index=True),
             geometry="geometry",
-            crs=f"EPSG:{epsg_jamaica}",
+            crs=f"EPSG:{LOCAL_PROJ_CRS_EPSG}",
         )
         write_df.to_file(
             os.path.join(
@@ -822,7 +815,7 @@ def main(
                 inplace=True,
             )
         buildings_input = match_buildings_to_polygon_dataframe(
-            buildings_input, planning_layer, epsg=epsg_jamaica
+            buildings_input, planning_layer, epsg=LOCAL_PROJ_CRS_EPSG
         )
         matched_buildings.append(buildings_input[buildings_input["sector_code"] != "X"])
         buildings_input = buildings_input[buildings_input["sector_code"] == "X"]
@@ -834,7 +827,7 @@ def main(
         write_df = gpd.GeoDataFrame(
             pd.concat(matched_buildings + [buildings_input], axis=0, ignore_index=True),
             geometry="geometry",
-            crs=f"EPSG:{epsg_jamaica}",
+            crs=f"EPSG:{LOCAL_PROJ_CRS_EPSG}",
         )
         write_df.to_file(
             os.path.join(
@@ -875,7 +868,7 @@ def main(
         mining_quarry_areas["infra_type"] = "X"
 
         buildings_input = match_buildings_to_polygon_dataframe(
-            buildings_input, mining_quarry_areas, epsg=epsg_jamaica
+            buildings_input, mining_quarry_areas, epsg=LOCAL_PROJ_CRS_EPSG
         )
         matched_buildings.append(buildings_input[buildings_input["sector_code"] != "X"])
         buildings_input = buildings_input[buildings_input["sector_code"] == "X"]
@@ -887,7 +880,7 @@ def main(
         write_df = gpd.GeoDataFrame(
             pd.concat(matched_buildings + [buildings_input], axis=0, ignore_index=True),
             geometry="geometry",
-            crs=f"EPSG:{epsg_jamaica}",
+            crs=f"EPSG:{LOCAL_PROJ_CRS_EPSG}",
         )
         write_df.to_file(
             os.path.join(
@@ -1043,7 +1036,7 @@ def main(
     commercial_buildings = gpd.GeoDataFrame(
         pd.merge(without_geom, with_geom, how="left", on=["osm_id"]),
         geometry="geometry",
-        crs=f"EPSG:{epsg_jamaica}",
+        crs=f"EPSG:{LOCAL_PROJ_CRS_EPSG}",
     )
     write_output = False
     if (
@@ -1068,7 +1061,7 @@ def main(
         buildings_input.rename(columns={column: f"{column}_building"}, inplace=True)
 
     buildings_input = match_buildings_to_polygon_dataframe(
-        buildings_input, commercial_buildings, epsg=epsg_jamaica, spatial_join=False
+        buildings_input, commercial_buildings, epsg=LOCAL_PROJ_CRS_EPSG, spatial_join=False
     )
     matched_buildings.append(buildings_input[buildings_input["sector_code"] != "X"])
     buildings_input = buildings_input[buildings_input["sector_code"] == "X"]
@@ -1080,7 +1073,7 @@ def main(
         write_df = gpd.GeoDataFrame(
             pd.concat(matched_buildings + [buildings_input], axis=0, ignore_index=True),
             geometry="geometry",
-            crs=f"EPSG:{epsg_jamaica}",
+            crs=f"EPSG:{LOCAL_PROJ_CRS_EPSG}",
         )
         write_df.to_file(
             os.path.join(
@@ -1106,7 +1099,7 @@ def main(
     ports["infra_type"] = "Port"
 
     buildings_input = match_buildings_to_polygon_dataframe(
-        buildings_input, ports, epsg=epsg_jamaica
+        buildings_input, ports, epsg=LOCAL_PROJ_CRS_EPSG
     )
 
     matched_buildings.append(buildings_input[buildings_input["sector_code"] != "X"])
@@ -1119,7 +1112,7 @@ def main(
     airports["infra_type"] = "Airport"
 
     buildings_input = match_buildings_to_polygon_dataframe(
-        buildings_input, airports, epsg=epsg_jamaica
+        buildings_input, airports, epsg=LOCAL_PROJ_CRS_EPSG
     )
     matched_buildings.append(buildings_input[buildings_input["sector_code"] != "X"])
     buildings_input = buildings_input[buildings_input["sector_code"] == "X"]
@@ -1131,7 +1124,7 @@ def main(
         write_df = gpd.GeoDataFrame(
             pd.concat(matched_buildings + [buildings_input], axis=0, ignore_index=True),
             geometry="geometry",
-            crs=f"EPSG:{epsg_jamaica}",
+            crs=f"EPSG:{LOCAL_PROJ_CRS_EPSG}",
         )
         write_df.to_file(
             os.path.join(
@@ -1159,7 +1152,7 @@ def main(
         landuse_types_with_sectors_file,
         layer="areas",
     )
-    land_use_with_sectors_gdf = land_use_with_sectors_gdf.to_crs(epsg=epsg_jamaica)
+    land_use_with_sectors_gdf = land_use_with_sectors_gdf.to_crs(epsg=LOCAL_PROJ_CRS_EPSG)
 
     if "index_left" in land_use_with_sectors_gdf.columns.values.tolist():
         land_use_with_sectors_gdf.drop("index_left", axis=1, inplace=True)
@@ -1186,7 +1179,7 @@ def main(
     )
 
     buildings_input = match_buildings_to_polygon_dataframe(
-        buildings_input, land_use_with_sectors_gdf, epsg=epsg_jamaica
+        buildings_input, land_use_with_sectors_gdf, epsg=LOCAL_PROJ_CRS_EPSG
     )
 
     """Step 9: Match the residential building based on the area estimation
@@ -1220,7 +1213,7 @@ def main(
         write_df = gpd.GeoDataFrame(
             pd.concat(matched_buildings + [buildings_input], axis=0, ignore_index=True),
             geometry="geometry",
-            crs=f"EPSG:{epsg_jamaica}",
+            crs=f"EPSG:{LOCAL_PROJ_CRS_EPSG}",
         )
         write_df["area_sqm"] = write_df.progress_apply(
             lambda x: x.geometry.area, axis=1
@@ -1323,7 +1316,7 @@ def main(
         write_output is True
     ):  # We can write the intermediary output for sense checking if we want to
         write_df = gpd.GeoDataFrame(
-            write_df, geometry="geometry", crs=f"EPSG:{epsg_jamaica}"
+            write_df, geometry="geometry", crs=f"EPSG:{LOCAL_PROJ_CRS_EPSG}"
         )
         write_df.to_file(
             os.path.join(
@@ -1389,7 +1382,7 @@ def main(
     buildings_input = gpd.GeoDataFrame(
         pd.concat([buildings_input, assigned_fishing], axis=0, ignore_index=True),
         geometry="geometry",
-        crs=f"EPSG:{epsg_jamaica}",
+        crs=f"EPSG:{LOCAL_PROJ_CRS_EPSG}",
     )
     print(buildings_input)
 
@@ -1414,7 +1407,7 @@ def main(
         ),
         layer="final_mod",
     )
-    buildings_input = buildings_input.to_crs(epsg=epsg_jamaica)
+    buildings_input = buildings_input.to_crs(epsg=LOCAL_PROJ_CRS_EPSG)
     buildings_input = buildings_input[buildings_input["to_remove"] == 0]
     buildings_attriibutes = []
     buildings_sector_classes = []
@@ -1536,11 +1529,11 @@ def main(
         ),
         layer="final_costs",
     )
-    buildings_input = buildings_input.to_crs(epsg=epsg_jamaica)
+    buildings_input = buildings_input.to_crs(epsg=LOCAL_PROJ_CRS_EPSG)
     population_column = "2019"
     population = gpd.read_file(population_file, layer="mean")
     print(population[population_column].sum())
-    population = population.to_crs(epsg=epsg_jamaica)
+    population = population.to_crs(epsg=LOCAL_PROJ_CRS_EPSG)
     buildings_input["residential_type"] = buildings_input.progress_apply(
         lambda x: 1 if "RES" in str(x.sector_code) else 0, axis=1
     )

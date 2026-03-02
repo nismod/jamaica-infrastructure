@@ -13,8 +13,7 @@ rule population_growth_employment:
         parish_population = f"{RAW}/macroeconomic_data/parish_population_changes.xlsx",
         population_employment = f"{RAW}/macroeconomic_data/population_employment_percent_by_age.csv"
     params:
-        epsg = config["adaptation_options"]["epsg_jamaica"],
-        base_year = config["economics"]["base_year"]
+        base_year = config["economics"]["baseline_population_year"]
     output:
         population_projections = f"{DATA}/population/population_projections.gpkg"
     shell:
@@ -22,7 +21,6 @@ rule population_growth_employment:
         python {input.script} \
             --incoming-data-dir {RAW} \
             --data-dir {DATA} \
-            --epsg {params.epsg} \
             --base-year {params.base_year} \
             --admin-boundaries {input.admin_boundaries} \
             --population {input.population} \
@@ -44,8 +42,7 @@ rule agriculture_areas_economic_activity:
         agri_data_prod_agg_dir = f"{RAW}/agriculture_data/spam2010v2r0_global_prod.geotiff/JAM",
         agri_data_yield_dir = f"{RAW}/agriculture_data/spam2010v2r0_global_yield.geotiff/JAM",
     params:
-        epsg = config["adaptation_options"]["epsg_jamaica"],
-        financial_year = config["economics"]["financial_year"]
+        financial_year = config["economics"]["GVA_per_sector_year"]
     output:
         spam_agri_outputs = f"{DATA}/agriculture_data/spam_agriculture_outputs.gpkg",
         prod_keys = f"{DATA}/agriculture_data/production_column_keys.csv",
@@ -57,7 +54,6 @@ rule agriculture_areas_economic_activity:
         """
         python {input.script} \
             --data-dir {DATA} \
-            --epsg {params.epsg} \
             --financial-year {params.financial_year} \
             --agri-crop-details {input.agri_crop_details} \
             --econ-output {input.econ_output} \
@@ -76,8 +72,6 @@ rule mining_areas_economic_activity:
         script = "workflow/1_context/socio_econ_model_scripts/mining_areas_economic_activity.py",
         mining_gdp = f"{DATA}/mining_data/mining_gdp.gpkg",
         intermediate_file = f"{RAW}/buildings/buildings_assigned_economic_sectors_intermediate.gpkg",
-    params:
-        epsg = config["adaptation_options"]["epsg_jamaica"],
     output:
         mining_gdp_output = f"{DATA}/mining_data/mining_gdp_with_buildings.gpkg", 
         #originially the above output was the smae mining_gdp.gpk and the name has bee changed
@@ -107,10 +101,9 @@ rule spatial_economic_allocation:
         agri_buidlings_gdp = f"{DATA}/agriculture_data/building_agricuture_gdp.csv",
         mining_buildings_gdp = f"{DATA}/mining_data/building_mining_gdp.csv",
     params:
-        epsg = config["adaptation_options"]["epsg_jamaica"],
-        financial_year = config["economics"]["financial_year"],
+        financial_year = config["economics"]["GVA_per_sector_year"],
         buffer_distance = 10000,
-        pop_year = config["economics"]["population_year"]
+        pop_year = config["economics"]["baseline_population_year"]
     output:
         # final_buildings_econ_activity = f"{DATA}/buildings/buildings_assigned_economic_activity.gpkg", #this is technically an output and also an input
         admin_level_assigned_econ_activity = f"{DATA}/buildings/admin_level_assigned_economic_activity.gpkg"
@@ -119,7 +112,6 @@ rule spatial_economic_allocation:
         python {input.script} \
             --incoming-data-dir {RAW} \
             --data-dir {DATA} \
-            --epsg {params.epsg} \
             --financial-year {params.financial_year} \
             --buffer-distance {params.buffer_distance} \
             --pop-year {params.pop_year} \
