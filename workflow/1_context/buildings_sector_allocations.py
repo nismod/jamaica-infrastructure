@@ -10,7 +10,7 @@ import pandas as pd
 from tqdm import tqdm
 
 from preprocess_utils import *
-from jamaica_infrastructure import LOCAL_PROJ_CRS_EPSG
+from jamaica_infrastructure.geo import LOCAL_PROJ_CRS_EPSG
 
 tqdm.pandas()
 

@@ -9,12 +9,11 @@ import geopandas as gpd
 import fiona
 from collections import OrderedDict
 from shapely.geometry import shape, mapping
-
-# from preprocess_utils import *
 from tqdm import tqdm
 import click
 
-from jamaica_infrastructure import LOCAL_PROJ_CRS_EPSG
+# from preprocess_utils import *
+from jamaica_infrastructure.geo import LOCAL_PROJ_CRS_EPSG
 
 tqdm.pandas()
 
