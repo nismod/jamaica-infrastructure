@@ -4,7 +4,6 @@ import logging
 import click
 import geopandas
 import pandas
-import tqdm
 
 from jamaica_infrastructure.utils import parse_jic2005
 
@@ -77,24 +76,10 @@ def main(buildings, output):
     buildings_gdf = geopandas.read_file(
         buildings, columns=keep_columns, use_arrow=True, engine="pyogrio"
     )
-
-    nrows, _ = buildings_gdf.shape
-    chunksize = 100
-    chunks = int(nrows / chunksize)
-    for chunk in tqdm.trange(chunks):
-        minrow = chunksize * chunk
-        maxrow = chunksize * (chunk + 1)
-        process_chunk(buildings_gdf, f"{output}/{chunk}.parquet", minrow, maxrow)
-
-    process_chunk(buildings_gdf, f"{output}/{chunk + 1}.parquet", maxrow, nrows + 1)
-
-
-def process_chunk(buildings_gdf, output, minrow, maxrow):
-    subset_gdf = buildings_gdf.iloc[minrow:maxrow].copy()
-    subset_gdf[["jic2005_two_digit", "jic2005_three_digit"]] = (
-        subset_gdf.subsector_code.apply(subsector_to_jic2005)
+    buildings_gdf[["jic2005_two_digit", "jic2005_three_digit"]] = (
+        buildings_gdf.subsector_code.apply(subsector_to_jic2005)
     )
-    subset_gdf.to_parquet(output)
+    buildings_gdf.to_parquet(output)
 
 
 def set_encode(cs):
@@ -102,7 +87,7 @@ def set_encode(cs):
 
 
 def subsector_to_jic2005(subsector_codes_string):
-    codes = subsector_codes_string.split(",")
+    codes = set(subsector_codes_string.split(","))
     two_or_three_digit = list(
         itertools.chain.from_iterable(parse_jic2005(c) for c in codes)
     )
