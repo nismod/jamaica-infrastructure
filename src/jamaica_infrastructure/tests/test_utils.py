@@ -80,3 +80,10 @@ class TestParseJIC2005:
             "012",
         )
         assert parse_jic2005(code) == expected
+
+        code = "012-1"
+        expected = (
+            "011",
+            "012",
+        )
+        assert parse_jic2005(code) == expected
