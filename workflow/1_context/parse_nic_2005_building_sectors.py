@@ -4,6 +4,7 @@ import logging
 import click
 import geopandas
 import pandas
+import tqdm
 
 from jamaica_infrastructure.utils import parse_jic2005
 
@@ -19,11 +20,10 @@ from jamaica_infrastructure.utils import parse_jic2005
 @click.option(
     "--output",
     required=True,
-    type=click.Path(exists=False, dir_okay=False, file_okay=True, writable=True),
+    type=click.Path(exists=False, dir_okay=True, file_okay=True, writable=True),
     help="Path to buildings GeoParquet output",
 )
 def main(buildings, output):
-    buildings_gdf = geopandas.read_file(buildings)
     # List columns to keep - comment out those to drop which are in the base file (as of Mar-2026)
     keep_columns = [
         "osm_id",
@@ -73,12 +73,28 @@ def main(buildings, output):
         # "total_GDP",
         "geometry",
     ]
-    buildings_gdf = buildings_gdf[keep_columns]
 
-    buildings_gdf[["jic2005_two_digit", "jic2005_three_digit"]] = (
-        buildings_gdf.subsector_code.apply(subsector_to_jic2005)
+    buildings_gdf = geopandas.read_file(
+        buildings, columns=keep_columns, use_arrow=True, engine="pyogrio"
     )
-    buildings_gdf.to_parquet(output)
+
+    nrows, _ = buildings_gdf.shape
+    chunksize = 100
+    chunks = int(nrows / chunksize)
+    for chunk in tqdm.trange(chunks):
+        minrow = chunksize * chunk
+        maxrow = chunksize * (chunk + 1)
+        process_chunk(buildings_gdf, f"{output}/{chunk}.parquet", minrow, maxrow)
+
+    process_chunk(buildings_gdf, f"{output}/{chunk + 1}.parquet", maxrow, nrows + 1)
+
+
+def process_chunk(buildings_gdf, output, minrow, maxrow):
+    subset_gdf = buildings_gdf.iloc[minrow:maxrow].copy()
+    subset_gdf[["jic2005_two_digit", "jic2005_three_digit"]] = (
+        subset_gdf.subsector_code.apply(subsector_to_jic2005)
+    )
+    subset_gdf.to_parquet(output)
 
 
 def set_encode(cs):
