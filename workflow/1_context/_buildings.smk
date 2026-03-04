@@ -46,3 +46,16 @@ rule filter_osm_buildings:
             {output.pbf} \
             multipolygons
         """
+
+rule parse_nic_2005_building_sectors:
+    input:
+        script = "workflow/1_context/parse_nic_2005_building_sectors.py",
+        buildings = f"{DATA}/buildings/buildings_assigned_economic_activity.gpkg",
+    output:
+        buildings = f"{DATA}/buildings/buildings_nic2005.geoparquet",
+    shell:
+        """
+        python {input.script} \
+            --buildings {input.buildings} \
+            --output {output.buildings}
+        """
