@@ -337,28 +337,6 @@ rule electricity_edge_failures_combine:
         logging.info(f"Saved to {output.combined}")
 
 
-rule single_point_failure_electricity:
-    """
-    Create single point failure results for electricity network.
-    
-    This is a convenience rule that ensures both node and edge failures
-    are computed. It depends on the combine rules that aggregate chunks.
-    
-    Test with:
-    snakemake -c50 results/electricity_failures/
-    """
-    input:
-        node_failures = f"{OUTPUT}/electricity_failures/single_point_failure_results_nodes.csv",
-        edge_failures = f"{OUTPUT}/electricity_failures/single_point_failure_results_edges.csv",
-    output:
-        directory(f"{OUTPUT}/electricity_failures/"),
-    shell:
-        """
-        # Output directory already created by input files
-        echo "Electricity single point failure analysis complete"
-        """
-
-
 rule single_point_failure_electricity_water:
     """
     Create a single point failure file for electricity and water assets.
