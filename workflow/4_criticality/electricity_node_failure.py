@@ -28,7 +28,7 @@ from jem.model import jem
 from jem.statistics import statistics
 
 logging.basicConfig(
-    format="%(asctime)s %(process)d %(levelname)s %(message)s", level=logging.INFO
+    format="%(asctime)s %(process)d %(levelname)s %(message)s", level=logging.WARN
 )
 
 
