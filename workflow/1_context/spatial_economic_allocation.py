@@ -488,14 +488,19 @@ def main(
     output_admin,
 ):
     """
-    --population processed_data/population/population_projections.gpkg \
-    --buildings processed_data/buildings/buildings_assigned_economic_activity.gpkg \
-    --economic_output_path processed_data/macroeconomic_data/detailed_sector_GVA_GDP_current_prices.xlsx \
-    --fishing_path processed_data/land_type_and_use/aqua_farms.gpkg \
-    --agriculture_buildings_path processed_data/agriculture_data/building_agricuture_gdp.csv \
-    --mining_areas_path processed_data/mining_data/mining_gdp.gpkg \
-    --output_buildings processed_data/buildings/buildings_assigned_economic_activity.gpkg \
-    --output_admin processed_data/buildings/admin_level_assigned_economic_activity.gpkg
+    Allocate national, sectoral GDP to buildings.
+
+    Example usage:
+
+        python workflow/1_context/spatial_economic_allocation.py \
+            --population_path processed_data/population/population_projections.gpkg \
+            --buildings_path processed_data/buildings/buildings_assigned_economic_activity.gpkg \
+            --economic_output_path processed_data/macroeconomic_data/detailed_sector_GVA_GDP_current_prices.xlsx \
+            --fishing_path processed_data/land_type_and_use/aqua_farms.gpkg \
+            --agriculture_buildings_path processed_data/agriculture_data/building_agricuture_gdp.csv \
+            --mining_areas_path processed_data/mining_data/mining_gdp.gpkg \
+            --output_buildings processed_data/buildings/buildings_assigned_economic_activity.gpkg \
+            --output_admin processed_data/buildings/admin_level_assigned_economic_activity.gpkg
     """
     epsg_jamaica = LOCAL_PROJ_CRS_EPSG
     financial_year = 2019
