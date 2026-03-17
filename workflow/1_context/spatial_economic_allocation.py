@@ -17,7 +17,7 @@ def match_buildings_to_areas(buildings, gdf, building_id, gdf_ids):
     ).reset_index()
     matches.rename(columns={"geometry": "building_geometry"}, inplace=True)
     matches = pd.merge(matches, gdf[gdf_ids + ["geometry"]], how="left", on=gdf_ids)
-    matches["area_match"] = matches.progress_apply(
+    matches["area_match"] = matches.apply(
         lambda x: x["building_geometry"].intersection(x["geometry"].buffer(0)).area,
         axis=1,
     )
@@ -54,7 +54,7 @@ def get_sector_gdp(
     print("* Given GDP", output)
     if output > 0:
         sector_df[sector_code] = sector_df[sector_columns].sum(axis=1)
-        sector_df[sector_code] = sector_df.progress_apply(
+        sector_df[sector_code] = sector_df.apply(
             lambda x: 1 if x[sector_code] > 0 else 0, axis=1
         )
         sector_df[f"{sector_code}_t_ij_ext"] = (
@@ -78,7 +78,7 @@ def get_sector_gdp(
         sector_df = pd.merge(
             sector_df, area_sums, how="left", on=["ED_ID", "ED"]
         ).fillna(0)
-        sector_df["assigned_GDP"] = sector_df.progress_apply(
+        sector_df["assigned_GDP"] = sector_df.apply(
             lambda x: (
                 output
                 * x[f"{sector_code}_t_ij_ext"]
@@ -189,7 +189,7 @@ def region_attractiveness_by_population(
     )
     total_within = (
         within_distance.groupby(["from_ED_ID", "from_ED"])[
-            f"{population_year}", f"working_{population_year}"
+            [f"{population_year}", f"working_{population_year}"]
         ]
         .sum()
         .reset_index()
@@ -220,7 +220,7 @@ def region_attractiveness_by_population(
         on=["from_ED_ID", "from_ED"],
     )
 
-    within_distance["t_ij_ext"] = within_distance.progress_apply(
+    within_distance["t_ij_ext"] = within_distance.apply(
         lambda x: (
             x[f"working_{population_year}"]
             / (x[f"total_working_{population_year}"] - x[f"working_{population_year}"])
@@ -237,7 +237,7 @@ def region_attractiveness_by_population(
         within_distance, within_distance_sums, how="left", on=["from_ED_ID", "from_ED"]
     ).fillna(0)
     del within_distance_sums
-    within_distance["t_ij_ext"] = within_distance.progress_apply(
+    within_distance["t_ij_ext"] = within_distance.apply(
         lambda x: x[f"from_{population_year}"] * (x["t_ij_ext"] / x["t_ij_ext_sums"]),
         axis=1,
     )
@@ -272,10 +272,10 @@ def join_buildings(buildings, region_attractiveness, population_areas, epsg_jama
     buildings_nomatches = buildings[
         ~(buildings["osm_id"].isin(buildings_regions["osm_id"].values.tolist()))
     ]
-    buildings_nomatches["ED_ID"] = buildings_nomatches.progress_apply(
+    buildings_nomatches["ED_ID"] = buildings_nomatches.apply(
         lambda x: get_nearest_areas(x, region_attractiveness, "ED_ID"), axis=1
     )
-    buildings_nomatches["ED"] = buildings_nomatches.progress_apply(
+    buildings_nomatches["ED"] = buildings_nomatches.apply(
         lambda x: get_nearest_areas(x, region_attractiveness, "ED"), axis=1
     )
     buildings_nomatches = pd.merge(
@@ -391,7 +391,7 @@ def aggregate_to_admin_gdp(buildings, population_areas, epsg_jamaica):
 def allocate_mining_buildings(mining_areas, sector_df):
     sector_columns = [c for c in sector_df.columns.values.tolist() if "C_" in c[:2]]
     sector_df["C"] = sector_df[sector_columns].sum(axis=1)
-    sector_df["C"] = sector_df.progress_apply(lambda x: 1 if x["C"] > 0 else 0, axis=1)
+    sector_df["C"] = sector_df.apply(lambda x: 1 if x["C"] > 0 else 0, axis=1)
     mining_buildings = gpd.sjoin(
         mining_areas[["mining_id", "GDP_persqm", "geometry"]],
         sector_df[sector_df["C"] == 1][["osm_id", "geometry"]],
@@ -403,7 +403,7 @@ def allocate_mining_buildings(mining_areas, sector_df):
     mining_buildings = pd.merge(
         mining_buildings, sector_df[["osm_id", "geometry"]], how="left", on=["osm_id"]
     )
-    mining_buildings["area_sqm"] = mining_buildings.progress_apply(
+    mining_buildings["area_sqm"] = mining_buildings.apply(
         lambda x: x["landuse_geometry"].intersection(x["geometry"].buffer(0)).area,
         axis=1,
     )
@@ -421,7 +421,7 @@ def allocate_mining_buildings(mining_areas, sector_df):
         mining_areas, mining_buildings_areas, how="left", on=["mining_id"]
     )
     mining_areas_gdp["C_GDP_building"] = mining_areas_gdp["C_GDP_building"].fillna(0)
-    mining_areas_gdp["GDP_building_ratio"] = mining_areas_gdp.progress_apply(
+    mining_areas_gdp["GDP_building_ratio"] = mining_areas_gdp.apply(
         lambda x: x["C_GDP_building"] / x["C_GDP"] if x["C_GDP"] > 0 else 0, axis=1
     )
     return mining_areas_gdp, mining_buildings
@@ -645,7 +645,7 @@ def main(
 
         elif scode == "I":
             post_office_share = 0.157
-            sector_df["find_post"] = sector_df.progress_apply(
+            sector_df["find_post"] = sector_df.apply(
                 lambda x: (
                     1
                     if "post_office" in str(x["assigned_attribute"])
