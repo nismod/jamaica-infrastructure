@@ -79,7 +79,10 @@ rule tag_buildings_with_nic_2016_sector_code:
         import geopandas as gpd
         import pandas as pd
 
-        jic_map = pd.read_csv(input.jic_map, comment="#", dtype=str).loc[:, ["jic2016_l1", "jic2016_l2", "jic2005_l2"]]
+        jic_map = pd.read_csv(input.jic_map, comment="#", dtype=str).loc[:, ["jic2016_l1", "jic2005_l2"]]
+        # jic005_l2 can map to multiple jic2016_l1
+        jic_map = jic_map.groupby("jic2005_l2").agg(lambda cs: ",".join(sorted(set(cs)))).reset_index()
+
         lookup = dict(zip(jic_map.jic2005_l2, jic_map.jic2016_l1))
 
         build = gpd.read_parquet(input.buildings)
