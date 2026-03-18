@@ -240,7 +240,7 @@ def main():
         logging.info(f"Processing {len(edges)} edges in this chunk")
 
     # Get list of edges to attack
-    edges_to_attack = edges.id.to_list()[:10]
+    edges_to_attack = edges.id.to_list()
     logging.info(f"Analysing {len(edges_to_attack)} edges")
 
     # Run analysis for each edge
