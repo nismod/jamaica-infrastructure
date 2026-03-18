@@ -1,14 +1,11 @@
 """Assign GDP values to buildings and aggregate to admin level"""
 
 import logging
-
-import click
-
-import pandas as pd
-import geopandas as gpd
 from collections import defaultdict
 
-from jamaica_infrastructure.geo import LOCAL_PROJ_CRS_EPSG
+import click
+import pandas as pd
+import geopandas as gpd
 
 
 def match_buildings_to_areas(buildings, gdf, building_id, gdf_ids):
@@ -34,358 +31,79 @@ def get_nearest_areas(x, gdf, gdf_column):
     return gdf.loc[area_index, gdf_column]
 
 
-def get_sector_gdp(
-    economic_output,
-    sector_df,
-    sector_columns,
-    sector_code,
-    subsector_code,
-    financial_year,
-    tax_rate,
-):
-    output = (
-        (1 + tax_rate)
-        * (1.0e6 / 365.0)
-        * economic_output[
-            (economic_output["sector_code"] == sector_code)
-            & (economic_output["subsector_code"] == subsector_code)
-        ][f"{financial_year}"].sum()
-    )
-    print("* Given GDP", output)
-    if output > 0:
-        sector_df[sector_code] = sector_df[sector_columns].sum(axis=1)
-        sector_df[sector_code] = sector_df.apply(
-            lambda x: 1 if x[sector_code] > 0 else 0, axis=1
-        )
-        sector_df[f"{sector_code}_t_ij_ext"] = (
-            sector_df["t_ij_ext"] * sector_df[sector_code]
-        )
+def get_sector_gdp(output: float, buildings: gpd.GeoDataFrame, sector_code: str):
+    if output <= 0:
+        return 0
 
-        pop_sums = (
-            sector_df[sector_df[sector_code] == 1]
-            .drop_duplicates(subset=["ED_ID", "ED"], keep="first")[
-                f"{sector_code}_t_ij_ext"
-            ]
-            .sum()
-        )
-        sector_df[f"{sector_code}_t_ij_ext"] = (
-            sector_df[f"{sector_code}_t_ij_ext"] / pop_sums
-        )
+    # Filter for buildings in this sector
+    sector_buildings = buildings[buildings[sector_code] == 1]
 
-        area_sums = sector_df[["ED_ID", "ED", "area_sqm", sector_code]]
-        area_sums["total_areas"] = area_sums["area_sqm"] * area_sums[sector_code]
-        area_sums = area_sums.groupby(["ED_ID", "ED"])["total_areas"].sum()
-        sector_df = pd.merge(
-            sector_df, area_sums, how="left", on=["ED_ID", "ED"]
-        ).fillna(0)
-        sector_df["assigned_GDP"] = sector_df.apply(
-            lambda x: (
-                output
-                * x[f"{sector_code}_t_ij_ext"]
-                * x["area_sqm"]
-                * x[sector_code]
-                / x["total_areas"]
-                if x["total_areas"] > 0
-                else 0
-            ),
-            axis=1,
-        )
-        sector_df[f"{sector_code}_GDP"] += sector_df["assigned_GDP"]
-        sector_df.drop(["assigned_GDP", "total_areas"], axis=1, inplace=True)
-    return sector_df
-
-
-def get_fishery_gdp(
-    economic_output,
-    sector_df,
-    fishing_locations,
-    sector_weight,
-    sector_code,
-    subsector_code,
-    financial_year,
-    tax_rate,
-):
-    output = (
-        (1 + tax_rate)
-        * (1.0e6 / 365.0)
-        * economic_output[
-            (economic_output["sector_code"] == sector_code)
-            & (economic_output["subsector_code"] == subsector_code)
-        ][f"{financial_year}"].sum()
-    )
-    print("* Given GDP", output)
-    if output > 0:
-        fishing_areas = gpd.sjoin(
-            fishing_locations, sector_df, how="inner", predicate="intersects"
-        ).reset_index()
-        fishing_areas_total = (
-            fishing_areas.groupby("farm_id")["area_sqm"].sum().reset_index()
-        )
-        fishing_areas_total.rename(columns={"area_sqm": "area_farms"}, inplace=True)
-        fishing_areas = pd.merge(
-            fishing_areas, fishing_areas_total, how="left", on=["farm_id"]
-        )
-        fishing_areas["fishing_GDP"] = (
-            output
-            * fishing_areas[sector_weight]
-            * (fishing_areas["area_sqm"] / fishing_areas["area_farms"])
-        )
-        sector_df = pd.merge(
-            sector_df,
-            fishing_areas[["osm_id", "fishing_GDP"]],
-            how="left",
-            on=["osm_id"],
-        ).fillna(0)
-        sector_df[f"{sector_code}_GDP"] += sector_df["fishing_GDP"]
-
-    return sector_df
-
-
-def region_attractiveness_by_population(
-    population_areas, buffer_distance, population_year, epsg_jamaica
-):
-
-    population = population_areas.copy()
-
-    average_pop = (
-        population_areas.groupby(["PARISH"])[f"{population_year}"].mean().reset_index()
-    )
-    average_pop.columns = average_pop.columns.map(str)
-    for i, avg in average_pop.iterrows():
-        population.loc[
-            (population[f"{population_year}"] == 0)
-            & (population["PARISH"] == avg["PARISH"]),
-            f"{population_year}",
-        ] = avg[f"{population_year}"]
-
-    population["geometry"] = population.apply(lambda x: x.geometry.centroid, axis=1)
-
-    """Find the points within a distance buffer
-    """
-    population_buffer = population.copy()
-    population_buffer["geometry"] = population_buffer.geometry.buffer(buffer_distance)
-    population_buffer.rename(
-        columns={
-            "ED_ID": "from_ED_ID",
-            "ED": "from_ED",
-            f"{population_year}": f"from_{population_year}",
-            f"working_{population_year}": f"from_working_{population_year}",
-        },
-        inplace=True,
-    )
-    within_distance = gpd.sjoin(
-        population,
-        population_buffer[
-            [
-                "from_ED_ID",
-                "from_ED",
-                f"from_{population_year}",
-                f"from_working_{population_year}",
-                "geometry",
-            ]
-        ],
-        how="inner",
-        predicate="within",
-    )
-    total_within = (
-        within_distance.groupby(["from_ED_ID", "from_ED"])[
-            [f"{population_year}", f"working_{population_year}"]
-        ]
-        .sum()
-        .reset_index()
-    )
-    total_within.rename(
-        columns={
-            f"{population_year}": f"total_{population_year}",
-            f"working_{population_year}": f"total_working_{population_year}",
-        },
-        inplace=True,
+    # Aggregate to regions
+    # sum over building footprint area
+    # pick first (any) t_ij_ext (attractiveness measure)
+    sector_regions = (
+        sector_buildings.groupby(["ED_ID", "ED"])
+        .agg({"t_ij_ext": "first", "area_sqm": "sum"})
+        .rename(columns={"area_sqm": "region_total_area_sqm"})
     )
 
-    within_distance = pd.merge(
-        within_distance[
-            [
-                "ED_ID",
-                "ED",
-                f"{population_year}",
-                f"working_{population_year}",
-                "from_ED_ID",
-                "from_ED",
-                f"from_{population_year}",
-                f"from_working_{population_year}",
-            ]
-        ],
-        total_within,
-        how="left",
-        on=["from_ED_ID", "from_ED"],
-    )
+    # t_ij_ext is originally per-region
+    # Sum t_ij_ext over all regions which contain this sector
+    sector_tij_total: float = sector_regions.t_ij_ext.sum()
 
-    within_distance["t_ij_ext"] = within_distance.apply(
-        lambda x: (
-            x[f"working_{population_year}"]
-            / (x[f"total_working_{population_year}"] - x[f"working_{population_year}"])
-        ),
-        axis=1,
-    )
-    within_distance_sums = (
-        within_distance.groupby(["from_ED_ID", "from_ED"])["t_ij_ext"]
-        .sum()
-        .reset_index()
-    )
-    within_distance_sums.rename(columns={"t_ij_ext": "t_ij_ext_sums"}, inplace=True)
-    within_distance = pd.merge(
-        within_distance, within_distance_sums, how="left", on=["from_ED_ID", "from_ED"]
+    # Join region_total_area_sqm back on to *all* buildings
+    # columns: "ED_ID", "ED", "region_total_area_sqm"
+    sector_region_area_sqm: pd.DataFrame = sector_regions[
+        ["region_total_area_sqm"]
+    ].reset_index()
+    all_buildings = pd.merge(
+        buildings, sector_region_area_sqm, how="left", on=["ED_ID", "ED"]
     ).fillna(0)
-    del within_distance_sums
-    within_distance["t_ij_ext"] = within_distance.apply(
-        lambda x: x[f"from_{population_year}"] * (x["t_ij_ext"] / x["t_ij_ext_sums"]),
-        axis=1,
-    )
-    within_distance.drop("t_ij_ext_sums", axis=1, inplace=True)
-    region_attractiveness = (
-        within_distance.groupby(["ED_ID", "ED"])["t_ij_ext"].sum().reset_index()
-    )
 
-    region_attractiveness = pd.merge(
-        region_attractiveness,
-        population_areas[["ED_ID", "ED", "geometry"]],
-        how="left",
-        on=["ED_ID", "ED"],
-    )
-    region_attractiveness = gpd.GeoDataFrame(
-        region_attractiveness, geometry="geometry", crs=f"EPSG:{epsg_jamaica}"
-    )
-    return region_attractiveness
+    # Calculate output for sector, in regions according to attractiveness, in buildings according to area
+    sector_building_gdp = (
+        output
+        * (all_buildings[sector_code])
+        * (all_buildings.t_ij_ext / sector_tij_total)
+        * (all_buildings.area_sqm / all_buildings.region_total_area_sqm)
+    ).fillna(0)
+
+    assert (
+        abs(sector_building_gdp.sum() - output) < 1
+    ), f"Sense check total assigned sector GDP {sector_building_gdp.sum()} ~= amount to assign {output}"
+
+    return sector_building_gdp
 
 
-def join_buildings(buildings, region_attractiveness, population_areas, epsg_jamaica):
-
-    new_columns = ["ED_ID", "ED", "PARISH", "CONST_NAME"]
-    for col in new_columns:
-        if col in buildings.columns.values.tolist():
-            buildings.drop(col, axis=1, inplace=True)
-
-    buildings_regions = match_buildings_to_areas(
-        buildings, region_attractiveness, "osm_id", ["ED_ID", "ED"]
-    )
-
-    buildings_nomatches = buildings[
-        ~(buildings["osm_id"].isin(buildings_regions["osm_id"].values.tolist()))
-    ]
-    buildings_nomatches["ED_ID"] = buildings_nomatches.apply(
-        lambda x: get_nearest_areas(x, region_attractiveness, "ED_ID"), axis=1
-    )
-    buildings_nomatches["ED"] = buildings_nomatches.apply(
-        lambda x: get_nearest_areas(x, region_attractiveness, "ED"), axis=1
-    )
-    buildings_nomatches = pd.merge(
-        buildings_nomatches,
-        region_attractiveness[["ED_ID", "ED", "t_ij_ext"]],
-        how="left",
-        on=["ED_ID", "ED"],
-    )
-
+def filter_nonres_and_join_attractiveness(buildings, region_attractiveness):
     columns = [
         "osm_id",
         "ED_ID",
         "ED",
-        "sector_code",
-        "subsector_code",
-        "assigned_attribute",
+        "jic2016_sector",
         "building_type",
         "area_sqm",
-        "t_ij_ext",
+        "geometry",
     ]
-
-    buildings_regions = pd.concat(
-        [buildings_regions[columns], buildings_nomatches[columns]],
-        axis=0,
-        ignore_index=True,
+    nonres_buildings = (
+        buildings[columns]
+        .query("building_type != 'Residential'")
+        .dropna(subset="jic2016_sector")
+        .copy()
+        .merge(region_attractiveness[["ED_ID", "ED", "t_ij_ext"]], on=["ED_ID", "ED"])
     )
-    buildings_regions = pd.merge(
-        buildings_regions,
-        population_areas[["ED_ID", "ED", "PARISH", "CONST_NAME"]],
-        how="left",
-        on=["ED_ID", "ED"],
-    )
-    buildings = pd.merge(
-        buildings,
-        buildings_regions[["osm_id", "ED_ID", "ED", "PARISH", "CONST_NAME"]],
-        how="left",
-        on=["osm_id"],
-    )
-
-    commercial_buildings = buildings_regions[
-        buildings_regions["building_type"] != "Residential"
-    ]
-    sector_df = commercial_buildings.copy()
-    sector_dict = defaultdict(list)
-    for commerical in commercial_buildings.itertuples():
-        sectors = list(
-            set(
-                zip(
-                    str(commerical.sector_code).split(","),
-                    str(commerical.subsector_code).split(","),
-                )
-            )
-        )
-        sectors = [f"{s[0]}_{s[1]}" for s in sectors]
-        sectors = [s for s in sectors if s != "RES_RES"]
-        osm_id = commerical.osm_id
-        for s in sectors:
-            sector_dict[s].append(osm_id)
-
-    for k, v in sector_dict.items():
-        df = pd.DataFrame(v, columns=["osm_id"])
-        df[k] = 1
-        sector_df = pd.merge(sector_df, df, how="left", on=["osm_id"]).fillna(0)
-
-    sector_df = pd.merge(
-        sector_df, buildings[["osm_id", "geometry"]], how="left", on=["osm_id"]
-    )
-    sector_df = gpd.GeoDataFrame(
-        sector_df, geometry="geometry", crs=f"EPSG:{epsg_jamaica}"
-    )
-    return buildings, sector_df
+    return nonres_buildings
 
 
-def aggregate_to_admin_gdp(buildings, population_areas, epsg_jamaica):
-    sector_codes = [
-        "A",
-        "B",
-        "C",
-        "D",
-        "E",
-        "F",
-        "G",
-        "H",
-        "I",
-        "J",
-        "K",
-        "L",
-        "M",
-        "N",
-        "O",
-    ]
-    gdp_columns = [f"{scode}_GDP" for scode in sector_codes] + ["total_GDP"]
+def add_sector_indicator_columns(nonres_buildings, sector_codes):
+    """Add a column per sector code, value 0 or 1 indicating if the building is
+    tagged with that sector"""
+    for sector_code in sector_codes:
+        nonres_buildings[sector_code] = nonres_buildings.jic2016_sector.str.contains(
+            sector_code
+        ).astype(int)
 
-    admin_gdp = (
-        buildings.groupby(["ED_ID", "ED", "PARISH", "CONST_NAME"])[gdp_columns]
-        .sum()
-        .reset_index()
-    )
-    admin_gdp["GDP_unit"] = "JD/day"
-    admin_gdp = gpd.GeoDataFrame(
-        pd.merge(
-            admin_gdp,
-            population_areas[["ED_ID", "ED", "geometry"]],
-            how="left",
-            on=["ED_ID", "ED"],
-        ),
-        geometry="geometry",
-        crs=f"EPSG:{epsg_jamaica}",
-    )
-    return admin_gdp
+    return nonres_buildings
 
 
 def allocate_mining_buildings(mining_areas, sector_df):
@@ -430,28 +148,22 @@ def allocate_mining_buildings(mining_areas, sector_df):
 @click.command()
 @click.version_option("1.0")
 @click.option(
-    "--population_path",
+    "--region_attractiveness_path",
     required=True,
     type=click.Path(exists=True, dir_okay=False, file_okay=True, readable=True),
-    help="Path to population GeoPackage",
+    help="Path to region_attractiveness Geoparquet",
 )
 @click.option(
     "--buildings_path",
     required=True,
     type=click.Path(exists=True, dir_okay=False, file_okay=True, readable=True),
-    help="Path to buildings GeoPackage",
+    help="Path to buildings Geoparquet",
 )
 @click.option(
     "--economic_output_path",
     required=True,
     type=click.Path(exists=True, dir_okay=False, file_okay=True, readable=True),
     help="Path to economic output Excel",
-)
-@click.option(
-    "--fishing_path",
-    required=True,
-    type=click.Path(exists=True, dir_okay=False, file_okay=True, readable=True),
-    help="Path to fishing/aqua_farms GeoPackage",
 )
 @click.option(
     "--agriculture_buildings_path",
@@ -466,26 +178,18 @@ def allocate_mining_buildings(mining_areas, sector_df):
     help="Path to mining areas GeoPackage",
 )
 @click.option(
-    "--output_buildings",
+    "--output",
     required=True,
     type=click.Path(exists=False, dir_okay=False, file_okay=True, writable=True),
     help="Path to buildings GeoPackage output",
 )
-@click.option(
-    "--output_admin",
-    required=True,
-    type=click.Path(exists=False, dir_okay=False, file_okay=True, writable=True),
-    help="Path to admin GeoPackage output",
-)
 def main(
-    population_path,
+    region_attractiveness_path,
     buildings_path,
     economic_output_path,
-    fishing_path,
     agriculture_buildings_path,
     mining_areas_path,
-    output_buildings,
-    output_admin,
+    output,
 ):
     """
     Allocate national, sectoral GDP to buildings.
@@ -493,215 +197,133 @@ def main(
     Example usage:
 
         python workflow/1_context/spatial_economic_allocation.py \
-            --population_path processed_data/population/population_projections.gpkg \
-            --buildings_path processed_data/buildings/buildings_assigned_economic_activity.gpkg \
-            --economic_output_path processed_data/macroeconomic_data/detailed_sector_GVA_GDP_current_prices.xlsx \
-            --fishing_path processed_data/land_type_and_use/aqua_farms.gpkg \
+            --region_attractiveness_path processed_data/population/region_attractiveness.geoparquet \
+            --buildings_path processed_data/buildings//buildings_nic2016.geoparquet \
+            --economic_output_path processed_data/macroeconomic_data/NIP_2023.csv \
             --agriculture_buildings_path processed_data/agriculture_data/building_agricuture_gdp.csv \
             --mining_areas_path processed_data/mining_data/mining_gdp.gpkg \
-            --output_buildings processed_data/buildings/buildings_assigned_economic_activity.gpkg \
-            --output_admin processed_data/buildings/admin_level_assigned_economic_activity.gpkg
+            --output processed_data/buildings/buildings_assigned_economic_activity.geoparquet
     """
-    epsg_jamaica = LOCAL_PROJ_CRS_EPSG
-    financial_year = 2019
-    buffer_distance = 1e4  # 10 km distance buffer
-    population_year = 2019
+    ANNUAL_TO_DAILY = 1 / 365
+    MILLIONS_TO_JMD = 1e6
 
-    population_areas = gpd.read_file(
-        population_path,
-        layer="mean",
-    ).to_crs(epsg=epsg_jamaica)
+    region_attractiveness = gpd.read_parquet(region_attractiveness_path)
 
-    region_attractiveness = region_attractiveness_by_population(
-        population_areas, buffer_distance, population_year, epsg_jamaica
+    buildings = gpd.read_parquet(buildings_path)
+    logging.info(
+        "Read buildings: all %s",
+        buildings.shape,
     )
 
-    buildings = gpd.read_file(
-        buildings_path,
-        layer="areas",
-    )
-    sector_df, buildings = join_buildings(
-        buildings, region_attractiveness, population_areas, epsg_jamaica
+    sector_codes = sorted(
+        list(
+            pd.Series(buildings.jic2016_sector.dropna().unique())
+            .apply(lambda s: s.split(","))
+            .explode()
+            .unique()
+        )
     )
 
-    economic_output = pd.read_excel(
-        economic_output_path,
-        sheet_name="2019",
+    nonres_buildings = add_sector_indicator_columns(
+        filter_nonres_and_join_attractiveness(buildings, region_attractiveness),
+        sector_codes,
     )
-    economic_output.columns = [
-        str(c).strip() for c in economic_output.columns.values.tolist()
-    ]
-    economic_output["subsector_code"] = economic_output["subsector_code"].apply(str)
-    total_gva = economic_output[economic_output["sector_code"] == "GVA"][
-        f"{financial_year}"
-    ].sum()
-    total_tax = economic_output[economic_output["sector_code"] == "TAX"][
-        f"{financial_year}"
-    ].sum()
-    tax_rate = 1.0 * total_tax / total_gva
+    logging.info(
+        "Joined buildings: non-residential %s all %s",
+        nonres_buildings.shape,
+        buildings.shape,
+    )
 
-    sector_df = sector_df.to_crs(epsg=epsg_jamaica)
-    sector_codes = [
-        "A",
-        "B",
-        "C",
-        "D",
-        "E",
-        "F",
-        "G",
-        "H",
-        "I",
-        "J",
-        "K",
-        "L",
-        "M",
-        "N",
-        "O",
-    ]
-    gdp_columns = [f"{scode}_GDP" for scode in sector_codes]
-    for scode in sector_codes:
-        logging.info("* Start sector", scode)
-        sector_columns = [
-            c for c in sector_df.columns.values.tolist() if f"{scode}_" in c[:2]
+    economic_output = pd.read_csv(economic_output_path, comment="#")
+    assert (
+        economic_output.columns
+        == [
+            "Code",
+            "Sector",
+            "Subsector",
+            "GVA JMD Millions (2023)",
         ]
-        sector_df[f"{scode}_GDP"] = 0
-        if scode in ("D", "H", "J", "K", "L"):
-            logging.debug(sector_columns)
-            sector_df = get_sector_gdp(
-                economic_output,
-                sector_df,
-                sector_columns,
-                scode,
-                "ALL",
-                financial_year,
-                tax_rate,
+    ).all(), 'Expected columns "Code","Sector","Subsector","GVA JMD Millions (2023)" in NIP CSV'
+
+    for sector_code in sector_codes:
+        sector = economic_output.query(f"Code == '{sector_code}'")
+        sector_output_per_day = (
+            sector["GVA JMD Millions (2023)"].sum() * ANNUAL_TO_DAILY * MILLIONS_TO_JMD
+        )
+        sector_description = sector.Sector.iloc[0]
+        subsector_description = "; ".join(list(sector.Subsector))
+        logging.info(
+            "Assigning GDP/day (JMD) for sector %s : %f (%s: %s)",
+            sector_code,
+            sector_output_per_day,
+            sector_description,
+            subsector_description,
+        )
+        if sector_code == "A":
+            nonres_buildings[f"{sector_code}_GDP"] = (
+                nonres_buildings[sector_code]
+                * sector_output_per_day
+                / nonres_buildings[sector_code].sum()
             )
-        elif scode in ("F", "G", "M", "N", "O"):
-            for sc in sector_columns:
-                sector_code = sc.split("_")[0]
-                subsector_code = sc.split("_")[1]
-                logging.debug(sector_code, subsector_code)
-                sector_df = get_sector_gdp(
-                    economic_output,
-                    sector_df,
-                    [sc],
-                    sector_code,
-                    subsector_code,
-                    financial_year,
-                    tax_rate,
-                )
-        elif scode == "B":
-            fishing_locations = gpd.read_file(
-                fishing_path,
-                layer="areas",
-            ).to_crs(epsg=epsg_jamaica)
-            fishing_locations["farm_wt"] = (
-                fishing_locations["Size_Farm"] / fishing_locations["Size_Farm"].sum()
+            # # TODO figure out generation of agriculture buildings
+            # agri_buildings = pd.read_csv(agriculture_buildings_path)
+            # agri_buildings["osm_id"] = agri_buildings["osm_id"].astype(int)
+            # nonres_buildings["osm_id"] = nonres_buildings["osm_id"].astype(int)
+            # nonres_buildings = pd.merge(
+            #     nonres_buildings, agri_buildings, how="left", on=["osm_id"]
+            # )
+            # nonres_buildings[["osm_id", "A_GDP_building"]].to_csv("test.csv")
+            # logging.debug("GDP to assign %f", nonres_buildings["A_GDP_building"].sum())
+            # nonres_buildings["A_GDP_building"] = nonres_buildings[
+            #     "A_GDP_building"
+            # ].fillna(0)
+            # nonres_buildings[f"{sector_code}_GDP"] += nonres_buildings["A_GDP_building"]
+            # nonres_buildings.drop("A_GDP_building", axis=1, inplace=True)
+            # del agri_buildings
+
+        elif sector_code == "B":
+            nonres_buildings[f"{sector_code}_GDP"] = (
+                nonres_buildings[sector_code]
+                * sector_output_per_day
+                / nonres_buildings[sector_code].sum()
             )
-            sector_df = get_fishery_gdp(
-                economic_output,
-                sector_df,
-                fishing_locations,
-                "farm_wt",
-                "B",
-                "50",
-                financial_year,
-                tax_rate,
+            # mining_areas = gpd.read_file(
+            #     mining_areas_path,
+            #     layer="areas",
+            # )
+            # _, mining_buildings = allocate_mining_buildings(
+            #     mining_areas, nonres_buildings.copy()
+            # )
+            # # TODO check if we should write mining_areas_gdp to processed_data/mining_data/mining_gdp.gpkg
+            # # if C_GDP_building and GDP_building_ratio are used later?
+
+            # mining_buildings["osm_id"] = mining_buildings["osm_id"].astype(int)
+            # nonres_buildings["osm_id"] = nonres_buildings["osm_id"].astype(int)
+            # nonres_buildings = pd.merge(
+            #     nonres_buildings, mining_buildings, how="left", on=["osm_id"]
+            # )
+            # nonres_buildings[["osm_id", "C_GDP_building"]].to_csv("test.csv")
+            # logging.debug("GDP to assign %f", nonres_buildings["C_GDP_building"].sum())
+            # nonres_buildings["C_GDP_building"] = nonres_buildings[
+            #     "C_GDP_building"
+            # ].fillna(0)
+            # nonres_buildings[f"{sector_code}_GDP"] += nonres_buildings["C_GDP_building"]
+            # nonres_buildings.drop("C_GDP_building", axis=1, inplace=True)
+
+        else:
+            nonres_buildings[f"{sector_code}_GDP"] = get_sector_gdp(
+                sector_output_per_day, nonres_buildings, sector_code
             )
-            del fishing_locations
 
-        elif scode == "A":
-            agri_buildings = pd.read_csv(agriculture_buildings_path)
-            agri_buildings["osm_id"] = agri_buildings["osm_id"].astype(int)
-            sector_df["osm_id"] = sector_df["osm_id"].astype(int)
-            sector_df = pd.merge(sector_df, agri_buildings, how="left", on=["osm_id"])
-            sector_df[["osm_id", "A_GDP_building"]].to_csv("test.csv")
-            logging.debug("GDP to assign", sector_df["A_GDP_building"].sum())
-            sector_df["A_GDP_building"] = sector_df["A_GDP_building"].fillna(0)
-            sector_df[f"{scode}_GDP"] += sector_df["A_GDP_building"]
-            sector_df.drop("A_GDP_building", axis=1, inplace=True)
-            del agri_buildings
+    gdp_columns = [f"{sector_code}_GDP" for sector_code in sector_codes]
 
-        elif scode == "C":
-            mining_areas = gpd.read_file(
-                mining_areas_path,
-                layer="areas",
-            )
-            mining_areas_gdp, mining_buildings = allocate_mining_buildings(
-                mining_areas, sector_df.copy()
-            )
-            # TODO check if we should write mining_areas_gdp to processed_data/mining_data/mining_gdp.gpkg
-            # if C_GDP_building and GDP_building_ratio are used later?
-
-            mining_buildings["osm_id"] = mining_buildings["osm_id"].astype(int)
-            sector_df["osm_id"] = sector_df["osm_id"].astype(int)
-            sector_df = pd.merge(sector_df, mining_buildings, how="left", on=["osm_id"])
-            sector_df[["osm_id", "C_GDP_building"]].to_csv("test.csv")
-            logging.debug("GDP to assign", sector_df["C_GDP_building"].sum())
-            sector_df["C_GDP_building"] = sector_df["C_GDP_building"].fillna(0)
-            sector_df[f"{scode}_GDP"] += sector_df["C_GDP_building"]
-            sector_df.drop("C_GDP_building", axis=1, inplace=True)
-            del mining_buildings
-
-        elif scode == "I":
-            post_office_share = 0.157
-            sector_df["find_post"] = sector_df.apply(
-                lambda x: (
-                    1
-                    if "post_office" in str(x["assigned_attribute"])
-                    or "postal_offices" in str(x["assigned_attribute"])
-                    else 0
-                ),
-                axis=1,
-            )
-            sector_df["I_640"] = sector_df["I_640"] * sector_df["find_post"]
-            sector_df = get_sector_gdp(
-                economic_output,
-                sector_df,
-                ["I_640"],
-                scode,
-                "640",
-                financial_year,
-                tax_rate,
-            )
-            sector_df[f"{scode}_GDP"] = post_office_share * sector_df[f"{scode}_GDP"]
-            sector_df.drop("find_post", axis=1, inplace=True)
-            sector_df = sector_df[sector_df["sector_code"] != "I"]
-        elif scode == "E":
-            sector_df = sector_df[~sector_df["sector_code"].isin(["E", "E,I", "I,E"])]
-
-        logging.info("* Estimated GDP", sector_df[f"{scode}_GDP"].sum())
-        logging.info("* Done with sector", scode)
-
-    sector_df = sector_df[["osm_id"] + gdp_columns]
-    sector_df["total_GDP"] = sector_df[gdp_columns].sum(axis=1)
-
-    for col in gdp_columns + ["total_GDP"]:
-        if col in buildings.columns.values.tolist():
-            buildings.drop(col, axis=1, inplace=True)
-    # Annoying fix to make sure they merge
-    sector_df["osm_id"] = sector_df["osm_id"].astype(int)
-    buildings["osm_id"] = buildings["osm_id"].astype(int)
-
-    buildings = pd.merge(buildings, sector_df, how="left", on=["osm_id"])
-    for col in gdp_columns + ["total_GDP"]:
-        buildings[col] = buildings[col].fillna(0)
+    buildings = pd.merge(
+        buildings, nonres_buildings[gdp_columns + ["osm_id"]], how="left", on=["osm_id"]
+    )
+    buildings["total_GDP"] = buildings[gdp_columns].sum(axis=1)
     buildings["GDP_unit"] = "JD/day"
-    buildings = gpd.GeoDataFrame(
-        buildings, geometry="geometry", crs=f"EPSG:{epsg_jamaica}"
-    )
-    buildings.to_file(
-        output_buildings,
-        layer="areas",
-        driver="GPKG",
-    )
 
-    admin_gdp = aggregate_to_admin_gdp(buildings, population_areas, epsg_jamaica)
-    admin_gdp.to_file(
-        output_admin,
-        layer="areas",
-        driver="GPKG",
-    )
+    buildings.to_parquet(output)
 
 
 if __name__ == "__main__":

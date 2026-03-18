@@ -99,3 +99,87 @@ rule tag_buildings_with_nic_2016_sector_code:
         join = build.merge(df.reset_index(), on="osm_id", how="outer")
         join.to_parquet(output.buildings)
 
+rule region_attractiveness:
+    """Given regional population, estimate an attractiveness term based on
+    population within a distance of each region
+    """
+    input:
+        script = "workflow/1_context/region_attractiveness.py",
+        population = f"{DATA}/population/population_projections.gpkg",
+    output:
+        regions = f"{DATA}/population/region_attractiveness.geoparquet"
+    shell:
+        """
+        python {input.script} \
+            --population_path {input.population} \
+            --output_region_attractiveness_path {output.regions}
+        """
+
+rule allocate_gva:
+    """Given buildings tagged by sector, and regional attractivess, estimate
+    building daily GDP (JMD/day) - N.B. this is properly GVA, excluding taxes
+    and subsidies.
+
+    TODO: handle mining and agriculture reasonably
+    """
+    input:
+        script = "workflow/1_context/spatial_economic_allocation.py",
+        buildings = rules.tag_buildings_with_nic_2016_sector_code.output.buildings,
+        regions = rules.region_attractiveness.output.regions,
+        national_industrial_product = f"{DATA}/macroeconomic_data/NIP_2023.csv",
+        agriculture = f"{DATA}/agriculture_data/building_agricuture_gdp.csv",
+        mining = f"{DATA}/mining_data/mining_gdp.gpkg",
+    output:
+        buildings = f"{DATA}/buildings/buildings_assigned_economic_activity.geoparquet"
+    shell:
+        """
+        python {input.script} \
+            --buildings_path {DATA}/buildings//buildings_nic2016.geoparquet \
+            --region_attractiveness_path {input.regions} \
+            --economic_output_path {input.national_industrial_product} \
+            --agriculture_buildings_path {input.agriculture} \
+            --mining_areas_path {input.mining} \
+            --output {output.buildings}
+        """
+
+rule regional_gva:
+    input:
+        population = f"{DATA}/population/population_projections.gpkg",
+        buildings = rules.allocate_gva.output.buildings
+    output:
+        regions = f"{DATA}/buildings/admin_level_assigned_economic_activity.geoparquet"
+    run:
+        import geopandas as gpd
+        import pandas as pd
+        from jamaica_infrastructure.geo import LOCAL_PROJ_CRS_EPSG
+
+        population_areas = gpd.read_file(input.population, layer="mean")
+        buildings = gpd.read_parquet(input.buildings)
+        sector_codes = sorted(
+            list(
+                pd.Series(buildings.jic2016_sector.dropna().unique())
+                .apply(lambda s: s.split(","))
+                .explode()
+                .unique()
+            )
+        )
+        gdp_columns = [f"{scode}_GDP" for scode in sector_codes] + ["total_GDP"]
+
+        admin_gdp = (
+            buildings.groupby(["ED_ID", "ED", "PARISH", "CONST_NAME"])[gdp_columns]
+            .sum()
+            .reset_index()
+        )
+        admin_gdp["GDP_unit"] = "JD/day"
+        admin_gdp = gpd.GeoDataFrame(
+            pd.merge(
+                admin_gdp,
+                population_areas[["ED_ID", "ED", "geometry"]],
+                how="left",
+                on=["ED_ID", "ED"],
+            ),
+            geometry="geometry",
+            crs=f"EPSG:{LOCAL_PROJ_CRS_EPSG}",
+        )
+
+        admin_gdp.to_parquet(output.regions)
