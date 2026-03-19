@@ -372,14 +372,8 @@ def trade_flow_mapping(
         elif trade_details.sector_type in ("Mining", "Quarrying", "Fuel for mines"):
             mining_areas = mining
             id_column = "mining_id"
-            # mining_areas[id_column] = mining_areas[id_column].astype(str)
-            mining_areas["mining_id"] = mining_areas.progress_apply(
-                lambda x: f"mines_{x.mining_id}", axis=1
-            )
-            quarry_areas = mining_areas[
-                (mining_areas["subsector_code_forest"].isin([141, "141"]))
-                | (mining_areas["subsector_code_tnc"].isin([141, "141"]))
-                ]
+            mining_areas["mining_id"] = "mines_" + mining_areas.mining_id.astype(str)
+            quarry_areas = mining_areas[mining_areas.mining_class == "quarry"]
             if trade_details.sector_type == "Quarrying":
                 gdp_areas = quarry_areas.copy()
             else:
@@ -393,9 +387,11 @@ def trade_flow_mapping(
             include_rail = True
 
         elif trade_details.sector_type in ("Equipment", "Fuel for parts"):
+            # TODO check with JIC2016 - test may need to be "three-digit code list contains 502"
             gdp_areas = filter_sector_from_buildings(buildings, "G", "500-2/3")
             # ports = all_ports[all_ports[f"{trade_details.trade_type}_wt"] > 0]
         elif trade_details.sector_type == "Retail":
+            # TODO check with JIC2016
             gdp_areas = filter_sector_from_buildings(buildings, "G", "500-1")
             # ports = all_ports[all_ports[f"{trade_details.trade_type}_wt"] > 0]
         elif trade_details.sector_type == "Petrojam":
