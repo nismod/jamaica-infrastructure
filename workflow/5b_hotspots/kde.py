@@ -87,7 +87,7 @@ def main(
         logging.debug(f"{sum_in=}, {sum_out=}, {output_data=}")
 
     else:
-        logging.info("Smoothing on grid with {output_resolution=}")
+        logging.info(f"Smoothing on grid with {output_resolution=}")
         width = int(np.ceil((right - left) / output_resolution))
         height = int(np.ceil((top - bottom) / output_resolution))
         output_transform = from_origin(left, top, output_resolution, output_resolution)
