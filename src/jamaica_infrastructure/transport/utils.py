@@ -128,7 +128,7 @@ def network_od_paths_assembly(points_dataframe, graph, cost_criteria, tonnage_co
     save_paths = []
     points_dataframe = points_dataframe.set_index("origin_id")
     origins = list(set(points_dataframe.index.values.tolist()))
-    for origin in tqdm(origins):
+    for origin in origins:
         try:
             destinations = points_dataframe.loc[
                 [origin], "destination_id"
@@ -176,7 +176,7 @@ def ckdnearest(gdA, gdB):
 
 def polygon_to_points(gdf):
     gdf = gdf.to_crs(epsg=LOCAL_PROJ_CRS_EPSG)
-    gdf["geometry"] = gdf.progress_apply(lambda x: x.geometry.centroid, axis=1)
+    gdf["geometry"] = gdf.apply(lambda x: x.geometry.centroid, axis=1)
 
     return gdf
 
@@ -196,7 +196,7 @@ def map_nearest_locations_and_create_lines(
         nearest_pts, to_gdf[["to_node", "geometry"]], how="left", on=["to_node"]
     )
     nearest_pts.rename(columns={"geometry": "to_geometry"}, inplace=True)
-    nearest_pts["geometry"] = nearest_pts.progress_apply(
+    nearest_pts["geometry"] = nearest_pts.apply(
         lambda x: LineString([x.from_geometry, x.to_geometry]), axis=1
     )
     nearest_pts.drop(["from_geometry", "to_geometry"], axis=1, inplace=True)
