@@ -115,6 +115,30 @@ rule region_attractiveness:
             --output_region_attractiveness_path {output.regions}
         """
 
+rule mining_gva:
+    """Given mining land-use and national GVA for quarrying and bauxite extraction,
+    estimate mining area production values, weighted by:
+    - trade volume of nearest port over land transport (road/rail) network
+    - footprint of mining area
+    """
+    input:
+        script = "workflow/1_context/mine_production.py",
+        land_use = f"{DATA}/land_type_and_use/jamaica_land_use_combined_with_sectors.gpkg",
+        ports = f"{DATA}/networks/transport/port_polygon.gpkg",
+        network = f"{DATA}/networks/transport/multi_modal_network.gpkg",
+        economic_output = f"{DATA}/macroeconomic_data/NIP_2023.csv",
+    output:
+        mining_gdp = f"{DATA}/mining_data/mining_gdp.gpkg"
+    shell:
+        """
+        python {input.script} \
+            --land_use_path {input.land_use} \
+            --ports_path {input.ports} \
+            --network_path {input.network} \
+            --economic_output_path {input.economic_output} \
+            --output_path {output.mining_gdp}
+        """
+
 rule allocate_gva:
     """Given buildings tagged by sector, and regional attractivess, estimate
     building daily GDP (JMD/day) - N.B. this is properly GVA, excluding taxes
