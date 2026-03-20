@@ -8,24 +8,6 @@ import pandas as pd
 import geopandas as gpd
 
 
-def match_buildings_to_areas(buildings, gdf, building_id, gdf_ids):
-    matches = gpd.sjoin(
-        buildings, gdf, how="inner", predicate="intersects"
-    ).reset_index()
-    matches.rename(columns={"geometry": "building_geometry"}, inplace=True)
-    matches = pd.merge(matches, gdf[gdf_ids + ["geometry"]], how="left", on=gdf_ids)
-    matches["area_match"] = matches.apply(
-        lambda x: x["building_geometry"].intersection(x["geometry"].buffer(0)).area,
-        axis=1,
-    )
-    matches = matches.sort_values(by=["area_match"], ascending=False)
-    matches = matches.drop_duplicates(subset=[building_id], keep="first")
-    matches.drop(["area_match", "geometry"], axis=1, inplace=True)
-    matches.rename(columns={"building_geometry": "geometry"}, inplace=True)
-
-    return matches
-
-
 def get_nearest_areas(x, gdf, gdf_column):
     area_index = gdf.distance(x.geometry).sort_values().index[0]
     return gdf.loc[area_index, gdf_column]
@@ -104,6 +86,35 @@ def add_sector_indicator_columns(nonres_buildings, sector_codes):
         ).astype(int)
 
     return nonres_buildings
+
+
+def allocate_agriculture_to_buildings(buildings, agri_areas):
+
+    sector_columns = [c for c in buildings.columns.values.tolist() if "A_" in c[:2]]
+    buildings["A"] = buildings[sector_columns].sum(axis=1)
+    buildings["A"] = buildings.progress_apply(lambda x: 1 if x["A"] > 0 else 0, axis=1)
+    agri_buildings = gpd.sjoin(
+        agri_areas[["land_id", "GDP_persqm", "geometry"]],
+        buildings[buildings["A"] == 1][["osm_id", "geometry"]],
+        how="inner",
+        predicate="intersects",
+    ).reset_index()
+
+    agri_buildings.rename(columns={"geometry": "landuse_geometry"}, inplace=True)
+    agri_buildings = pd.merge(
+        agri_buildings, buildings[["osm_id", "geometry"]], how="left", on=["osm_id"]
+    )
+    agri_buildings["area_sqm"] = agri_buildings.progress_apply(
+        lambda x: x["landuse_geometry"].intersection(x["geometry"].buffer(0)).area,
+        axis=1,
+    )
+    agri_buildings["A_GDP_building"] = (
+        agri_buildings["GDP_persqm"] * agri_buildings["area_sqm"]
+    )
+    agri_buildings = (
+        agri_buildings.groupby(["osm_id"])["A_GDP_building"].sum().reset_index()
+    )
+    return agri_buildings
 
 
 def allocate_mining_to_buildings(
@@ -190,10 +201,10 @@ def allocate_mining_to_buildings(
     help="Path to economic output Excel",
 )
 @click.option(
-    "--agriculture_buildings_path",
+    "--agriculture_areas_path",
     required=True,
     type=click.Path(exists=True, dir_okay=False, file_okay=True, readable=True),
-    help="Path to agriculature buildings CSV",
+    help="Path to agriculture areas GeoPackage",
 )
 @click.option(
     "--mining_areas_path",
@@ -211,7 +222,7 @@ def main(
     region_attractiveness_path,
     buildings_path,
     economic_output_path,
-    agriculture_buildings_path,
+    agriculture_areas_path,
     mining_areas_path,
     output,
 ):
@@ -277,6 +288,10 @@ def main(
     msg = f"Expected economic output CSV to contain same set of codes as buildings, {set(economic_output_codes)} != {set(sector_codes)}"
     assert set(economic_output_codes) == set(sector_codes), msg
 
+    # TODO REMOVE
+    sector_codes = ["A"]
+    # TODO REMOVE
+
     for sector_code in sector_codes:
         sector = economic_output.query(f"Code == '{sector_code}'")
         sector_output_per_day = (
@@ -296,26 +311,14 @@ def main(
         # Agriculture
         #
         if sector_code == "A":
-            nonres_buildings[f"{sector_code}_GDP"] = (
-                nonres_buildings[sector_code]
-                * sector_output_per_day
-                / nonres_buildings[sector_code].sum()
+            agriculture_areas = gpd.read_file(
+                agriculture_areas_path,
+                layer="areas",
             )
-            # # TODO figure out generation of agriculture buildings
-            # agri_buildings = pd.read_csv(agriculture_buildings_path)
-            # agri_buildings["osm_id"] = agri_buildings["osm_id"].astype(int)
-            # nonres_buildings["osm_id"] = nonres_buildings["osm_id"].astype(int)
-            # nonres_buildings = pd.merge(
-            #     nonres_buildings, agri_buildings, how="left", on=["osm_id"]
-            # )
-            # nonres_buildings[["osm_id", "A_GDP_building"]].to_csv("test.csv")
-            # logging.debug("GDP to assign %f", nonres_buildings["A_GDP_building"].sum())
-            # nonres_buildings["A_GDP_building"] = nonres_buildings[
-            #     "A_GDP_building"
-            # ].fillna(0)
-            # nonres_buildings[f"{sector_code}_GDP"] += nonres_buildings["A_GDP_building"]
-            # nonres_buildings.drop("A_GDP_building", axis=1, inplace=True)
-            # del agri_buildings
+
+            nonres_buildings[f"{sector_code}_GDP"] = allocate_agriculture_to_buildings(
+                sector_output_per_day, agriculture_areas, nonres_buildings, sector_code
+            )
 
         #
         # Mining
