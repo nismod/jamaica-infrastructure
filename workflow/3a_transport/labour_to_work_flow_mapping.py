@@ -53,7 +53,7 @@ def commuter_flow_mapping(network_file, buildings_file, population_file, out_dir
     logging.info("Read input data")
     nodes = gpd.read_file(network_file, layer="nodes")
     edges = gpd.read_file(network_file, layer="edges")
-    buildings = gpd.read_file(buildings_file, layer="areas")
+    buildings = gpd.read_parquet(buildings_file)
     population = gpd.read_file(population_file, layer="mean")
 
     # Set up variables

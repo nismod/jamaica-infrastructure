@@ -6,7 +6,7 @@ How does a network perform while missing a given link?
 rule collate_flow_data:
     """
     Collate flow data for transport failure analysis.
-    
+
     Test with:
     snakemake -c1 results/transport_failures/nominal/
     """
@@ -74,7 +74,7 @@ rule transport_scenario_edge_map:
 rule single_link_failures:
     """
     Create single link failure results.
-        
+
     Test with:
     snakemake -c1 results/transport_failures/scenario_results/single_link_failure_0.csv
     """
@@ -158,7 +158,7 @@ rule bridge_failure_analysis:
 rule single_point_failure_road_rail:
     """
     Create a single point failure file for road and rail assets.
-    
+
     Test with:
     snakemake -c1 results/economic_losses/single_failure_scenarios/single_point_failure_road_rail_edges_economic_losses.csv
     """
@@ -217,14 +217,14 @@ rule ELECTRICTY_SINGLE_POINT_FAILURES:
 rule single_point_failure_electricity_water:
     """
     Create a single point failure file for electricity and water assets.
-    
+
     This is a placeholder for the real file.
-    
+
     Test with:
     snakemake -c1 results/single_point_failures/electricity_water_single_point_failures.csv
     """
     input:
-        buildings = f"{DATA}/buildings/buildings_assigned_economic_activity.gpkg",
+        buildings = f"{DATA}/buildings/buildings_assigned_economic_activity.geoparquet",
         potable_economic_activity_buildings = f"{DATA}/networks_economic_activity/potable_facilities_buildings_economic_activity_mapping.csv",
         potable_economic_activity = f"{DATA}/networks_economic_activity/potable_facilities_dependent_economic_activity.csv",
         pipelines_economic_activity = f"{DATA}/networks_economic_activity/potable_pipelines_dependent_economic_activity.csv",

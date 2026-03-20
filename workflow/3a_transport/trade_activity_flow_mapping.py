@@ -248,7 +248,7 @@ def trade_flow_mapping(
     exports = pd.read_excel(exports_xlsx, sheet_name=f"{financial_year:d}")
     imports = pd.read_excel(imports_xlsx, sheet_name=f"{financial_year:d}")
     fuel_shares = pd.read_excel(imports_xlsx, sheet_name="fuel_shares")
-    buildings = gpd.read_file(buildings_file, layer="areas")
+    buildings = gpd.read_parquet(buildings_file)
     agriculture = gpd.read_file(agriculture_file, layer="areas")
     mining = gpd.read_file(mining_file, layer="areas")
 
