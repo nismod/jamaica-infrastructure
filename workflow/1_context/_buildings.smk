@@ -115,6 +115,23 @@ rule region_attractiveness:
             --output_region_attractiveness_path {output.regions}
         """
 
+rule agriculture_gva:
+    """Given agricultural land-use, modelled crop yields, and national GVA for
+    agriculture and forestry subsectors, estimate agricultural area production
+    values.
+    """
+    input:
+        script = "workflow/1_context/agricultural_production.py",
+        land_use = f"{DATA}/land_type_and_use/jamaica_land_use_combined_with_sectors.gpkg",
+        economic_output = f"{DATA}/macroeconomic_data/NIP_2023.csv",
+    output:
+        agriculture_gdp = f"{DATA}/mining_data/agriculture_gdp.gpkg"
+    shell:
+        """
+        python {input.script} \
+        """
+
+
 rule mining_gva:
     """Given mining land-use and national GVA for quarrying and bauxite extraction,
     estimate mining area production values, weighted by:
@@ -151,7 +168,7 @@ rule allocate_gva:
         buildings = rules.tag_buildings_with_nic_2016_sector_code.output.buildings,
         regions = rules.region_attractiveness.output.regions,
         national_industrial_product = f"{DATA}/macroeconomic_data/NIP_2023.csv",
-        agriculture = f"{DATA}/agriculture_data/building_agricuture_gdp.csv",
+        agriculture = f"{DATA}/agriculture_data/agriculture_gdp.gpkg",
         mining = f"{DATA}/mining_data/mining_gdp.gpkg",
     output:
         buildings = f"{DATA}/buildings/buildings_assigned_economic_activity.geoparquet"
@@ -161,7 +178,7 @@ rule allocate_gva:
             --buildings_path {DATA}/buildings//buildings_nic2016.geoparquet \
             --region_attractiveness_path {input.regions} \
             --economic_output_path {input.national_industrial_product} \
-            --agriculture_buildings_path {input.agriculture} \
+            --agriculture_areas_path {input.agriculture} \
             --mining_areas_path {input.mining} \
             --output {output.buildings}
         """
