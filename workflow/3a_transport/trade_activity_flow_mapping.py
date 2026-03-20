@@ -177,32 +177,53 @@ def filter_sector_from_buildings(buildings_dataframe, sector_code, subsector_cod
 @click.command()
 @click.version_option("1.0.0")
 @click.option(
-    "--ports", "-p", required=True, type=click.Path(exists=True, dir_okay=False, readable=True),
-    help="Jamaican Ports GeoPackage file"
+    "--ports",
+    "-p",
+    required=True,
+    type=click.Path(exists=True, dir_okay=False, readable=True),
+    help="Jamaican Ports GeoPackage file",
 )
 @click.option(
-    "--network", "-n", required=True, type=click.Path(exists=True, dir_okay=False, readable=True),
-    help="Jamaican Multimodal Network GeoPackage file"
+    "--network",
+    "-n",
+    required=True,
+    type=click.Path(exists=True, dir_okay=False, readable=True),
+    help="Jamaican Multimodal Network GeoPackage file",
 )
 @click.option(
-    "--imports-xlsx", "-i", required=True, type=click.Path(exists=True, dir_okay=False, readable=True),
-    help="Jamaican Import Data Excel file"
+    "--imports-xlsx",
+    "-i",
+    required=True,
+    type=click.Path(exists=True, dir_okay=False, readable=True),
+    help="Jamaican Import Data Excel file",
 )
 @click.option(
-    "--exports-xlsx", "-e", required=True, type=click.Path(exists=True, dir_okay=False, readable=True),
-    help="Jamaican Export Data Excel file"
+    "--exports-xlsx",
+    "-e",
+    required=True,
+    type=click.Path(exists=True, dir_okay=False, readable=True),
+    help="Jamaican Export Data Excel file",
 )
 @click.option(
-    "--buildings-file", "-b", required=True, type=click.Path(exists=True, dir_okay=False, readable=True),
-    help="Jamaican Buildings GeoPackage file"
+    "--buildings-file",
+    "-b",
+    required=True,
+    type=click.Path(exists=True, dir_okay=False, readable=True),
+    help="Jamaican Buildings Geoparquet file",
 )
 @click.option(
-    "--mining-file", "-m", required=True, type=click.Path(exists=True, dir_okay=False, readable=True),
-    help="Jamaican Mining GeoPackage file"
+    "--mining-file",
+    "-m",
+    required=True,
+    type=click.Path(exists=True, dir_okay=False, readable=True),
+    help="Jamaican Mining GeoPackage file",
 )
 @click.option(
-    "--agriculture-file", "-a", required=True, type=click.Path(exists=True, dir_okay=False, readable=True),
-    help="Jamaican Agriculture GeoPackage file"
+    "--agriculture-file",
+    "-a",
+    required=True,
+    type=click.Path(exists=True, dir_okay=False, readable=True),
+    help="Jamaican Agriculture GeoPackage file",
 )
 @click.option(
     "--out-dir",
@@ -219,7 +240,7 @@ def trade_flow_mapping(
     buildings_file,
     mining_file,
     agriculture_file,
-    out_dir
+    out_dir,
 ):
     """
     Map import and export trade activites to Ports in Jamaica
@@ -229,15 +250,15 @@ def trade_flow_mapping(
         For agriculture we consider all the areas of crops
         For Mining & Quarrying we need to consider the separation between Bauxite/Alumina and Rest of Quarrying
         For Manufacturing we need to consider every sector, except the sector D-240 which is for Fuels
-        Fuels are pretty much exported from the Petrojam facility    
+        Fuels are pretty much exported from the Petrojam facility
 
     Read the import datasets and create the specific cases of imports
         The importing sectors are Retail and Trade, Construction, Fuels
         For Retail and Trade we consider all the buildings assigned to th sector/subsector - G/500-1
-        Fuels are being imported 
-            Into the Petrojam facility, 
+        Fuels are being imported
+            Into the Petrojam facility,
             Into the different ports that then connects to the mining locations - C/132
-            Towards the different locations belonging to the automobile trade sector - G/500-2/3  
+            Towards the different locations belonging to the automobile trade sector - G/500-2/3
     """
     financial_year = 2019
 
@@ -265,14 +286,14 @@ def trade_flow_mapping(
     non_mining_export_ports = port_import_exports(
         jam_ports[
             (jam_ports["commodity"] != "alumina") & (jam_ports["export_tonnes"] > 0)
-            ],
+        ],
         "export_tonnes",
         "export",
     )
     non_mining_import_ports = port_import_exports(
         jam_ports[
             (jam_ports["commodity"] != "alumina") & (jam_ports["import_tonnes"] > 0)
-            ],
+        ],
         "import_tonnes",
         "import",
     )
@@ -389,17 +410,20 @@ def trade_flow_mapping(
         elif trade_details.sector_type in ("Equipment", "Fuel for parts"):
             # TODO check with JIC2016 - test may need to be "three-digit code list contains 502"
             gdp_areas = filter_sector_from_buildings(buildings, "G", "500-2/3")
+
             # ports = all_ports[all_ports[f"{trade_details.trade_type}_wt"] > 0]
         elif trade_details.sector_type == "Retail":
             # TODO check with JIC2016
             gdp_areas = filter_sector_from_buildings(buildings, "G", "500-1")
             # ports = all_ports[all_ports[f"{trade_details.trade_type}_wt"] > 0]
+
         elif trade_details.sector_type == "Petrojam":
             gdp_areas = jam_ports[jam_ports["name"] == "Petrojam"]
             id_column = "node_id"
             port_wt = "petrojam_wt"
             gdp_value = "import_tonnes"
             # ports = all_ports[all_ports["petrojam_port"] > 0]
+
         else:
             gdp_areas = buildings[buildings[f"{trade_details.sector_code}_GDP"] > 0]
 
@@ -424,7 +448,7 @@ def trade_flow_mapping(
             include_rail=include_rail,
         )
         sector_to_ports[f"{trade_details.sector_code}_trade"] = (
-                trade_details.trade_value * sector_to_ports["trade_wt"]
+            trade_details.trade_value * sector_to_ports["trade_wt"]
         )
         sector_to_ports["trade_type"] = trade_details.trade_type
         sector_to_ports["sector_type"] = trade_details.sector_type
@@ -441,8 +465,12 @@ def trade_flow_mapping(
 
     logging.info("Write out economic flows")
     sector_flows = pd.concat(sector_flows, axis=0, ignore_index=True)
-    sector_flows.to_csv(os.path.join(out_dir, "sector_to_ports_flow_paths.csv"), index=False)
-    sector_flows.to_parquet(os.path.join(out_dir, "sector_to_ports_flow_paths.pq"), index=False)
+    sector_flows.to_csv(
+        os.path.join(out_dir, "sector_to_ports_flow_paths.csv"), index=False
+    )
+    sector_flows.to_parquet(
+        os.path.join(out_dir, "sector_to_ports_flow_paths.pq"), index=False
+    )
 
     sector_network = pd.concat(sector_network, axis=0, ignore_index=True)[columns]
     flow_network = pd.concat(flow_network, axis=0, ignore_index=True)
@@ -468,7 +496,7 @@ def trade_flow_mapping(
     edge_flows.to_file(
         os.path.join(out_dir, "sector_imports_exports_to_ports_flows.gpkg"),
         layer="edges",
-        driver="GPKG"
+        driver="GPKG",
     )
 
     flow_paths = sector_flows.fillna(0)
@@ -495,7 +523,10 @@ def trade_flow_mapping(
         node_activity.groupby(["node_id"])[trade_columns].sum().reset_index()
     )
     node_activity["total_trade"] = node_activity[trade_columns].sum(axis=1)
-    node_activity.to_csv(os.path.join(out_dir, "origins_destinations_trade_economic_activity.csv"), index=False)
+    node_activity.to_csv(
+        os.path.join(out_dir, "origins_destinations_trade_economic_activity.csv"),
+        index=False,
+    )
 
 
 if __name__ == "__main__":
