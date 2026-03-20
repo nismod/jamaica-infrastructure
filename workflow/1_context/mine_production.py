@@ -249,7 +249,7 @@ def main(land_use_path, ports_path, network_path, economic_output_path, output_p
         left_on=["destination_id"],
         right_on=["node_id"],
     )
-    quarry_to_ports["C_GDP"] = (
+    quarry_to_ports["mining_gdp"] = (
         quarry_output
         * quarry_to_ports["export_wt"]
         * quarry_to_ports["area_m2"]
@@ -262,22 +262,22 @@ def main(land_use_path, ports_path, network_path, economic_output_path, output_p
         left_on=["destination_id"],
         right_on=["node_id"],
     )
-    bauxite_to_ports["C_GDP"] = (
+    bauxite_to_ports["mining_gdp"] = (
         bauxite_output
         * bauxite_to_ports["export_wt"]
         * bauxite_to_ports["area_m2"]
         / bauxite_to_ports["tot_area"]
     )
     quarry_to_ports["GDP_persqm"] = (
-        quarry_to_ports["C_GDP"] / quarry_to_ports["area_m2"]
+        quarry_to_ports["mining_gdp"] / quarry_to_ports["area_m2"]
     )
     bauxite_to_ports["GDP_persqm"] = (
-        bauxite_to_ports["C_GDP"] / bauxite_to_ports["area_m2"]
+        bauxite_to_ports["mining_gdp"] / bauxite_to_ports["area_m2"]
     )
     quarry_to_ports["mining_class"] = "quarry"
     bauxite_to_ports["mining_class"] = "bauxite"
 
-    cols = ["origin_id", "C_GDP", "GDP_persqm", "mining_class"]
+    cols = ["origin_id", "mining_gdp", "GDP_persqm", "mining_class"]
     mining_gdp = pd.concat(
         [
             quarry_to_ports[cols],
@@ -298,7 +298,7 @@ def main(land_use_path, ports_path, network_path, economic_output_path, output_p
         mining_areas, geometry="geometry", crs=f"EPSG:{LOCAL_PROJ_CRS_EPSG}"
     )
 
-    tot_gpd = mining_areas["C_GDP"].sum()
+    tot_gpd = mining_areas["mining_gdp"].sum()
     tot_area = mining_areas["area_m2"].sum()
     logging.info("Estimated GDP %f", tot_gpd)
     logging.info("Estimated Areas %f", tot_area)
