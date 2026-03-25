@@ -34,10 +34,10 @@ def remove_geometry_collections(gdf):
 
     """
     for i, row in gdf.iterrows():
-        if type(row.geometry) == shapely.geometry.collection.GeometryCollection:
+        if row.geometry is not None and row.geometry.geom_type == "GeometryCollection":
             # get the polygon and only keep the polygon
-            for shape in row.geometry:
-                if type(shape) == shapely.geometry.polygon.Polygon:
+            for shape in row.geometry.geoms:
+                if shape.geom_type == "Polygon":
                     gdf.at[i, "geometry"] = shape
                     break
     return gdf
@@ -153,7 +153,11 @@ def voronoi_finite_polygons_2d(vor, radius=None):
             continue
 
         # reconstruct a non-finite region
-        ridges = all_ridges[p1]
+        if p1 in all_ridges:
+            ridges = all_ridges[p1]
+        else:
+            print(p1, "not in ridges")
+            continue
         new_region = [v for v in vertices if v >= 0]
 
         for p2, v1, v2 in ridges:
