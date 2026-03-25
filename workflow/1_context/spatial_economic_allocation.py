@@ -1,7 +1,6 @@
 """Assign GDP values to buildings and aggregate to admin level"""
 
 import logging
-from collections import defaultdict
 
 import click
 import pandas as pd
@@ -88,51 +87,35 @@ def add_sector_indicator_columns(nonres_buildings, sector_codes):
     return nonres_buildings
 
 
-def allocate_agriculture_to_buildings(buildings, agri_areas):
-
-    sector_columns = [c for c in buildings.columns.values.tolist() if "A_" in c[:2]]
-    buildings["A"] = buildings[sector_columns].sum(axis=1)
-    buildings["A"] = buildings.progress_apply(lambda x: 1 if x["A"] > 0 else 0, axis=1)
-    agri_buildings = gpd.sjoin(
-        agri_areas[["land_id", "GDP_persqm", "geometry"]],
-        buildings[buildings["A"] == 1][["osm_id", "geometry"]],
-        how="inner",
-        predicate="intersects",
-    ).reset_index()
-
-    agri_buildings.rename(columns={"geometry": "landuse_geometry"}, inplace=True)
-    agri_buildings = pd.merge(
-        agri_buildings, buildings[["osm_id", "geometry"]], how="left", on=["osm_id"]
-    )
-    agri_buildings["area_sqm"] = agri_buildings.progress_apply(
-        lambda x: x["landuse_geometry"].intersection(x["geometry"].buffer(0)).area,
-        axis=1,
-    )
-    agri_buildings["A_GDP_building"] = (
-        agri_buildings["GDP_persqm"] * agri_buildings["area_sqm"]
-    )
-    agri_buildings = (
-        agri_buildings.groupby(["osm_id"])["A_GDP_building"].sum().reset_index()
-    )
-    return agri_buildings
-
-
-def allocate_mining_to_buildings(
+def allocate_areas_to_buildings(
     sector_output_per_day: float,
-    mining_areas: gpd.GeoDataFrame,
+    areas: gpd.GeoDataFrame,
     buildings: gpd.GeoDataFrame,
     sector_code: str,
+    areas_gdp_column: str,
 ):
-    total_mining_gdp = mining_areas["mining_gdp"].sum() * 1e6 / 365
+    """Allocate sector GDP from land-use areas to buildings.
+
+    Finds buildings intersecting with the given areas, calculates the
+    intersection area, and allocates GDP proportionally using GDP per sqm.
+
+    Args:
+        sector_output_per_day: Expected total sector GDP per day (for sense check)
+        areas: GeoDataFrame with columns [areas_gdp_column, "GDP_persqm", "geometry"]
+        buildings: GeoDataFrame with columns ["osm_id", sector_code, "geometry"]
+        sector_code: Sector code string (e.g. "A" or "B")
+        areas_gdp_column: Column name in `areas` containing GDP values in JMD millions/year
+    """
+    total_area_gdp = areas[areas_gdp_column].sum() * 1e6 / 365
 
     assert (
-        abs(total_mining_gdp - sector_output_per_day) < 1
-    ), f"Sense check total sector GDP {sector_output_per_day} ~= mining GDP assigned to areas {total_mining_gdp}"
+        abs(total_area_gdp - sector_output_per_day) < 1
+    ), f"Sense check total sector GDP {sector_output_per_day} ~= GDP assigned to areas {total_area_gdp}"
 
-    # join buildings intersecting with mining areas
-    mining_buildings = (
+    # join buildings intersecting with areas
+    area_buildings = (
         gpd.sjoin(
-            mining_areas[["mining_id", "mining_gdp", "GDP_persqm", "geometry"]],
+            areas[["GDP_persqm", "geometry"]],
             buildings[buildings[sector_code] == 1][["osm_id", "geometry"]],
             how="inner",
             predicate="intersects",
@@ -140,41 +123,38 @@ def allocate_mining_to_buildings(
         .reset_index()
         .rename(columns={"geometry": "landuse_geometry"})
     )
-    # join building osm_id and building geometry
-    mining_buildings = pd.merge(
-        mining_buildings, buildings[["osm_id", "geometry"]], how="left", on=["osm_id"]
+    # join building geometry
+    area_buildings = pd.merge(
+        area_buildings, buildings[["osm_id", "geometry"]], how="left", on=["osm_id"]
     )
-    # calculate mining footprint area
-    mining_buildings["area_sqm"] = mining_buildings.apply(
+    # calculate intersection footprint area
+    area_buildings["area_sqm"] = area_buildings.apply(
         lambda x: x["landuse_geometry"].intersection(x["geometry"].buffer(0)).area,
         axis=1,
     )
-    # allocate **part** of mining GDP from mining area to buildings
-    # using building area and productivity per m2 of the mining area
-    # NB this assigns some value to buildings, but the mining areas themselves remain
-    # the source of economic activity for this sector.
-    mining_buildings[f"{sector_code}_GDP"] = (
-        mining_buildings["GDP_persqm"] * mining_buildings["area_sqm"]
+    # allocate GDP from area to buildings using building area and productivity per m2
+    area_buildings[f"{sector_code}_GDP"] = (
+        area_buildings["GDP_persqm"] * 1e6 / 365 * area_buildings["area_sqm"]
     )
-
-    mining_buildings = (
-        mining_buildings.groupby(["osm_id"])[f"{sector_code}_GDP"].sum().reset_index()
+    area_buildings = (
+        area_buildings.groupby(["osm_id"])[f"{sector_code}_GDP"].sum().reset_index()
     )
 
     # merge back to all buildings
     all_buildings = pd.merge(
         buildings,
-        mining_buildings[["osm_id", f"{sector_code}_GDP"]],
+        area_buildings[["osm_id", f"{sector_code}_GDP"]],
         how="left",
         on=["osm_id"],
     ).fillna(0)
 
-    assigned_to_buildings = mining_buildings[f"{sector_code}_GDP"].sum()
+    assigned_to_buildings = area_buildings[f"{sector_code}_GDP"].sum()
     logging.info(
-        "Assigned %f fraction of sector GDP to buildings (%f of %f)",
-        assigned_to_buildings / total_mining_gdp,
+        "Assigned %f fraction of sector %s GDP to buildings (%f of %f)",
+        assigned_to_buildings / total_area_gdp,
+        sector_code,
         assigned_to_buildings,
-        total_mining_gdp,
+        total_area_gdp,
     )
 
     return all_buildings[f"{sector_code}_GDP"]
@@ -288,10 +268,6 @@ def main(
     msg = f"Expected economic output CSV to contain same set of codes as buildings, {set(economic_output_codes)} != {set(sector_codes)}"
     assert set(economic_output_codes) == set(sector_codes), msg
 
-    # TODO REMOVE
-    sector_codes = ["A"]
-    # TODO REMOVE
-
     for sector_code in sector_codes:
         sector = economic_output.query(f"Code == '{sector_code}'")
         sector_output_per_day = (
@@ -309,6 +285,8 @@ def main(
 
         #
         # Agriculture
+        # - areas remain the representation of all agricultural GDP, this just assigns
+        #   some to buildings in those areas
         #
         if sector_code == "A":
             agriculture_areas = gpd.read_file(
@@ -316,8 +294,12 @@ def main(
                 layer="areas",
             )
 
-            nonres_buildings[f"{sector_code}_GDP"] = allocate_agriculture_to_buildings(
-                sector_output_per_day, agriculture_areas, nonres_buildings, sector_code
+            nonres_buildings[f"{sector_code}_GDP"] = allocate_areas_to_buildings(
+                sector_output_per_day,
+                agriculture_areas,
+                nonres_buildings,
+                sector_code,
+                "A_GDP",
             )
 
         #
@@ -330,8 +312,12 @@ def main(
                 mining_areas_path,
                 layer="areas",
             )
-            nonres_buildings[f"{sector_code}_GDP"] = allocate_mining_to_buildings(
-                sector_output_per_day, mining_areas, nonres_buildings, sector_code
+            nonres_buildings[f"{sector_code}_GDP"] = allocate_areas_to_buildings(
+                sector_output_per_day,
+                mining_areas,
+                nonres_buildings,
+                sector_code,
+                "mining_gdp",
             )
 
         #
