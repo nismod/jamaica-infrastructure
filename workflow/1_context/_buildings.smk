@@ -115,6 +115,22 @@ rule region_attractiveness:
             --output_region_attractiveness_path {output.regions}
         """
 
+
+rule agriculture_crops:
+    """Process agricultural crop production to areas, from directory of SPAM rasters
+    """
+    input:
+        script = "workflow/1_context/agricultural_crops.py",
+        spam_path = f"{RAW}/agriculture_data",
+        spam_agriculture_outputs = f"{DATA}/agriculture_data/spam_agriculture_outputs.gpkg",
+    shell:
+        """
+        python {input.script} \
+            --spam-path {input.spam_path} \
+            --spam-agriculture-outputs-path {input.spam_agriculture_outputs}
+        """
+
+
 rule agriculture_gva:
     """Given agricultural land-use, modelled crop yields, and national GVA for
     agriculture and forestry subsectors, estimate agricultural area production
@@ -122,13 +138,22 @@ rule agriculture_gva:
     """
     input:
         script = "workflow/1_context/agricultural_production.py",
+        spam_agriculture_outputs = f"{DATA}/agriculture_data/spam_agriculture_outputs.gpkg",
+        crop_details = f"{DATA}/agriculture_data/crop_details.NIP_2023_codes.csv",
         land_use = f"{DATA}/land_type_and_use/jamaica_land_use_combined_with_sectors.gpkg",
+        fishing = f"{DATA}/land_type_and_use/aqua_farms.gpkg",
         economic_output = f"{DATA}/macroeconomic_data/NIP_2023.csv",
     output:
-        agriculture_gdp = f"{DATA}/mining_data/agriculture_gdp.gpkg"
+        agriculture_gdp = f"{DATA}/agriculture_data/agriculture_gdp.gpkg"
     shell:
         """
         python {input.script} \
+            --spam-agriculture-outputs-path {input.spam_agriculture_outputs} \
+            --crop-details-path {input.crop_details} \
+            --land-use-path {input.land_use} \
+            --fishing-locations-path {input.fishing} \
+            --economic-output-path {input.economic_output} \
+            --output-areas {output.agriculture_gdp}
         """
 
 
