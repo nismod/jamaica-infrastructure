@@ -20,33 +20,8 @@ import geopandas as gpd
 
 
 logging.basicConfig(
-    format="%(asctime)s %(process)d %(levelname)s %(message)s", level=logging.INFO
+    format="%(asctime)s %(process)d %(message)s", level=logging.INFO
 )
-
-
-def compute_supply_demand(nodes: gpd.GeoDataFrame) -> gpd.GeoDataFrame:
-    """
-    Calculate supply and demand flows in consistent units (kW).
-
-    Args:
-        nodes: GeoDataFrame containing network nodes
-
-    Returns:
-        GeoDataFrame with 'flow' column added
-    """
-    nodes["flow"] = 0
-
-    nodes.loc[nodes.asset_type == "source", "flow"] = (
-        nodes.loc[nodes.asset_type == "source", "capacity"] * 10**3
-    )
-
-    nodes.loc[nodes.asset_type == "sink", "flow"] = (
-        nodes.loc[nodes.asset_type == "sink", "population"]
-        * nodes.loc[nodes.asset_type == "sink", "ei"]
-        * 10**3
-    )
-
-    return nodes
 
 
 def main():
@@ -75,16 +50,13 @@ def main():
     flow_nodes = nodes[nodes.asset_type.isin(["source", "sink"])].copy()
     flow_nodes = flow_nodes.reset_index(drop=True)
 
-    logging.info("Computing supply and demand flows")
-    flow_nodes = compute_supply_demand(flow_nodes)
-
     logging.info("Reshaping data to wide format")
-    flow_nodes = flow_nodes[["id", "flow"]]
+    flow_nodes = flow_nodes[["id", "capacity"]].copy().rename(columns={"capacity": "flow"})
     list_of_nodes = flow_nodes.id.to_list()
     flow_nodes = flow_nodes.pivot_table(columns="id").reset_index(drop=True)
     flow_nodes["timestep"] = 1
     flow_nodes = flow_nodes[["timestep"] + list_of_nodes]
-    flow_nodes = flow_nodes.round(1)
+    flow_nodes = flow_nodes.round(2)
 
     logging.info(f"Saving flow data to {args.output_file}")
     output_path = Path(args.output_file)
