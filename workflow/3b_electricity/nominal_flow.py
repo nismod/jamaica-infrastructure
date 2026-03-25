@@ -49,21 +49,28 @@ def log_nonzero(x):
     help="Path to the nodal flows CSV file.",
 )
 @click.option(
-    "--output-path",
-    "-o",
+    "--output-edges-path",
+    "-oe",
     required=True,
     type=click.Path(dir_okay=False, writable=True),
-    help="Path for output geoparquet file.",
+    help="Path for output edges geoparquet file.",
 )
-def main(network_path, flows_path, output_path):
+@click.option(
+    "--output-nodes-path",
+    "-on",
+    required=True,
+    type=click.Path(dir_okay=False, writable=True),
+    help="Path for output nodes geoparquet file.",
+)
+def main(network_path, flows_path, output_edges_path, output_nodes_path):
     """Run JEM model and save nominal network flows to geoparquet."""
-    
+
     logging.info("Reading network topology")
     nodes = gpd.read_file(network_path, layer="nodes", engine="pyogrio")
     edges = gpd.read_file(network_path, layer="edges", engine="pyogrio")
-    
+
     logging.info(f"Network: {len(nodes)} nodes, {len(edges)} edges")
-    
+
     logging.info("Building and optimizing JEM model (nominal, no failures)")
     run = jem(
         str(network_path),
@@ -77,42 +84,44 @@ def main(network_path, flows_path, output_path):
     )
     run.build()
     run.optimise(print_to_console=False)
-    
-    logging.info("Extracting flow results")
+
     results = statistics(model_run=run)
     edge_flows = results.edge_flows
-    
-    logging.info(f"Flow results: {len(edge_flows)} edges with flow data")
-    
-    # Merge flows with edges geometry
+    nodes = nodes.merge(results.nodes_with_shortfall().loc[:, ["node", "shortfall"]].rename(columns={"node": "id"}), on="id", how="outer")
+
     edges_idx = edges.set_index(["from_id", "to_id"])
     flows_idx = edge_flows.set_index(["from_id", "to_id"])
     edges_with_flows = edges_idx.join(flows_idx, how="left")
+
     edges_with_flows["flow"] = edges_with_flows["flow"].fillna(0)
     edges_with_flows = edges_with_flows.reset_index()
     edges_with_flows["log10_flow"] = log_nonzero(edges_with_flows["flow"])
-    
-    if "asset_type" in edges_with_flows.columns:
-        logging.info(f"Asset types found: {edges_with_flows['asset_type'].unique().tolist()}")
-    
-    logging.info(f"Saving edges with flows to {output_path}")
-    Path(output_path).parent.mkdir(parents=True, exist_ok=True)
-    edges_with_flows.to_parquet(output_path, compression="gzip")
-    
     max_flow = edges_with_flows["flow"].max()
+
     edges_with_flow = (edges_with_flows["flow"] > 0).sum()
-    logging.info("Network Statistics:")
+    shortfall_W = nodes.shortfall.sum() * 1E3
+    total_demand_W = nodes[nodes.asset_type == "sink"].capacity.sum() * 1E3
+    total_available_supply_W = nodes[nodes.asset_type == "source"].capacity.sum() * 1E3
+
+    logging.info("Network statistics:")
     logging.info(f"  Total edges: {len(edges_with_flows)}")
     logging.info(f"  Edges with flow: {edges_with_flow}")
-    logging.info(f"  Max edge flow: {max_flow:,.0f} kW")
-    
-    nodes_path = Path(output_path).parent / "nominal_nodes.geoparquet"
-    logging.info(f"Saving nodes to {nodes_path}")
-    nodes.to_parquet(nodes_path, compression="gzip")
-    
+    logging.info(f"  Max edge flow: {max_flow * 1E3:,.0f} W")
+    logging.info(f"  Total available supply: {total_available_supply_W:,.0f} W")
+    logging.info(f"  Total demand: {total_demand_W:,.0f} W")
+    logging.info(f"  Supply shortfall: {shortfall_W:,.0f} W ({shortfall_W / total_demand_W * 100:,.2f}% of total demand)")
+
+    logging.info(f"Saving edges with flows to {output_edges_path}")
+    Path(output_edges_path).parent.mkdir(parents=True, exist_ok=True)
+    edges_with_flows.to_parquet(output_edges_path, compression="gzip")
+    edges_with_flows.to_file(
+        str(output_edges_path).replace(".geoparquet", ".gpkg"), layer="edges"
+    )
+    nodes.to_parquet(output_nodes_path, compression="gzip")
+
     logging.info("Complete!")
-    logging.info(f"Flows saved to: {output_path}")
-    logging.info(f"Nodes saved to: {nodes_path}")
+    logging.info(f"  Edge flows saved to: {output_edges_path}")
+    logging.info(f"  Node shortfalls saved to: {output_nodes_path}")
 
 
 if __name__ == "__main__":
