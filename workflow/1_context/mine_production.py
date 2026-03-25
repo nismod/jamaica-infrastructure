@@ -287,7 +287,7 @@ def main(land_use_path, ports_path, network_path, economic_output_path, output_p
         ignore_index=True,
     )
     mining_gdp.rename(columns={"origin_id": "mining_id"}, inplace=True)
-    mining_gdp["GDP_unit"] = "JD/day"
+    mining_gdp["GDP_unit"] = "GVA JMD Millions (2023)"
     logging.debug(mining_gdp)
 
     cols = ["mining_id", "area_m2", "geometry"]
