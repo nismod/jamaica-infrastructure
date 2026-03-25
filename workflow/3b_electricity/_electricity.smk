@@ -12,9 +12,10 @@ rule node_source_sink_magnitudes:
     """
     input:
         script = "workflow/3b_electricity/generate_nodal_flows.py",
-        network = f"{DATA}/networks/energy/electricity_network_v3.2.gpkg",
+        network = f"{DATA}/networks/energy/electricity_network_{{version}}.gpkg",
     output:
-        flows = f"{DATA}/networks/energy/generated_nodal_flows.csv",
+        # TODO: Criticality and hotspot rules use this as input, but do not currently discriminate version
+        flows = f"{DATA}/networks/energy/generated_nodal_flows_{{version}}.csv",
     shell:
         """
         python {input.script} \\
@@ -32,19 +33,20 @@ rule electricity_nominal_flow:
     GRB_LICENSE_FILE can be used to specify a gurobi.lic file path.
     
     Test with:
-    snakemake -c1 results/electricity_failures/diagnostics/nominal_flows.geoparquet
+    snakemake -c1 results/electricity_failures/diagnostics/edge_flows_v3.2.geoparquet
     """
     input:
         script = "workflow/3b_electricity/nominal_flow.py",
-        network = f"{DATA}/networks/energy/electricity_network_v3.2.gpkg",
-        flows = f"{DATA}/networks/energy/generated_nodal_flows.csv",
+        network = f"{DATA}/networks/energy/electricity_network_{{version}}.gpkg",
+        flows = f"{DATA}/networks/energy/generated_nodal_flows_{{version}}.csv",
     output:
-        flows_data = f"{OUTPUT}/electricity_failures/diagnostics/nominal_flows.geoparquet",
-        nodes_data = f"{OUTPUT}/electricity_failures/diagnostics/nominal_nodes.geoparquet",
+        edges = f"{OUTPUT}/electricity_failures/diagnostics/edges_{{version}}.geoparquet",
+        nodes = f"{OUTPUT}/electricity_failures/diagnostics/nodes_{{version}}.geoparquet",
     shell:
         """
         python {input.script} \\
             --network-path {input.network} \\
             --flows-path {input.flows} \\
-            --output-path {output.flows_data}
+            --output-edges-path {output.edges} \\
+            --output-nodes-path {output.nodes}
         """
