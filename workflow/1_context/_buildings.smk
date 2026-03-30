@@ -122,6 +122,7 @@ rule agriculture_crops:
     input:
         script = "workflow/1_context/agricultural_crops.py",
         spam_path = f"{RAW}/agriculture_data",
+    output:
         spam_agriculture_outputs = f"{DATA}/agriculture_data/spam_agriculture_outputs.gpkg",
     shell:
         """
