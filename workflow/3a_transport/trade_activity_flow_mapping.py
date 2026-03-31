@@ -389,10 +389,14 @@ def trade_flow_mapping(
             gdp_areas = agriculture
             gdp_areas = gdp_areas[gdp_areas["crop_tons"] > 0]
             id_column = "land_id"
+            gdp_value = "A_GDP"
+            # TODO check unit, apply multiplier to JMD/day
             port_wt = f"{trade_details.trade_type}_wt"
         elif trade_details.sector_type in ("Mining", "Quarrying", "Fuel for mines"):
             mining_areas = mining
             id_column = "mining_id"
+            gdp_value = "mining_gdp"
+            # TODO check unit, apply multiplier to JMD/day
             mining_areas["mining_id"] = "mines_" + mining_areas.mining_id.astype(str)
             quarry_areas = mining_areas[mining_areas.mining_class == "quarry"]
             if trade_details.sector_type == "Quarrying":
