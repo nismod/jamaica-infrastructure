@@ -99,7 +99,7 @@ rule preprocess_road_network:
             edges["bridge"],
             bridge_cost_JMD_per_meter,
             road_cost_JMD_per_lane_per_meter * edges["lanes"],
-        ) 
+        )
         edges["min_damage_cost"] = 0.8 * edges["mean_damage_cost"]
         edges["max_damage_cost"] = 1.2 * edges["mean_damage_cost"]
         edges["cost_unit"] = "J$/m"
@@ -198,7 +198,7 @@ rule trade_activity_flow_mapping:
         network = f"{DATA}/networks/transport/multi_modal_network.gpkg",
         imports = f"{DATA}/macroeconomic_data/import_by_industry.xlsx",
         exports = f"{DATA}/macroeconomic_data/domestic_export_by_sector.xlsx",
-        buildings = f"{DATA}/buildings/buildings_assigned_economic_activity.gpkg",
+        buildings = f"{DATA}/buildings/buildings_assigned_economic_activity.geoparquet",
         agriculture = f"{DATA}/agriculture_data/agriculture_gdp.gpkg",
         mining = f"{DATA}/mining_data/mining_gdp.gpkg",
     output:
@@ -232,7 +232,7 @@ rule labour_to_work_flow_mapping:
     input:
         script = "workflow/3a_transport/labour_to_work_flow_mapping.py",
         network = f"{DATA}/networks/transport/multi_modal_network.gpkg",
-        buildings = f"{DATA}/buildings/buildings_assigned_economic_activity.gpkg",
+        buildings = f"{DATA}/buildings/buildings_assigned_economic_activity.geoparquet",
         population = f"{DATA}/population/population_projections.gpkg",
     output:
         [
