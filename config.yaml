@@ -111,6 +111,13 @@ context:
 # and `single_point_failure_road_rail` for more details.
 single_link_failure_chunk_count: 128
 
+# The electricity network criticality analysis uses chunking to enable parallel
+# processing. v3.2 of the electricity network has ~88k edges and each
+# simulation takes ~15s.
+#
+# N.B. Gurobi academic multi-device license permits up to 100 simultaneous workers.
+electricity_failure_chunk_count: 4096
+
 ### HOTSPOTS ###
 # The hotspots analyses identify which areas are critical for transport network
 # performance.

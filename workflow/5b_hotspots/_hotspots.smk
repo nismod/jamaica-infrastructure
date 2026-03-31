@@ -399,6 +399,151 @@ rule economic_loss_transport_hotspots:
                 output_dataset.write(arr, 1)
 
 
+rule electricity_network_grid_intersect:
+    """
+    Intersect electricity network with hotspots grid for multi-point failure analysis.
+    
+    Assigns grid IDs to power network nodes and edges.
+    
+    Test with:
+    snakemake -c1 results/hotspots/electricity/network_nodes_with_grid.gpq
+    """
+    input:
+        script = "workflow/5b_hotspots/electricity_grid_intersect.py",
+        grid = f"{DATA}/hotspots/grid.tiff",
+        network = f"{DATA}/networks/energy/electricity_network_v3.2.gpkg",
+    output:
+        nodes = f"{OUTPUT}/hotspots/electricity/network_nodes_with_grid.gpq",
+        edges = f"{OUTPUT}/hotspots/electricity/network_edges_with_grid.gpq",
+    shell:
+        """
+        python {input.script} \\
+            --grid-path {input.grid} \\
+            --network-path {input.network} \\
+            --output-nodes-path {output.nodes} \\
+            --output-edges-path {output.edges}
+        """
+
+
+checkpoint electricity_hotspots_grid_ids:
+    """
+    Extract unique grid cell coordinates from electricity network splits for processing.
+    
+    Test with:
+    snakemake -c1 results/hotspots/electricity/grid_cells.txt
+    """
+    input:
+        edges = f"{OUTPUT}/hotspots/electricity/network_edges_with_grid.gpq",
+    output:
+        grid_cells = f"{OUTPUT}/hotspots/electricity/grid_cells.txt",
+    run:
+        import pandas as pd
+        edges = pd.read_parquet(input.edges)
+        grid_cells = edges[["cell_index_0_x", "cell_index_0_y"]].drop_duplicates()
+        grid_cells = grid_cells.sort_values(["cell_index_0_y", "cell_index_0_x"])
+        with open(output.grid_cells, "w") as f:
+            for _, row in grid_cells.iterrows():
+                f.write(f"{int(row.cell_index_0_x)},{int(row.cell_index_0_y)}\n")
+
+
+rule electricity_cell_disruption:
+    """
+    Run multi-point failure analysis for a single grid cell.
+    
+    Removes all electricity infrastructure within a grid cell and calculates
+    the impact on population and demand.
+    
+    Test with:
+    snakemake -c1 results/hotspots/electricity/disruption/disruption_0_0.csv
+    """
+    input:
+        script = "workflow/5b_hotspots/electricity_cell_disruption.py",
+        network = f"{DATA}/networks/energy/electricity_network_v3.2.gpkg",
+        flows = f"{DATA}/networks/energy/generated_nodal_flows.csv",
+        nodes_with_grid = f"{OUTPUT}/hotspots/electricity/network_nodes_with_grid.gpq",
+        edges_with_grid = f"{OUTPUT}/hotspots/electricity/network_edges_with_grid.gpq",
+    output:
+        disruption = f"{OUTPUT}/hotspots/electricity/disruption/disruption_{{cell_x}}_{{cell_y}}.csv",
+    shell:
+        """
+        python {input.script} \\
+            --cell-x {wildcards.cell_x} \\
+            --cell-y {wildcards.cell_y} \\
+            --network-path {input.network} \\
+            --flows-path {input.flows} \\
+            --nodes-with-grid-path {input.nodes_with_grid} \\
+            --edges-with-grid-path {input.edges_with_grid} \\
+            --output-path {output.disruption}
+        """
+
+
+def electricity_hotspots_all_grid_cells(wildcards):
+    """Get list of all grid cell disruption files."""
+    checkpoint_output = checkpoints.electricity_hotspots_grid_ids.get(**wildcards).output.grid_cells
+    with open(checkpoint_output) as f:
+        grid_cells = [line.strip().split(",") for line in f]
+    return expand(
+        f"{OUTPUT}/hotspots/electricity/disruption/disruption_{{cell_x}}_{{cell_y}}.csv",
+        zip,
+        cell_x=[x for x, y in grid_cells],
+        cell_y=[y for x, y in grid_cells],
+    )
+
+
+rule electricity_cell_disruption_loss:
+    """
+    Calculate economic losses from grid cell disruptions.
+    
+    Joins disruption results with GDP data at affected nodes.
+    
+    Test with:
+    snakemake -c1 results/hotspots/electricity/loss/
+    """
+    input:
+        script = "workflow/5b_hotspots/electricity_cell_disruption_loss.py",
+        node_gdp = f"{DATA}/networks_economic_activity/electricity_dependent_economic_activity.csv",
+        disruption_files = electricity_hotspots_all_grid_cells,
+    output:
+        loss_dir = directory(f"{OUTPUT}/hotspots/electricity/loss"),
+    shell:
+        """
+        python {input.script} \\
+            --node-gdp-path {input.node_gdp} \\
+            --disruption-dir {OUTPUT}/hotspots/electricity/disruption \\
+            --output-dir {output.loss_dir}
+        """
+
+
+rule electricity_hotspots_rasters:
+    """
+    Aggregate grid cell disruption and loss results to rasters.
+    
+    Creates GeoTIFF outputs for population affected, demand affected, and GDP loss.
+    
+    Test with:
+    snakemake -c1 results/hotspots/electricity/population_affected.tiff
+    """
+    input:
+        script = "workflow/5b_hotspots/electricity_grid_rasters.py",
+        grid = f"{DATA}/hotspots/grid.tiff",
+        loss_dir = f"{OUTPUT}/hotspots/electricity/loss",
+        disruption_files = electricity_hotspots_all_grid_cells,
+    output:
+        population = f"{OUTPUT}/hotspots/electricity/energy_population_affected.tiff",
+        demand = f"{OUTPUT}/hotspots/electricity/energy_demand_affected.tiff",
+        gdp_loss = f"{OUTPUT}/hotspots/electricity/energy_economic_loss.tiff",
+    shell:
+        """
+        python {input.script} \\
+            --grid-path {input.grid} \\
+            --disruption-dir {OUTPUT}/hotspots/electricity/disruption \\
+            --loss-dir {input.loss_dir} \\
+            --output-population-path {output.population} \\
+            --output-demand-path {output.demand} \\
+            --output-gdp-path {output.gdp_loss}
+        """
+
+
 rule smooth_raster:
     """
     Apply quantity preserving smoothing Gaussian kernel to hotspots quantities.
@@ -436,5 +581,9 @@ rule target_hotspot_tiffs:
                 f"{OUTPUT}/hotspots/EAD/{{sector}}__{{hazard}}_smoothed.tiff",
                 sector=["water", "energy", "transport", "all_sectors"],
                 hazard=["all_flood", "cyclone"],
+            ) +
+            expand(
+                f"{OUTPUT}/hotspots/electricity/energy_{{var}}_smoothed.tiff",
+                var=["population_affected", "demand_affected", "gdp_loss"]
             )
         )

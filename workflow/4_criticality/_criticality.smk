@@ -194,24 +194,147 @@ rule single_point_failure_road_rail:
         """
 
 
-rule ELECTRICTY_SINGLE_POINT_FAILURES:
+rule electricity_node_failures_chunk:
     """
-    The electricity single point failures are generated elsewhere.
+    Analyse single-point failures of electricity network nodes (chunked).
+
+    This rule processes a chunk of nodes in parallel. Results are combined
+    by the electricity_node_failures_combine rule.
+
+    N.B. You will need a valid Gurobi license file. The environmental variable
+    GRB_LICENSE_FILE can be used to specify a gurobi.lic file path.
+
+    Test with:
+    snakemake -c1 results/electricity_failures/chunks/nodes/chunk_0.csv
     """
+    input:
+        script = "workflow/4_criticality/electricity_node_failure.py",
+        network = f"{DATA}/networks/energy/electricity_network_v3.2.gpkg",
+        flows = f"{DATA}/networks/energy/generated_nodal_flows.csv",
+    params:
+        chunk_count = config["electricity_failure_chunk_count"]
     output:
-        [
-            f"{OUTPUT}/electricity_failures/single_point_failure_results_nodes.csv",
-            f"{OUTPUT}/electricity_failures/single_point_failure_results_edges.csv",
-        ]
+        chunk = protected(f"{OUTPUT}/electricity_failures/chunks/nodes/chunk_{{chunk}}.csv"),
     shell:
         """
-        for f in {output}; do
-            if [ ! -s "$f" ]; then
-                echo "WARNING: Faking electricity single point failure file $f"
-                touch $f
-            fi
-        done
+        python {input.script} \\
+            --nodes-file {input.network} \\
+            --edges-file {input.network} \\
+            --flows-file {input.flows} \\
+            --output-path {output.chunk} \\
+            --chunk-id {wildcards.chunk} \\
+            --chunk-count {params.chunk_count}
         """
+
+
+rule electricity_edge_failures_chunk:
+    """
+    Analyse single-point failures of electricity network edges (chunked).
+
+    This rule processes a chunk of edges in parallel. Results are combined
+    by the electricity_edge_failures_combine rule.
+
+    N.B. You will need a valid Gurobi license file. The environmental variable
+    GRB_LICENSE_FILE can be used to specify a gurobi.lic file path.
+
+    Test with:
+    snakemake -c1 results/electricity_failures/chunks/edges/chunk_0.csv
+    """
+    input:
+        script = "workflow/4_criticality/electricity_edge_failure.py",
+        network = f"{DATA}/networks/energy/electricity_network_v3.2.gpkg",
+        flows = f"{DATA}/networks/energy/generated_nodal_flows.csv",
+    params:
+        chunk_count = config["electricity_failure_chunk_count"]
+    output:
+        chunk = protected(f"{OUTPUT}/electricity_failures/chunks/edges/chunk_{{chunk}}.csv"),
+    shell:
+        """
+        python {input.script} \\
+            --nodes-file {input.network} \\
+            --edges-file {input.network} \\
+            --flows-file {input.flows} \\
+            --output-path {output.chunk} \\
+            --chunk-id {wildcards.chunk} \\
+            --chunk-count {params.chunk_count}
+        """
+
+
+rule electricity_node_failures_combine:
+    """
+    Combine chunked node failure results into single output file.
+
+    Test with:
+    snakemake -c1 results/electricity_failures/single_point_failure_results_nodes.csv
+    """
+    input:
+        chunks = expand(
+            f"{OUTPUT}/electricity_failures/chunks/nodes/chunk_{{chunk}}.csv",
+            chunk=range(config["electricity_failure_chunk_count"]),
+        ),
+    params:
+        chunk_count = config["electricity_failure_chunk_count"]
+    output:
+        combined = f"{OUTPUT}/electricity_failures/single_point_failure_results_nodes.csv",
+    run:
+        import pandas as pd
+        import logging
+
+        logging.basicConfig(format="%(asctime)s %(message)s", level=logging.INFO)
+        logging.info(f"Combining {len(input.chunks)} node failure chunks")
+
+        # Read and concatenate all chunks
+        chunks = []
+        for chunk_file in input.chunks:
+            df = pd.read_csv(chunk_file)
+            chunks.append(df)
+
+        combined = pd.concat(chunks, ignore_index=True)
+        logging.info(f"Combined {len(combined)} total node failure records")
+
+        # Save combined results
+        combined.to_csv(output.combined, index=False)
+        logging.info(f"Saved to {output.combined}")
+
+
+rule electricity_edge_failures_combine:
+    """
+    Combine chunked edge failure results into single output file.
+
+    Test with:
+    snakemake -c1 results/electricity_failures/single_point_failure_results_edges.csv
+    """
+    input:
+        chunks = expand(
+            f"{OUTPUT}/electricity_failures/chunks/edges/chunk_{{chunk}}.csv",
+            chunk=range(config["electricity_failure_chunk_count"]),
+        ),
+    params:
+        chunk_count = config["electricity_failure_chunk_count"]
+    output:
+        combined = f"{OUTPUT}/electricity_failures/single_point_failure_results_edges.csv",
+    run:
+        import pandas as pd
+        import logging
+
+        logging.basicConfig(format="%(asctime)s %(message)s", level=logging.INFO)
+        logging.info(f"Combining {len(input.chunks)} edge failure chunks")
+
+        # Read and concatenate all chunks
+        chunks = []
+        for chunk_file in input.chunks:
+            df = pd.read_csv(chunk_file)
+            chunks.append(df)
+
+        combined = pd.concat(chunks, ignore_index=True)
+        logging.info(f"Combined {len(combined)} total edge failure records")
+
+        # Sort by iteration number for consistency
+        combined = combined.sort_values("iteration_number").reset_index(drop=True)
+
+        # Save combined results
+        combined.to_csv(output.combined, index=False)
+        logging.info(f"Saved to {output.combined}")
 
 
 rule single_point_failure_electricity_water:

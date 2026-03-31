@@ -50,7 +50,7 @@ def harmonise_grid(
 )
 @click.option(
     "--boundary-buffer-meters", "-b", required=True, type=float,
-    help="Approximate buffer to extend grid beyond boundary by. In meters.", 
+    help="Approximate buffer to extend grid beyond boundary by. In meters.",
 )
 @click.option(
     "--output-path", "-o", required=True, help="Path to write the output grid file",
