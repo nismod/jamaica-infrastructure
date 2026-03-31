@@ -13,9 +13,6 @@ import pandas as pd
 from tqdm.auto import tqdm
 
 
-logging.basicConfig(format="%(asctime)s %(message)s", level=logging.INFO)
-
-
 @click.command()
 @click.version_option("1.0.0")
 @click.option(
@@ -58,16 +55,16 @@ def main(node_gdp_path, disruption_dir, output_dir):
     for csv_path in tqdm(csv_files):
         disruption = pd.read_csv(csv_path)
         disruption.set_index("affected_node_id", inplace=True)
-        
+
         # Get cell coordinates from the disruption data
-        cell_x, = disruption.cell_index_x.unique()
-        cell_y, = disruption.cell_index_y.unique()
-        
+        (cell_x,) = disruption.cell_index_x.unique()
+        (cell_y,) = disruption.cell_index_y.unique()
+
         disruption_loss = disruption.join(node_gdp).rename(
             columns={"total_GDP": "loss_gdp"}
         )
         disruption_loss["loss_gdp_unit"] = "JD/day"
-        
+
         output_path = output_dir / f"loss_{cell_x}_{cell_y}.csv"
         disruption_loss.to_csv(output_path)
 
@@ -75,4 +72,5 @@ def main(node_gdp_path, disruption_dir, output_dir):
 
 
 if __name__ == "__main__":
+    logging.basicConfig(format="%(asctime)s %(message)s", level=logging.INFO)
     main()

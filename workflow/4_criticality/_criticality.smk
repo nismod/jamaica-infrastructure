@@ -6,7 +6,7 @@ How does a network perform while missing a given link?
 rule collate_flow_data:
     """
     Collate flow data for transport failure analysis.
-    
+
     Test with:
     snakemake -c1 results/transport_failures/nominal/
     """
@@ -74,7 +74,7 @@ rule transport_scenario_edge_map:
 rule single_link_failures:
     """
     Create single link failure results.
-        
+
     Test with:
     snakemake -c1 results/transport_failures/scenario_results/single_link_failure_0.csv
     """
@@ -158,7 +158,7 @@ rule bridge_failure_analysis:
 rule single_point_failure_road_rail:
     """
     Create a single point failure file for road and rail assets.
-    
+
     Test with:
     snakemake -c1 results/economic_losses/single_failure_scenarios/single_point_failure_road_rail_edges_economic_losses.csv
     """
@@ -197,13 +197,13 @@ rule single_point_failure_road_rail:
 rule electricity_node_failures_chunk:
     """
     Analyse single-point failures of electricity network nodes (chunked).
-    
+
     This rule processes a chunk of nodes in parallel. Results are combined
     by the electricity_node_failures_combine rule.
 
     N.B. You will need a valid Gurobi license file. The environmental variable
     GRB_LICENSE_FILE can be used to specify a gurobi.lic file path.
-    
+
     Test with:
     snakemake -c1 results/electricity_failures/chunks/nodes/chunk_0.csv
     """
@@ -230,13 +230,13 @@ rule electricity_node_failures_chunk:
 rule electricity_edge_failures_chunk:
     """
     Analyse single-point failures of electricity network edges (chunked).
-    
+
     This rule processes a chunk of edges in parallel. Results are combined
     by the electricity_edge_failures_combine rule.
 
     N.B. You will need a valid Gurobi license file. The environmental variable
     GRB_LICENSE_FILE can be used to specify a gurobi.lic file path.
-    
+
     Test with:
     snakemake -c1 results/electricity_failures/chunks/edges/chunk_0.csv
     """
@@ -263,7 +263,7 @@ rule electricity_edge_failures_chunk:
 rule electricity_node_failures_combine:
     """
     Combine chunked node failure results into single output file.
-    
+
     Test with:
     snakemake -c1 results/electricity_failures/single_point_failure_results_nodes.csv
     """
@@ -279,19 +279,19 @@ rule electricity_node_failures_combine:
     run:
         import pandas as pd
         import logging
-        
+
         logging.basicConfig(format="%(asctime)s %(message)s", level=logging.INFO)
         logging.info(f"Combining {len(input.chunks)} node failure chunks")
-        
+
         # Read and concatenate all chunks
         chunks = []
         for chunk_file in input.chunks:
             df = pd.read_csv(chunk_file)
             chunks.append(df)
-        
+
         combined = pd.concat(chunks, ignore_index=True)
         logging.info(f"Combined {len(combined)} total node failure records")
-        
+
         # Save combined results
         combined.to_csv(output.combined, index=False)
         logging.info(f"Saved to {output.combined}")
@@ -300,7 +300,7 @@ rule electricity_node_failures_combine:
 rule electricity_edge_failures_combine:
     """
     Combine chunked edge failure results into single output file.
-    
+
     Test with:
     snakemake -c1 results/electricity_failures/single_point_failure_results_edges.csv
     """
@@ -316,22 +316,22 @@ rule electricity_edge_failures_combine:
     run:
         import pandas as pd
         import logging
-        
+
         logging.basicConfig(format="%(asctime)s %(message)s", level=logging.INFO)
         logging.info(f"Combining {len(input.chunks)} edge failure chunks")
-        
+
         # Read and concatenate all chunks
         chunks = []
         for chunk_file in input.chunks:
             df = pd.read_csv(chunk_file)
             chunks.append(df)
-        
+
         combined = pd.concat(chunks, ignore_index=True)
         logging.info(f"Combined {len(combined)} total edge failure records")
-        
+
         # Sort by iteration number for consistency
         combined = combined.sort_values("iteration_number").reset_index(drop=True)
-        
+
         # Save combined results
         combined.to_csv(output.combined, index=False)
         logging.info(f"Saved to {output.combined}")
@@ -340,9 +340,9 @@ rule electricity_edge_failures_combine:
 rule single_point_failure_electricity_water:
     """
     Create a single point failure file for electricity and water assets.
-    
+
     This is a placeholder for the real file.
-    
+
     Test with:
     snakemake -c1 results/single_point_failures/electricity_water_single_point_failures.csv
     """

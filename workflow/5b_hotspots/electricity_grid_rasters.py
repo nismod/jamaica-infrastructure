@@ -16,9 +16,6 @@ from pathlib import Path
 from tqdm.auto import tqdm
 
 
-logging.basicConfig(format="%(asctime)s %(message)s", level=logging.INFO)
-
-
 def setup_grid(tiff_file_path):
     """Read grid metadata for output raster creation."""
     with rasterio.open(tiff_file_path) as src:
@@ -160,8 +157,8 @@ def main(
     output_kwargs["dtype"] = dtype
     write_grid(output_gdp_path, output_grid, output_kwargs)
 
-    logging.info("Complete")
-
 
 if __name__ == "__main__":
+    logging.basicConfig(format="%(asctime)s %(message)s", level=logging.INFO)
     main()
+    logging.info("Complete")

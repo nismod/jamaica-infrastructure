@@ -19,11 +19,6 @@ from pathlib import Path
 import geopandas as gpd
 
 
-logging.basicConfig(
-    format="%(asctime)s %(process)d %(levelname)s %(message)s", level=logging.INFO
-)
-
-
 def compute_supply_demand(nodes: gpd.GeoDataFrame) -> gpd.GeoDataFrame:
     """
     Calculate supply and demand flows in consistent units (kW).
@@ -96,4 +91,7 @@ def main():
 
 
 if __name__ == "__main__":
+    logging.basicConfig(
+        format="%(asctime)s %(process)d %(levelname)s %(message)s", level=logging.INFO
+    )
     main()

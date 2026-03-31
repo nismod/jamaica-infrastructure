@@ -12,9 +12,6 @@ import geopandas as gpd
 import snail.intersection
 
 
-logging.basicConfig(format="%(asctime)s %(message)s", level=logging.INFO)
-
-
 @click.command()
 @click.version_option("1.0.0")
 @click.option(
@@ -62,12 +59,10 @@ def main(grid_path, network_path, output_nodes_path, output_edges_path):
 def read_grid(grid_path):
     """Read grid and prepare metadata for snail intersection."""
     import rasterio
+
     with rasterio.open(grid_path) as src:
         grid = snail.intersection.GridDefinition(
-            crs=src.crs,
-            width=src.width,
-            height=src.height,
-            transform=src.transform
+            crs=src.crs, width=src.width, height=src.height, transform=src.transform
         )
     return grid
 
@@ -110,4 +105,5 @@ def intersect_grid_with_edges(network_path, grid, output_path):
 
 
 if __name__ == "__main__":
+    logging.basicConfig(format="%(asctime)s %(message)s", level=logging.INFO)
     main()

@@ -18,9 +18,6 @@ from jem.statistics import statistics
 from jem.model import jem
 
 
-logging.basicConfig(format="%(asctime)s %(message)s", level=logging.INFO)
-
-
 def get_empty_results(cell_x, cell_y):
     """Create empty result when no nodes are affected."""
     return pd.DataFrame(
@@ -58,8 +55,11 @@ def process_grid_cell(
     ].id.to_list()
     edges_to_attack = (
         edges_split[
-            (edges_split.cell_index_0_x == cell_x) & (edges_split.cell_index_0_y == cell_y)
-        ].id.unique().tolist()
+            (edges_split.cell_index_0_x == cell_x)
+            & (edges_split.cell_index_0_y == cell_y)
+        ]
+        .id.unique()
+        .tolist()
     )
 
     if not (bool(nodes_to_attack) or bool(edges_to_attack)):
@@ -93,7 +93,9 @@ def process_grid_cell(
         logging.info(f"Grid cell ({cell_x}, {cell_y}): No nodes affected")
         return get_empty_results(cell_x, cell_y)
 
-    logging.info(f"Grid cell ({cell_x}, {cell_y}): {len(nodes_with_shortfall)} nodes affected")
+    logging.info(
+        f"Grid cell ({cell_x}, {cell_y}): {len(nodes_with_shortfall)} nodes affected"
+    )
     population = results.get_population_at_nodes(
         nodes_with_shortfall, col_id="affected_node_id"
     )
@@ -168,10 +170,18 @@ def process_grid_cell(
     type=click.Path(dir_okay=False, writable=True),
     help="Path for output CSV file.",
 )
-def main(cell_x, cell_y, network_path, flows_path, nodes_with_grid_path, edges_with_grid_path, output_path):
+def main(
+    cell_x,
+    cell_y,
+    network_path,
+    flows_path,
+    nodes_with_grid_path,
+    edges_with_grid_path,
+    output_path,
+):
     """Run multi-point failure analysis for a grid cell."""
     start_time = time.time()
-    
+
     df = process_grid_cell(
         cell_x,
         cell_y,
@@ -190,4 +200,5 @@ def main(cell_x, cell_y, network_path, flows_path, nodes_with_grid_path, edges_w
 
 
 if __name__ == "__main__":
+    logging.basicConfig(format="%(asctime)s %(message)s", level=logging.INFO)
     main()

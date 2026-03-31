@@ -7,12 +7,12 @@ This script removes nodes one at a time from the electricity network,
 calculates the impact on service delivery, and outputs the results.
 
 Usage:
-    python electricity_node_failure.py \\
-        --nodes-file <path_to_nodes> \\
-        --edges-file <path_to_edges> \\
-        --flows-file <path_to_flows> \\
-        --output-path <output_csv> \\
-        --chunk-id <chunk_number> \\
+    python electricity_node_failure.py \
+        --nodes-file <path_to_nodes> \
+        --edges-file <path_to_edges> \
+        --flows-file <path_to_flows> \
+        --output-path <output_csv> \
+        --chunk-id <chunk_number> \
         --chunk-count <total_chunks>
 """
 
@@ -26,10 +26,6 @@ import numpy as np
 import pandas as pd
 from jem.model import jem
 from jem.statistics import statistics
-
-logging.basicConfig(
-    format="%(asctime)s %(process)d %(levelname)s %(message)s", level=logging.WARN
-)
 
 
 def get_empty_node_result(
@@ -139,10 +135,10 @@ def analyse_node_failure(
         df["iteration_number"] = iteration_number
         df["population_affected"] = df["population"]
         df["demand_affected"] = df["demand"]
-        
+
         time_taken = time.time() - start_time
         df["iteration_time_seconds"] = time_taken
-        
+
         # Reorder columns
         df = df[
             [
@@ -277,8 +273,10 @@ def main():
     output_path.parent.mkdir(parents=True, exist_ok=True)
     results_df.to_csv(output_path, index=False)
 
-    logging.info("Complete")
-
 
 if __name__ == "__main__":
+    logging.basicConfig(
+        format="%(asctime)s %(process)d %(levelname)s %(message)s", level=logging.WARN
+    )
     main()
+    logging.info("Complete")
