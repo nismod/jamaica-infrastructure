@@ -24,6 +24,15 @@ Create a conda environment once (per machine/user):
 
     micromamba create --file environment.yaml
 
+### Gurobi
+
+Gurobi is a solver for optimisation problems. To run the power system
+(electricity) model, you will need a Gurobi license. These are available at no
+cost to students, faculty, and staff at accredited degree-granting institutions.
+
+To request and install a license, follow the [instructions
+online](https://www.gurobi.com/academia/academic-program-and-licenses).
+
 ## Usage
 
 The principal goal of this repository is to produce analysis results, (damages,
@@ -56,6 +65,7 @@ The analysis pipeline is implemented using Snakemake and organized into several 
 
 To make snakemake, the helper Python module and other software dependencies
 available, activate the environment we previously created.
+
 ```shell
 micromamba activate jsrat
 ```
@@ -69,6 +79,7 @@ inline documentation.
 
 To invoke the rule (and all necessary predecessor rules) to compute commuter
 flows across the transport network:
+
 ```shell
 snakemake --dry-run --cores 1 -- results/flow_mapping/labour_to_sectors_flow_paths.pq
 ```
