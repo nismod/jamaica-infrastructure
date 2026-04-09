@@ -97,7 +97,9 @@ def main(
     #
     # Map crop types to subsector codes
     #
-    crop_details = pd.read_csv(crop_details_path)
+    crop_details = pd.read_csv(crop_details_path).rename(
+        columns={"code": "sector_code", "subsector": "subsector_code"}
+    )
     tech = ["A", "I", "R"]
     poultry_crops = ["maiz", "ocer", "pmil", "smil", "soyb", "sunf", "whea"]
 
