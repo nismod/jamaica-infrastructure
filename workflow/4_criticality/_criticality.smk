@@ -341,12 +341,11 @@ rule single_point_failure_electricity_water:
     """
     Create a single point failure file for electricity and water assets.
 
-    This is a placeholder for the real file.
-
     Test with:
-    snakemake -c1 results/single_point_failures/electricity_water_single_point_failures.csv
+    snakemake -c1 results/economic_losses/single_failure_scenarios/single_point_failure_electricity_nodes_economic_losses.csv
     """
     input:
+        script = "workflow/4_criticality/electricity_water_single_point_failure_results_combine.py",
         buildings = f"{DATA}/buildings/buildings_assigned_economic_activity.geoparquet",
         potable_economic_activity_buildings = f"{DATA}/networks_economic_activity/potable_facilities_buildings_economic_activity_mapping.csv",
         potable_economic_activity = f"{DATA}/networks_economic_activity/potable_facilities_dependent_economic_activity.csv",
@@ -363,18 +362,23 @@ rule single_point_failure_electricity_water:
         potable_pipelines = f"{OUTPUT}/economic_losses/single_failure_scenarios/single_point_failure_potable_pipelines_economic_losses.csv",
         irrigation_nodes = f"{OUTPUT}/economic_losses/single_failure_scenarios/single_point_failure_irrigation_nodes_economic_losses.csv",
         irrigation_edges = f"{OUTPUT}/economic_losses/single_failure_scenarios/single_point_failure_irrigation_edges_economic_losses.csv",
-        electricity_nodes_no_water = f"{OUTPUT}/economic_losses/single_failure_scenarios/single_point_failure_electricity_nodes_no_water.csv",
-        electricity_edges_no_water = f"{OUTPUT}/economic_losses/single_failure_scenarios/single_point_failure_electricity_edges_no_water.csv",
+        electricity_nodes_no_water = f"{OUTPUT}/economic_losses/single_failure_scenarios/single_point_failure_electricity_nodes_economic_losses_no_water.csv",
+        electricity_edges_no_water = f"{OUTPUT}/economic_losses/single_failure_scenarios/single_point_failure_electricity_edges_economic_losses_no_water.csv",
         electricity_nodes = f"{OUTPUT}/economic_losses/single_failure_scenarios/single_point_failure_electricity_nodes_economic_losses.csv",
         electricity_edges = f"{OUTPUT}/economic_losses/single_failure_scenarios/single_point_failure_electricity_edges_economic_losses.csv",
     shell:
         """
-        touch {output.potable_facilities}
-        touch {output.potable_pipelines}
-        touch {output.irrigation_nodes}
-        touch {output.irrigation_edges}
-        touch {output.electricity_nodes_no_water}
-        touch {output.electricity_edges_no_water}
-        touch {output.electricity_nodes}
-        touch {output.electricity_edges}
+        python {input.script} \
+            --buildings-path {input.buildings} \
+            --potable-economic-activity-buildings-path {input.potable_economic_activity_buildings} \
+            --potable-economic-activity-path {input.potable_economic_activity} \
+            --pipelines-economic-activity-path {input.pipelines_economic_activity} \
+            --irrigation-economic-activity-path {input.irrigation_economic_activity} \
+            --irrigation-edges-economic-activity-path {input.irrigation_edges_economic_activity} \
+            --electricity-economic-activity-path {input.electricity_economic_activity} \
+            --electricity-nodes-failure-results-path {input.electricity_nodes_failure_results} \
+            --electricity-edges-failure-results-path {input.electricity_edges_failure_results} \
+            --electricity-water-mapping-path {input.electricity_water_mapping} \
+            --electricity-economic-activity-buildings-path {input.electricity_economic_activity_buildings} \
+            --output-path {OUTPUT}/economic_losses/single_failure_scenarios
         """
