@@ -183,7 +183,11 @@ exceedance probabilities $\ p_{1},\ldots,p_{m}$. The EAD is
 estimated as the area under the damage-probability curve, which
 is described in Equation (1).
 
-${EAD}_{\ } = \ \frac{1}{2}\sum_{k = 1}^{m}{\left( p_{k + 1} - p_{k} \right)\left( d_{k} + d_{k + 1} \right)}$ (1)
+_Equation 1_
+
+$$
+EAD = \frac{1}{2}\sum_{k = 1}^{m}{\left(p_{k + 1} - p_{k} \right)\left( d_{k} + d_{k + 1} \right)}
+$$
 
 b. **Expected Annual Economic losses (EAEL)** -- This is the measure of
 the average economic losses (in J\$ or US\$) incurred for an asset
@@ -197,7 +201,11 @@ area under the loss-probability curve multiplied by an assumed
 duration of disruption $\tau$ for the asset, which is described in
 Equation (2).
 
-${EAEL}_{\ } = \ \frac{1}{2}\tau\sum_{k = 1}^{m}{\left( p_{k + 1} - p_{k} \right)\left( l_{k} + l_{k + 1} \right)}$ (2)
+_Equation 2_
+
+$$
+EAEL = \frac{1}{2}\tau\sum_{k = 1}^{m}{\left( p_{k + 1} - p_{k} \right)\left( l_{k} + l_{k + 1} \right)}
+$$
 
 From the estimate of EAD and EAEL we get the asset level _total risk_ =
 EAD + EAEL. There are different ways in which the risk estimates can be
@@ -214,10 +222,10 @@ vulnerabilities are concentrated. Infrastructure assets are spatially
 disaggregated onto a regular grid (typically 1 km × 1 km cells), and three types
 of metrics are calculated for each cell:
 
-1) Exposure value hotspots, representing the total replacement cost of infrastructure within each cell.
-2) Risk hotspots, aggregating Expected Annual Damages across hazard types
-sectors.
-3) Economic loss hotspots for the transport sector, quantifying the wider economic consequences of losing all road and rail infrastructure within each cell through network disruption analysis.
+1. Exposure value hotspots, representing the total replacement cost of infrastructure within each cell.
+2. Risk hotspots, aggregating Expected Annual Damages across hazard types
+   sectors.
+3. Economic loss hotspots for the transport sector, quantifying the wider economic consequences of losing all road and rail infrastructure within each cell through network disruption analysis.
 
 The results are presented as raster maps that can be optionally smoothed using
 Gaussian kernel density estimation to enhance visual interpretability. These
@@ -263,7 +271,11 @@ in terms of the:
     of the investment cost of the adaptation options over the asset
     timeline is therefore given by Equation (3).
 
-$NPV\ Cost = \ {CI}_{t_{0}} + \ \sum_{j = 0}^{j = T}\frac{{CR}_{t_{j}} + {CP}_{t_{j}}}{\left( 1 + \frac{r}{100} \right)^{j}}$ (3)
+_Equation 3_
+
+$$
+NPV\ Cost = \ {CI}_{t_{0}} + \ \sum_{j = 0}^{T}\frac{{CR}_{t_{j}} + {CP}_{t_{j}}}{\left( 1 + \frac{r}{100} \right)^{j}}
+$$
 
 2.  _Benefits_ -- which include the avoided losses, in terms of the
     expected reduction in direct damage risks
@@ -277,11 +289,19 @@ $NPV\ Cost = \ {CI}_{t_{0}} + \ \sum_{j = 0}^{j = T}\frac{{CR}_{t_{j}} + {CP}_{t
     value of the benefits over the implementation of the adaptation
     option timeline is therefore given by Equation (4).
 
-$NPV\ Benefit = \ \sum_{j = 0}^{j = T}\left( \frac{{\mathrm{\Delta}EAD}_{t_{j}} + \left( 1 + \frac{{\mathrm{\Delta}GDP}_{j}}{100} \right)^{j}\mathrm{\Delta}{EAEL}_{t_{j}}}{\left( 1 + \frac{r}{100} \right)^{j}} \right)$ (4)
+_Equation 4_
+
+$$
+NPV\ Benefit = \ \sum_{j = 0}^{T}\left( \frac{{\mathrm{\Delta}EAD}_{t_{j}} + \left( 1 + \frac{{\mathrm{\Delta}GDP}_{j}}{100} \right)^{j}\mathrm{\Delta}{EAEL}_{t_{j}}}{\left( 1 + \frac{r}{100} \right)^{j}} \right)
+$$
 
 3.  The _benefit-cost ratio_ ($BCR$) of adaptation given as:
 
-$BCR = \frac{NPV\ Benefit}{NPV\ Cost}\ $ (5)
+_Equation 5_
+
+$$
+BCR = \frac{NPV\ Benefit}{NPV\ Cost}
+$$
 
 The above CBA analysis helps identify the effectiveness of adaptation
 options at the asset level, which can also be used to prioritise assets
@@ -314,8 +334,8 @@ coastal protection infrastructure is apportioned among benefiting assets in
 proportion to their rehabilitation costs. Benefit-cost analysis is performed at
 two levels:
 
-1) Per-asset BCR, comparing each asset's apportioned cost share against its avoided damages and losses.
-2) Per-protection-zone BCR, aggregating benefits across all protected assets to evaluate the overall economic justification for each coastal defence segment.
+1. Per-asset BCR, comparing each asset's apportioned cost share against its avoided damages and losses.
+2. Per-protection-zone BCR, aggregating benefits across all protected assets to evaluate the overall economic justification for each coastal defence segment.
 
 This approach enables identification of priority coastal segments where
 protection yields the highest collective benefits relative to costs, accounting
