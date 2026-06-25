@@ -6,6 +6,9 @@ incoming_data/
 scripts/nbs_methods/river-catchment/nbs_project*
 jobs/
 
+notebooks/*
+!notebooks/*.ipynb
+
 # local module build files
 *.egg-info
 

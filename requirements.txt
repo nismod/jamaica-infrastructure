@@ -4,6 +4,7 @@ geopandas~=1.0.1
 igraph~=0.11.6
 jamaica-energy-model~=0.1.2
 matplotlib~=3.9.2
+nbstripout
 networkx~=3.3
 nismod-snail==0.5.3
 numpy~=2.1.1
