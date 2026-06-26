@@ -53,7 +53,7 @@ rule split_assets_by_hotspots_grid:
     snakemake -c1 results/hotspots/splits/roads_splits__hazard_layers__edges.geoparquet
     """
     input:
-        script = "workflow/1_damage/split_networks.py",
+        script = "workflow/2_damage/split_networks.py",
         networks = config["paths"]["network_layers"],
         hotspots_grid_metadata = "workflow/hotspots_layers.csv",
         # split_networks.py assumes file paths (in hotspots_grid_metadata) are in DATA
@@ -114,7 +114,7 @@ rule hotspots_damage:
     results/hotspots/damages_rp/roads_edges/roads_edges_direct_damages.parquet
     """
     input:
-        script = "workflow/1_damage/damage_calculations.py",
+        script = "workflow/2_damage/damage_calculations.py",
         network_csv = config["paths"]["network_layers"],
         hazard_csv = "workflow/hotspots_layers.csv",
         sensitivity_parameters = f"workflow/hotspots_sensitivity.csv",
